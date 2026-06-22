@@ -1,1360 +1,887 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react"
 import {
-  User, Package, Layers, Tag, FlaskConical, Banknote,
-  Calendar, Search, X, ChevronRight, CheckCircle,
-  ShieldAlert, Loader2, Plus, Minus, Scan, ClipboardList,
-  Trash2, Download, ReceiptText, TrendingUp, ShoppingCart,
-  History, ArrowLeft, RefreshCw, BarChart3, Phone, QrCode,
-  AlertTriangle,
-} from "lucide-react";
-import { customersApi } from "../api/customerApi";
-import { productsApi }  from "../api/productApi";
-import { salesApi }     from "../api/salesApi";
-import * as XLSX from "xlsx";
+  ShoppingCart, History, User, Package, Layers, Banknote,
+  Tag, FlaskConical, Calendar, Scan, Plus, Minus, Trash2,
+  Download, CheckCircle, ShieldAlert, AlertTriangle, Loader2,
+  X, ChevronRight, Search, Phone, QrCode, ClipboardList,
+  ReceiptText, TrendingUp, ArrowLeft, RefreshCw, BarChart3,
+} from "lucide-react"
 
-// ─── Utils ────────────────────────────────────────────────
-const fmt   = (p) => Number(p).toLocaleString("uz-UZ") + " so'm";
-const fmtD  = (d) => d ? new Date(d).toLocaleDateString("uz-UZ") : "—";
-const fmtDT = (d) => d ? new Date(d).toLocaleString("uz-UZ") : "—";
+// ═══════════════════════════════════════════════════════════
+// MOCK DATA — backend strukturasiga mos
+// ═══════════════════════════════════════════════════════════
+const MOCK_CUSTOMERS = [
+  { id: 1, name: "Alisher Karimov",  phone: "+998 90 123 45 67", inn: "304123456" },
+  { id: 2, name: "Madina Yusupova",  phone: "+998 93 765 43 21", inn: null },
+  { id: 3, name: "Bek Pharmacy LLC", phone: "+998 71 200 10 10", inn: "201998877" },
+  { id: 4, name: "Dilnoza Rahimova", phone: "+998 97 888 77 66", inn: null },
+  { id: 5, name: "Jamshid Toshmatov",phone: "+998 90 555 44 33", inn: "789654321" },
+]
 
-// ─── GS1 parser ───────────────────────────────────────────
+const MOCK_PRODUCTS = [
+  { id: 1, name: "Paracetamol 500mg",  ikpuCode: "10006001001000000", unit: "dona", barcodes: [{ barcode: "4780123456789", isPrimary: true }] },
+  { id: 2, name: "Amoxicillin 250mg",  ikpuCode: "10006001002000000", unit: "qadoq", barcodes: [{ barcode: "4780198765432", isPrimary: true }] },
+  { id: 3, name: "Ibuprofen 400mg",    ikpuCode: "10006001003000000", unit: "dona", barcodes: [] },
+  { id: 4, name: "Vitamin C 1000mg",   ikpuCode: "10006001004000000", unit: "dona", barcodes: [{ barcode: "4780111222333", isPrimary: true }] },
+  { id: 5, name: "Metformin 850mg",    ikpuCode: "10006001005000000", unit: "dona", barcodes: [{ barcode: "4780999888777", isPrimary: true }] },
+]
+
+const MOCK_BATCHES = {
+  1: [
+    { id: 1, productId: 1, series: "478001167783021", boxSeries: "MK-2026-001", mg: "500mg", quantity: 240, remainingQty: 225, price: 12000, expiry: "2027-03-15", contractNumber: "SH-2026-045", invoiceNumber: "F-2026-0892" },
+    { id: 2, productId: 1, series: "478001167783022", boxSeries: null, mg: "500mg", quantity: 18, remainingQty: 18, price: 12500, expiry: "2026-08-10", contractNumber: "SH-2026-045", invoiceNumber: "F-2026-0910" },
+  ],
+  2: [
+    { id: 3, productId: 2, series: "478019988771", boxSeries: "MK-2026-003", mg: "250mg", quantity: 80, remainingQty: 65, price: 24000, expiry: "2026-12-01", contractNumber: "SH-2026-031", invoiceNumber: "F-2026-0411" },
+  ],
+  3: [
+    { id: 4, productId: 3, series: "IBU2024001", boxSeries: null, mg: "400mg", quantity: 100, remainingQty: 88, price: 8500, expiry: "2027-06-30", contractNumber: "SH-2026-020", invoiceNumber: "F-2026-0200" },
+  ],
+  4: [
+    { id: 5, productId: 4, series: "478011199001", boxSeries: "MK-2025-450", mg: "1000mg", quantity: 5, remainingQty: 5, price: 18000, expiry: "2026-07-25", contractNumber: "SH-2025-188", invoiceNumber: "F-2025-2201" },
+  ],
+  5: [
+    { id: 6, productId: 5, series: "MET2026001", boxSeries: "MK-2026-010", mg: "850mg", quantity: 150, remainingQty: 120, price: 9800, expiry: "2027-01-15", contractNumber: "SH-2026-060", invoiceNumber: "F-2026-1001" },
+  ],
+}
+
+let SALE_ID_COUNTER = 502
+const INITIAL_SALES = [
+  {
+    id: 500,
+    customerId: 1,
+    customer: { id: 1, name: "Alisher Karimov", phone: "+998 90 123 45 67" },
+    totalPrice: 360000,
+    createdAt: "2026-06-10T09:22:00",
+    items: [
+      { id: 1, productId: 1, batchId: 1, product: { name: "Paracetamol 500mg", ikpuCode: "10006001001000000", unit: "dona" }, batch: { series: "478001167783021", boxSeries: "MK-2026-001", mg: "500mg", expiry: "2027-03-15", contractNumber: "SH-2026-045", invoiceNumber: "F-2026-0892" }, quantity: 10, price: 12000, total: 120000 },
+      { id: 2, productId: 2, batchId: 3, product: { name: "Amoxicillin 250mg", ikpuCode: "10006001002000000", unit: "qadoq" }, batch: { series: "478019988771", boxSeries: "MK-2026-003", mg: "250mg", expiry: "2026-12-01", contractNumber: "SH-2026-031", invoiceNumber: "F-2026-0411" }, quantity: 10, price: 24000, total: 240000 },
+    ],
+  },
+  {
+    id: 501,
+    customerId: 4,
+    customer: { id: 4, name: "Dilnoza Rahimova", phone: "+998 97 888 77 66" },
+    totalPrice: 900000,
+    createdAt: "2026-06-12T14:05:00",
+    items: [
+      { id: 3, productId: 4, batchId: 5, product: { name: "Vitamin C 1000mg", ikpuCode: "10006001004000000", unit: "dona" }, batch: { series: "478011199001", boxSeries: "MK-2025-450", mg: "1000mg", expiry: "2026-07-25", contractNumber: "SH-2025-188", invoiceNumber: "F-2025-2201" }, quantity: 50, price: 18000, total: 900000 },
+    ],
+  },
+]
+
+// ═══════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════
+const fmt   = (p) => Number(p).toLocaleString("uz-UZ") + " so'm"
+const fmtD  = (d) => d ? new Date(d).toLocaleDateString("uz-UZ") : "—"
+const fmtDT = (d) => d ? new Date(d).toLocaleString("uz-UZ") : "—"
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
+
+// GS1 barcode parser
 function parseGS1(code) {
-  if (!code) return { type: "unknown", original: code };
-  const c = code.trim();
-
+  if (!code) return { type: "unknown", original: code }
+  const c = code.trim()
   if (c.startsWith("01") && c.length >= 18) {
-    const rawGtin = c.substring(2, 16);
-    const gtin    = rawGtin.replace(/^0+/, "") || rawGtin;
-    const rest    = c.substring(16);
-    let serial    = null;
-    if (rest.startsWith("21")) serial = rest.substring(2);
-    return { type: "qr", gtin, rawGtin, serial, original: c };
+    const rawGtin = c.substring(2, 16)
+    const gtin = rawGtin.replace(/^0+/, "") || rawGtin
+    const rest = c.substring(16)
+    let serial = null
+    if (rest.startsWith("21")) serial = rest.substring(2)
+    return { type: "qr", gtin, rawGtin, serial, original: c }
   }
-
-  return { type: "barcode", barcode: c, original: c };
+  return { type: "barcode", barcode: c, original: c }
 }
 
-function norm(s) {
-  return String(s || "").replace(/^0+/, "").toLowerCase().trim();
-}
+function norm(s) { return String(s || "").replace(/^0+/, "").toLowerCase().trim() }
 
 function checkMatch(parsed, batch, unitsPerBox) {
-  const bSeriesNorm    = norm(batch.series);
-  const bBoxSeriesNorm = batch.boxSeries ? norm(batch.boxSeries) : null;
-
+  const bS = norm(batch.series)
+  const bB = batch.boxSeries ? norm(batch.boxSeries) : null
   if (parsed.type === "qr") {
-    const gtinNorm = norm(parsed.gtin);
-    const match    = gtinNorm === bSeriesNorm ||
-                     (bBoxSeriesNorm && gtinNorm === bBoxSeriesNorm);
-    return { match, scanType: "qr", addQty: 1, extracted: parsed.gtin, original: parsed.original };
+    const g = norm(parsed.gtin)
+    const match = g === bS || (bB && g === bB)
+    return { match, scanType: "qr", addQty: 1, extracted: parsed.gtin, original: parsed.original }
   }
-
   if (parsed.type === "barcode") {
-    const bcNorm = norm(parsed.barcode);
-    const match  = bcNorm === bSeriesNorm ||
-                   (bBoxSeriesNorm && bcNorm === bBoxSeriesNorm);
-    return { match, scanType: "barcode", addQty: unitsPerBox, extracted: parsed.barcode, original: parsed.original };
+    const b = norm(parsed.barcode)
+    const match = b === bS || (bB && b === bB)
+    return { match, scanType: "barcode", addQty: unitsPerBox, extracted: parsed.barcode, original: parsed.original }
   }
-
-  return { match: false, scanType: "unknown", addQty: null, extracted: parsed.original, original: parsed.original };
+  return { match: false, scanType: "unknown", addQty: null, extracted: parsed.original, original: parsed.original }
 }
 
-// ─── Beep ─────────────────────────────────────────────────
 function beep(freq = 880, dur = 0.15) {
   try {
-    const ctx  = new (window.AudioContext || window.webkitAudioContext)();
-    const osc  = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
-    osc.start(); osc.stop(ctx.currentTime + dur);
+    const ctx = new (window.AudioContext || window.webkitAudioContext)()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain); gain.connect(ctx.destination)
+    osc.frequency.value = freq
+    gain.gain.setValueAtTime(0.3, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur)
+    osc.start(); osc.stop(ctx.currentTime + dur)
   } catch {}
 }
-const beepOk  = () => beep(880, 0.12);
-const beepErr = () => {
-  beep(180, 0.25);
+const beepOk = () => beep(880, 0.12)
+const beepErr = () => { beep(180, 0.25); setTimeout(() => beep(180, 0.25), 280) }
 
-  setTimeout(() => {
-    beep(180, 0.25);
-  }, 250);
-
-  setTimeout(() => {
-    beep(180, 0.25);
-  }, 500);
-};
-// ─── Toast ────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+// UI COMPONENTS
+// ═══════════════════════════════════════════════════════════
 function Toast({ msg, type, onClose }) {
-  useEffect(() => {
-    const t = setTimeout(onClose, 4000);
-    return () => clearTimeout(t);
-  }, [onClose]);
+  useEffect(() => { const t = setTimeout(onClose, 4000); return () => clearTimeout(t) }, [onClose])
+  const bg = type === "success" ? "#0f172a" : type === "warn" ? "#d97706" : "#dc2626"
   return (
-    <div className={`toast toast-${type}`} role="alert">
-      <span className="toast-icon">
-        {type === "success" ? <CheckCircle size={16} strokeWidth={2.5} />
-          : type === "warn" ? <AlertTriangle size={16} strokeWidth={2.5} />
-          : <ShieldAlert size={16} strokeWidth={2.5} />}
-      </span>
-      <span className="toast-msg">{msg}</span>
-      <button className="toast-x" onClick={onClose}><X size={13} /></button>
+    <div style={{ position:"fixed", bottom:28, right:28, zIndex:9999, display:"flex", alignItems:"center", gap:10, padding:"13px 16px", borderRadius:14, background:bg, color:"#fff", fontSize:14, fontWeight:600, boxShadow:"0 12px 40px rgba(0,0,0,.2)", maxWidth:380, animation:"slideUp .2s ease" }}>
+      {type === "success" ? <CheckCircle size={16} /> : type === "warn" ? <AlertTriangle size={16} /> : <ShieldAlert size={16} />}
+      <span style={{ flex:1 }}>{msg}</span>
+      <button onClick={onClose} style={{ background:"rgba(255,255,255,.15)", border:"none", borderRadius:6, width:26, height:26, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"rgba(255,255,255,.8)" }}><X size={13} /></button>
     </div>
-  );
+  )
 }
 
-// ─── Confirm Modal ────────────────────────────────────────
-function ConfirmModal({ title, message, onConfirm, onCancel }) {
+function Overlay({ onClose, children }) {
   return (
-    <div className="overlay" onClick={onCancel}>
-      <div className="modal modal-sm" onClick={e => e.stopPropagation()}>
-        <div className="modal-head modal-head-warn">
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <AlertTriangle size={18} style={{ color: "#d97706" }} />
-            <h2 className="modal-title" style={{ color: "#92400e" }}>{title}</h2>
-          </div>
+    <div onClick={onClose} style={{ position:"fixed", inset:0, zIndex:900, background:"rgba(15,23,42,.55)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, backdropFilter:"blur(4px)" }}>
+      <div onClick={e => e.stopPropagation()}>{children}</div>
+    </div>
+  )
+}
+
+function Modal({ title, onClose, children, width = 600 }) {
+  useEffect(() => {
+    const fn = e => e.key === "Escape" && onClose()
+    window.addEventListener("keydown", fn)
+    return () => window.removeEventListener("keydown", fn)
+  }, [onClose])
+  return (
+    <Overlay onClose={onClose}>
+      <div style={{ background:"var(--color-background-primary)", borderRadius:20, width:"100%", maxWidth:width, maxHeight:"90vh", display:"flex", flexDirection:"column", overflow:"hidden", boxShadow:"0 32px 80px rgba(0,0,0,.2)", animation:"pop .18s ease" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"20px 24px 16px", borderBottom:"0.5px solid var(--color-border-tertiary)", flexShrink:0 }}>
+          <h3 style={{ fontSize:17, fontWeight:500, margin:0 }}>{title}</h3>
+          <button onClick={onClose} style={{ background:"var(--color-background-secondary)", border:"none", borderRadius:8, width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"var(--color-text-secondary)" }}><X size={17} /></button>
         </div>
-        <div className="modal-body">
-          <p className="confirm-msg">{message}</p>
-          <div className="confirm-actions">
-            <button className="sf-btn-back" onClick={onCancel}>Bekor</button>
-            <button className="sf-btn-warn" onClick={onConfirm}>
-              <CheckCircle size={15} strokeWidth={2.5} /> Baribir qo'shish
-            </button>
-          </div>
-        </div>
+        <div style={{ padding:"20px 24px 24px", overflowY:"auto", flex:1 }}>{children}</div>
       </div>
-    </div>
-  );
+    </Overlay>
+  )
 }
 
-// ─── Modal ────────────────────────────────────────────────
-function Modal({ title, onClose, children, size = "md" }) {
-  useEffect(() => {
-    const fn = (e) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", fn);
-    return () => window.removeEventListener("keydown", fn);
-  }, [onClose]);
-  return (
-    <div className="overlay" onClick={onClose}>
-      <div className={`modal modal-${size}`} onClick={e => e.stopPropagation()}>
-        <div className="modal-head">
-          <h2 className="modal-title">{title}</h2>
-          <button className="modal-x" onClick={onClose} aria-label="Yopish"><X size={17} /></button>
-        </div>
-        <div className="modal-body">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Searchable Dropdown ──────────────────────────────────
-function Dropdown({ value, placeholder, loadFn, renderItem, renderSelected, onSelect, resetKey }) {
-  const [open, setOpen] = useState(false);
-  const [q,    setQ]    = useState("");
-  const [list, setList] = useState([]);
-  const [busy, setBusy] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => { setQ(""); setList([]); setOpen(false); }, [resetKey]);
-
-  const load = useCallback(async (query) => {
-    setBusy(true);
-    try { const d = await loadFn(query || undefined); setList(Array.isArray(d) ? d : []); }
-    catch { setList([]); }
-    finally { setBusy(false); }
-  }, [loadFn]);
-
-  useEffect(() => { if (open) load(q); }, [open, q, load]);
+function Dropdown({ value, placeholder, items, renderItem, renderSelected, onSelect, filterFn }) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState("")
+  const ref = useRef(null)
+  const filtered = q ? items.filter(i => filterFn(i, q)) : items
 
   useEffect(() => {
-    const fn = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", fn);
-    return () => document.removeEventListener("mousedown", fn);
-  }, []);
+    const fn = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener("mousedown", fn)
+    return () => document.removeEventListener("mousedown", fn)
+  }, [])
 
   return (
-    <div className="dd-wrap" ref={ref}>
-      <div className={`dd-trigger${open ? " dd-open" : ""}${value ? " dd-has-val" : ""}`}
-        onClick={() => setOpen(v => !v)}>
-        {value ? renderSelected(value) : <span className="dd-ph">{placeholder}</span>}
-        <ChevronRight size={14} className={`dd-arr${open ? " dd-arr-open" : ""}`} strokeWidth={2.5} />
+    <div ref={ref} style={{ position:"relative" }}>
+      <div onClick={() => setOpen(v => !v)} style={{ display:"flex", alignItems:"center", border:`1.5px solid ${open ? "#2563eb" : "var(--color-border-secondary)"}`, borderRadius:11, padding:"11px 14px", background:"var(--color-background-primary)", cursor:"pointer", minHeight:48, gap:8, boxShadow: open ? "0 0 0 3px #dbeafe" : "none" }}>
+        {value ? renderSelected(value) : <span style={{ color:"var(--color-text-tertiary)", fontSize:14, flex:1 }}>{placeholder}</span>}
+        <ChevronRight size={14} style={{ marginLeft:"auto", color:"var(--color-text-tertiary)", transform: open ? "rotate(90deg)" : "none", transition:"transform .2s" }} />
       </div>
       {open && (
-        <div className="dd-drop">
-          <div className="dd-search-wrap">
-            <Search size={14} className="dd-search-icon" strokeWidth={2} />
-            <input className="dd-search" placeholder="Qidirish…" value={q}
-              onChange={e => setQ(e.target.value)} autoFocus />
-            {q && <button className="dd-clear" onClick={() => setQ("")}><X size={12} /></button>}
+        <div style={{ position:"absolute", top:"calc(100% + 6px)", left:0, right:0, zIndex:400, background:"var(--color-background-primary)", border:"1.5px solid var(--color-border-secondary)", borderRadius:13, boxShadow:"0 16px 48px rgba(0,0,0,.14)", overflow:"hidden" }}>
+          <div style={{ display:"flex", alignItems:"center", borderBottom:"0.5px solid var(--color-border-tertiary)", padding:"8px 12px", gap:8 }}>
+            <Search size={14} style={{ color:"var(--color-text-tertiary)" }} />
+            <input value={q} onChange={e => setQ(e.target.value)} autoFocus placeholder="Qidirish…" style={{ flex:1, border:"none", background:"transparent", fontSize:14, outline:"none", color:"var(--color-text-primary)", fontFamily:"var(--font-sans)" }} />
+            {q && <button onClick={() => setQ("")} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--color-text-tertiary)", display:"flex" }}><X size={12} /></button>}
           </div>
-          <div className="dd-list">
-            {busy
-              ? <div className="dd-state"><Loader2 size={18} className="spin" /> Yuklanmoqda…</div>
-              : list.length === 0
-                ? <div className="dd-state"><Search size={18} strokeWidth={1.5} /> Topilmadi</div>
-                : list.map((item, i) => (
-                  <div key={item.id ?? i}
-                    className={`dd-item${value?.id === item.id ? " dd-active" : ""}`}
-                    onClick={() => { onSelect(item); setOpen(false); setQ(""); }}>
-                    {renderItem(item)}
-                  </div>
-                ))}
+          <div style={{ maxHeight:230, overflowY:"auto" }}>
+            {filtered.length === 0
+              ? <div style={{ padding:"24px", textAlign:"center", color:"var(--color-text-tertiary)", fontSize:13, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><Search size={18} /> Topilmadi</div>
+              : filtered.map((item, i) => (
+                <div key={item.id ?? i} onClick={() => { onSelect(item); setOpen(false); setQ("") }} style={{ padding:"10px 14px", cursor:"pointer", background: value?.id === item.id ? "#eff6ff" : "transparent" }}
+                  onMouseEnter={e => { if (value?.id !== item.id) e.currentTarget.style.background = "var(--color-background-secondary)" }}
+                  onMouseLeave={e => { if (value?.id !== item.id) e.currentTarget.style.background = "transparent" }}>
+                  {renderItem(item)}
+                </div>
+              ))
+            }
           </div>
         </div>
       )}
     </div>
-  );
+  )
 }
 
-// ─── Pagination ───────────────────────────────────────────
-function Pagination({ total, page, perPage, onChange }) {
-  const pages = Math.ceil(total / perPage);
-  if (pages <= 1) return null;
-  const nums = [];
-  for (let i = 1; i <= pages; i++) {
-    if (i === 1 || i === pages || Math.abs(i - page) <= 1) nums.push(i);
-    else if (nums[nums.length - 1] !== "…") nums.push("…");
+function Avatar({ name, size = 34 }) {
+  return (
+    <div style={{ width:size, height:size, borderRadius:"50%", background:"linear-gradient(135deg,#667eea,#764ba2)", color:"#fff", fontWeight:700, fontSize:size*0.38, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+      {name.charAt(0).toUpperCase()}
+    </div>
+  )
+}
+
+function Chip({ children, color = "gray" }) {
+  const colors = {
+    purple: { bg:"#ede9fe", color:"#6d28d9" },
+    blue:   { bg:"#dbeafe", color:"#1d4ed8" },
+    gray:   { bg:"var(--color-background-secondary)", color:"var(--color-text-secondary)" },
+    green:  { bg:"#dcfce7", color:"#15803d" },
+    amber:  { bg:"#fef3c7", color:"#92400e" },
   }
+  const c = colors[color] || colors.gray
   return (
-    <div className="pag">
-      <button className="pag-btn" disabled={page === 1} onClick={() => onChange(page - 1)}>
-        <ChevronRight size={13} style={{ transform: "rotate(180deg)" }} />
-      </button>
-      {nums.map((n, i) =>
-        n === "…"
-          ? <span key={i} className="pag-dots">…</span>
-          : <button key={n} className={`pag-btn${n === page ? " pag-active" : ""}`}
-              onClick={() => onChange(n)}>{n}</button>
-      )}
-      <button className="pag-btn" disabled={page === pages} onClick={() => onChange(page + 1)}>
-        <ChevronRight size={13} />
-      </button>
-    </div>
-  );
+    <span style={{ display:"inline-flex", alignItems:"center", gap:4, padding:"2px 8px", borderRadius:5, fontSize:11, fontWeight:600, marginRight:4, background:c.bg, color:c.color }}>
+      {children}
+    </span>
+  )
 }
 
-// ─── Excel export: Sotuvlar tarixi ───────────────────────
-function exportSalesExcel(sales, filename) {
-  const rows = [];
-  sales.forEach(sale => {
-    sale.items.forEach(item => {
-      // Har bir scan log qatori alohida chiqadi
-      if (item.scanLog && Array.isArray(item.scanLog) && item.scanLog.length > 0) {
-        item.scanLog.forEach(log => {
-          rows.push({
-            "Sotuv #":       sale.id,
-            "Mijoz":         sale.customer.name,
-            "Telefon":       sale.customer.phone,
-            "Sana":          fmtDT(sale.createdAt),
-            "Mahsulot":      item.product.name,
-            "Partiya seriya": item.batch.series,
-            "MG":            item.batch.mg,
-            "Scan turi":     log.type === "barcode" ? "Quti (box)" : log.type === "qr" ? "Markirovka (QR)" : "Qo'lda",
-            "Scan kodi":     log.series || log.original || "",
-            "Miqdor":        log.count,
-            "Ogohlantirish": log.warning ? "Ha ⚠️" : "Yo'q",
-            "Vaqt":          log.time ? new Date(log.time).toLocaleTimeString("uz-UZ") : "",
-            "Birlik narx":   item.price,
-            "Jami (item)":   item.total,
-            "Sotuv jami":    sale.totalPrice,
-          });
-        });
-      } else {
-        // scanLog yo'q bo'lsa (eski yozuvlar) — bitta qator
-        rows.push({
-          "Sotuv #":       sale.id,
-          "Mijoz":         sale.customer.name,
-          "Telefon":       sale.customer.phone,
-          "Sana":          fmtDT(sale.createdAt),
-          "Mahsulot":      item.product.name,
-          "Partiya seriya": item.batch.series,
-          "MG":            item.batch.mg,
-          "Scan turi":     "—",
-          "Scan kodi":     "—",
-          "Miqdor":        item.quantity,
-          "Ogohlantirish": "—",
-          "Vaqt":          "—",
-          "Birlik narx":   item.price,
-          "Jami (item)":   item.total,
-          "Sotuv jami":    sale.totalPrice,
-        });
-      }
-    });
-  });
-
-  const ws = XLSX.utils.json_to_sheet(rows);
-  ws["!cols"] = [8,20,14,18,24,16,8,16,36,8,14,12,12,14,14].map(wch => ({ wch }));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Sotuvlar");
-  XLSX.writeFile(wb, filename);
-}
-
-// ─── Excel export: Scan log (sale saqlanmasdan oldin) ────
-function exportScanLogExcel(scanLog, meta, filename) {
-  const rows = scanLog.map((l, idx) => ({
-    "№":          idx + 1,
-    "Scan turi":  l.type === "barcode" ? "Quti (box)" : l.type === "qr" ? "Markirovka (QR)" : "Qo'lda",
-    "Kod":
-    l.type === "qr"
-    ? l.original
-    : l.series || l.original || "",
-    "Miqdor":     l.count,
-    "Ogohlantirish": l.warning ? "Ha ⚠️" : "Yo'q",
-    "Vaqt":       new Date(l.time).toLocaleTimeString("uz-UZ"),
-  }));
-
-  // Xulosa qator
-  rows.push({});
-  rows.push({
-    "№":         "JAMI",
-    "Scan turi": `${scanLog.filter(l => l.type === "barcode").length} quti + ${scanLog.filter(l => l.type === "qr").length} Dona`,
-    "Kod":       "",
-    "Miqdor":    scanLog.reduce((s, l) => s + l.count, 0),
-    "Ogohlantirish": `${scanLog.filter(l => l.warning).length} ta ogohlantirish`,
-    "Vaqt":      "",
-  });
-
-  const ws = XLSX.utils.json_to_sheet(rows);
-  ws["!cols"] = [5, 18, 36, 10, 18, 12].map(wch => ({ wch }));
-
-  // Meta sheet
-  const metaRows = [
-    { "Maydon": "Mijoz",    "Qiymat": meta.customer },
-    { "Maydon": "Mahsulot", "Qiymat": meta.product },
-    { "Maydon": "Partiya",  "Qiymat": meta.series },
-    { "Maydon": "Jami dona","Qiymat": meta.qty },
-    { "Maydon": "Narx",     "Qiymat": meta.price + " so'm" },
-    { "Maydon": "Jami summa","Qiymat": (meta.qty * meta.price) + " so'm" },
-  ];
-  const ws2 = XLSX.utils.json_to_sheet(metaRows);
-  ws2["!cols"] = [16, 30].map(wch => ({ wch }));
-
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Scan log");
-  XLSX.utils.book_append_sheet(wb, ws2, "Sotuv ma'lumoti");
-  XLSX.writeFile(wb, filename);
-}
-
-// ─── Batch List ───────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+// BATCH LIST
+// ═══════════════════════════════════════════════════════════
 function BatchList({ productId, selected, onSelect }) {
-  const [batches, setBatches] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setLoading(true);
-    productsApi.getBatches(productId)
-      .then(d => setBatches(Array.isArray(d) ? d.filter(b => b.quantity > 0) : []))
-      .catch(() => setBatches([]))
-      .finally(() => setLoading(false));
-  }, [productId]);
-
-  if (loading) return (
-    <div className="state-sm"><Loader2 size={22} className="spin text-blue" /><span>Yuklanmoqda…</span></div>
-  );
+  const batches = (MOCK_BATCHES[productId] || []).filter(b => b.remainingQty > 0)
   if (!batches.length) return (
-    <div className="state-sm warn"><Package size={24} strokeWidth={1.5} /><span>Bu dori uchun mavjud partiya yo'q</span></div>
-  );
-
-  return (
-    <div className="batch-list">
-      {batches.map(b => (
-        <div key={b.id}
-          className={`batch-item${selected?.id === b.id ? " batch-sel" : ""}`}
-          onClick={() => onSelect(b)}>
-          <div className="bi-top">
-            <span className="bi-series"><Tag size={11} strokeWidth={2.5} />{b.series}</span>
-            <span className="bi-qty-badge"><CheckCircle size={11} />{b.quantity} ta</span>
-          </div>
-          {b.boxSeries && (
-            <div className="bi-qr-row">
-              <QrCode size={10} strokeWidth={2.5} />
-              <span>QR: <strong>{b.boxSeries}</strong></span>
-            </div>
-          )}
-          <div className="bi-mid">
-            <span className="chip chip-gray"><FlaskConical size={9} /> {b.mg}</span>
-            <span className="bi-exp"><Calendar size={10} /> {fmtD(b.expiry)}</span>
-          </div>
-          <div className="bi-price"><Banknote size={12} strokeWidth={2} />{fmt(b.price)} / dona</div>
-          {selected?.id === b.id && (
-            <div className="bi-check"><CheckCircle size={16} strokeWidth={2.5} /></div>
-          )}
-        </div>
-      ))}
+    <div style={{ display:"flex", alignItems:"center", gap:8, padding:20, color:"#f59e0b", fontSize:13 }}>
+      <Package size={22} strokeWidth={1.5} /> Bu dori uchun mavjud partiya yo'q
     </div>
-  );
+  )
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:8, maxHeight:280, overflowY:"auto" }}>
+      {batches.map(b => {
+        const sel = selected?.id === b.id
+        return (
+          <div key={b.id} onClick={() => onSelect(b)} style={{ border:`1.5px solid ${sel ? "#2563eb" : "var(--color-border-secondary)"}`, borderRadius:11, padding:"12px 14px", cursor:"pointer", background: sel ? "#eff6ff" : "var(--color-background-secondary)", boxShadow: sel ? "0 0 0 3px #dbeafe" : "none", position:"relative", display:"flex", flexDirection:"column", gap:6, transition:"all .15s" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <span style={{ display:"inline-flex", alignItems:"center", gap:5, fontFamily:"monospace", fontWeight:700, color:"#6d28d9", fontSize:13 }}><Tag size={11} />{b.series}</span>
+              <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:"#dcfce7", color:"#16a34a", fontSize:12, fontWeight:700, padding:"3px 9px", borderRadius:20 }}><CheckCircle size={11} />{b.remainingQty} ta</span>
+            </div>
+            {b.boxSeries && <div style={{ display:"inline-flex", alignItems:"center", gap:5, fontSize:11, color:"#7c3aed", background:"#f5f3ff", padding:"2px 8px", borderRadius:5, width:"fit-content", fontFamily:"monospace" }}><QrCode size={10} /> QR: <strong>{b.boxSeries}</strong></div>}
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <Chip color="gray"><FlaskConical size={9} /> {b.mg}</Chip>
+              <span style={{ display:"inline-flex", alignItems:"center", gap:4, fontSize:11, color:"var(--color-text-tertiary)" }}><Calendar size={10} />{fmtD(b.expiry)}</span>
+            </div>
+            <div style={{ display:"inline-flex", alignItems:"center", gap:5, fontSize:13, fontWeight:700, color:"var(--color-text-primary)" }}><Banknote size={12} />{fmt(b.price)} / dona</div>
+            {sel && <CheckCircle size={16} style={{ position:"absolute", top:12, right:12, color:"#2563eb" }} />}
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
-// ─── SALE FORM ────────────────────────────────────────────
-function SaleForm({ showToast, onDone }) {
-  const [step,         setStep]         = useState(1);
-  const [customer,     setCustomer]     = useState(null);
-  const [product,      setProduct]      = useState(null);
-  const [batch,        setBatch]        = useState(null);
-  const [unitsPerBox,  setUnitsPerBox]  = useState(30);
-  const [unitPrice,    setUnitPrice]    = useState(0);
-  const [qty,          setQty]          = useState(0);
-  const [scanLog,      setScanLog]      = useState([]);
-  const [scanInput,    setScanInput]    = useState("");
-  const [saving,       setSaving]       = useState(false);
-  const [resetKey,     setResetKey]     = useState(0);
-  const [confirmModal, setConfirmModal] = useState(null);
-  const scanRef = useRef(null);
+// ═══════════════════════════════════════════════════════════
+// SALE FORM
+// ═══════════════════════════════════════════════════════════
+function SaleForm({ onDone, showToast }) {
+  const [step, setStep]         = useState(1)
+  const [customer, setCustomer] = useState(null)
+  const [product, setProduct]   = useState(null)
+  const [batch, setBatch]       = useState(null)
+  const [unitsPerBox, setUnitsPerBox] = useState(30)
+  const [unitPrice, setUnitPrice]   = useState(0)
+  const [qty, setQty]           = useState(0)
+  const [scanLog, setScanLog]   = useState([])
+  const [scanInput, setScanInput] = useState("")
+  const [saving, setSaving]     = useState(false)
+  const [confirmModal, setConfirmModal] = useState(null)
+  const scanRef = useRef(null)
 
-  const totalPrice = qty * unitPrice;
+  const totalPrice = qty * unitPrice
 
-  useEffect(() => {
-    if (step === 5 && scanRef.current) scanRef.current.focus();
-  }, [step]);
+  useEffect(() => { if (step === 5 && scanRef.current) scanRef.current.focus() }, [step])
 
   const reset = () => {
-    setStep(1); setCustomer(null); setProduct(null); setBatch(null);
-    setUnitsPerBox(30); setUnitPrice(0); setQty(0);
-    setScanLog([]); setScanInput(""); setResetKey(k => k + 1);
-  };
-
-
-  // ── Scan handler ──────────────────────────────────────
-  const handleChange = (e) => {
-  const value = e.target.value;
-  if (/[\u0400-\u04FF]/.test(value)) {
-    beepErr();
-    showToast("⚠️ Rus klaviaturasi o'chirilsin! Faqat EN ishlaydi", "warn");
-    setScanInput(""); // ← bu yetishib turar edi, lekin input tozalanmayapti
-    return;
-  }
-  setScanInput(value);
-};
-
-const handleScan = () => {
-  const val = scanInput.trim();
-  if (!val || !batch) return;
-
-  // ← BU YER: kirill bo'lsa mutlaqo qo'shmaymiz, tozalaymiz
-  if (/[\u0400-\u04FF]/.test(val)) {
-    beepErr();
-    showToast("⚠️ Rus klaviaturasi o'chirilsin! Faqat EN ishlaydi", "warn");
-    setScanInput("");
-    scanRef.current?.focus();
-    return; // ← return, davom etmaymiz
+    setStep(1); setCustomer(null); setProduct(null); setBatch(null)
+    setUnitsPerBox(30); setUnitPrice(0); setQty(0); setScanLog([]); setScanInput("")
   }
 
-  setScanInput("");
-  scanRef.current?.focus();
-
-  const alreadyScanned = scanLog.some(l => l.original === val);
-  if (alreadyScanned) {
-    beepErr();
-    showToast("⚠️ Bu kod allaqon skanerlangan!", "warn");
-    return;
-  }
-
-  const parsed = parseGS1(val);
-  const result = checkMatch(parsed, batch, Number(unitsPerBox) || 1);
-
-  if (result.match) {
-    const add = result.addQty;
-    setQty(q => q + add);
-    setScanLog(l => [
-      ...l,
-      {
-        type:     result.scanType,
-        series:   result.extracted,
-        original: val,
-        count:    add,
-        time:     new Date(),
-        warning:  false,
-      },
-    ]);
-    beepOk();
-  } else {
-    beepErr();
-
-    // ← Kirill bo'lsa modal ham ochilmasin
+  const handleScan = () => {
+    const val = scanInput.trim()
+    if (!val || !batch) return
     if (/[\u0400-\u04FF]/.test(val)) {
-      showToast("⚠️ Rus klaviaturasi o'chirilsin! Faqat EN ishlaydi", "warn");
-      return;
+      beepErr(); showToast("⚠️ Rus klaviaturasi o'chirilsin!", "warn"); setScanInput(""); return
     }
-
-    const expectedMsg = batch.boxSeries
-      ? `"${batch.series}" (barkod) yoki "${batch.boxSeries}" (QR)`
-      : `"${batch.series}"`;
-
-    setConfirmModal({
-      extracted: result.extracted,
-      original:  val,
-      scanType:  result.scanType,
-      addQty:    result.addQty || 1,
-      message:
-        `Scan qilingan: "${result.extracted}"\n` +
-        `Kutilgan: ${expectedMsg}\n\n` +
-        `Bu boshqa partiyaga tegishli bo'lishi mumkin.\n` +
-        `Baribir qo'shilsinmi?`,
-    });
-  }
-};
-
-const confirmAdd = () => {
-  if (!confirmModal) return;
-
-  // Kirill tekshiruvi — modal orqali ham kirill o'tmasin
-  if (/[\u0400-\u04FF]/.test(confirmModal.original)) {
-    beepErr();
-    showToast("⚠️ Rus klaviaturasi o'chirilsin! Faqat EN ishlaydi", "warn");
-    setConfirmModal(null);
-    scanRef.current?.focus();
-    return;
+    setScanInput(""); scanRef.current?.focus()
+    if (scanLog.some(l => l.original === val)) { beepErr(); showToast("⚠️ Bu kod allaqon skanerlangan!", "warn"); return }
+    const parsed = parseGS1(val)
+    const result = checkMatch(parsed, batch, Number(unitsPerBox) || 1)
+    if (result.match) {
+      setQty(q => q + result.addQty)
+      setScanLog(l => [...l, { type: result.scanType, series: result.extracted, original: val, count: result.addQty, time: new Date(), warning: false }])
+      beepOk()
+    } else {
+      beepErr()
+      const exp = batch.boxSeries ? `"${batch.series}" yoki "${batch.boxSeries}"` : `"${batch.series}"`
+      setConfirmModal({ extracted: result.extracted, original: val, scanType: result.scanType, addQty: result.addQty || 1, message: `Scan: "${result.extracted}"\nKutilgan: ${exp}\n\nBoshqa partiyaga tegishli bo'lishi mumkin. Baribir qo'shilsinmi?` })
+    }
   }
 
-  const add = confirmModal.addQty;
-  setQty(q => q + add);
-  setScanLog(l => [
-    ...l,
-    {
-      type:     confirmModal.scanType,
-      series:   confirmModal.extracted,
-      original: confirmModal.original,
-      count:    add,
-      time:     new Date(),
-      warning:  true,
-    },
-  ]);
-  beepOk();
-  setConfirmModal(null);
-  scanRef.current?.focus();
-};
+  const confirmAdd = () => {
+    if (!confirmModal) return
+    setQty(q => q + confirmModal.addQty)
+    setScanLog(l => [...l, { type: confirmModal.scanType, series: confirmModal.extracted, original: confirmModal.original, count: confirmModal.addQty, time: new Date(), warning: true }])
+    beepOk(); setConfirmModal(null); scanRef.current?.focus()
+  }
 
   const addOne = () => {
-    setQty(q => q + 1);
-    setScanLog(l => [
-      ...l,
-      {
-        type:     "manual",
-        series:   batch?.series || "",
-        original: "__manual__" + Date.now(),
-        count:    1,
-        time:     new Date(),
-        warning:  false,
-      },
-    ]);
-    beepOk();
-  };
+    setQty(q => q + 1)
+    setScanLog(l => [...l, { type: "manual", series: batch?.series || "", original: "__manual__" + Date.now(), count: 1, time: new Date(), warning: false }])
+  }
+
   const subOne = () => {
-    if (qty > 0) {
-      setQty(q => q - 1);
-      // Oxirgi log qatorini olib tashlash
-      setScanLog(l => {
-        if (l.length === 0) return l;
-        const last = l[l.length - 1];
-        if (last.count > 1) {
-          return [...l.slice(0, -1), { ...last, count: last.count - 1 }];
-        }
-        return l.slice(0, -1);
-      });
-    }
-  };
+    if (qty <= 0) return
+    setQty(q => q - 1)
+    setScanLog(l => {
+      if (!l.length) return l
+      const last = l[l.length - 1]
+      return last.count > 1 ? [...l.slice(0, -1), { ...last, count: last.count - 1 }] : l.slice(0, -1)
+    })
+  }
 
   const handleSave = async () => {
-    if (!customer || !product || !batch || qty < 1) return;
-    setSaving(true);
-    try {
-      await salesApi.create({
-        customerId: customer.id,
-        items: [{
-          productId: product.id,
-          batchId:   batch.id,
-          quantity:  qty,
-          price:     unitPrice,
-          scanLog:   scanLog.map(l => ({
-            type:     l.type,
-            series:   l.series,
-            original: l.original,
-            count:    l.count,
-            warning:  l.warning,
-            time:     l.time instanceof Date ? l.time.toISOString() : l.time,
-          })),
-        }],
-      });
-      showToast("Sotuv muvaffaqiyatli saqlandi!", "success");
-      reset();
-      onDone();
-    } catch (e) {
-      showToast(e.message, "error");
-    } finally {
-      setSaving(false);
+    if (!customer || !product || !batch || qty < 1) return
+    setSaving(true)
+    await sleep(600)
+    const newSale = {
+      id: SALE_ID_COUNTER++,
+      customerId: customer.id,
+      customer: { id: customer.id, name: customer.name, phone: customer.phone },
+      totalPrice: totalPrice,
+      createdAt: new Date().toISOString(),
+      items: [{
+        id: Date.now(),
+        productId: product.id,
+        batchId: batch.id,
+        product: { name: product.name, ikpuCode: product.ikpuCode, unit: product.unit },
+        batch: { series: batch.series, boxSeries: batch.boxSeries, mg: batch.mg, expiry: batch.expiry, contractNumber: batch.contractNumber, invoiceNumber: batch.invoiceNumber },
+        quantity: qty,
+        price: unitPrice,
+        total: totalPrice,
+      }],
     }
-  };
+    onDone(newSale)
+    showToast("Sotuv muvaffaqiyatli saqlandi!", "success")
+    reset()
+    setSaving(false)
+  }
 
   const canNext = () => {
-    if (step === 1) return !!customer;
-    if (step === 2) return !!product;
-    if (step === 3) return !!batch;
-    if (step === 4) return unitPrice > 0;
-    return false;
-  };
+    if (step === 1) return !!customer
+    if (step === 2) return !!product
+    if (step === 3) return !!batch
+    if (step === 4) return unitPrice > 0
+    return false
+  }
 
   const STEPS = [
-    { n: 1, label: "Mijoz",   icon: User },
-    { n: 2, label: "Dori",    icon: Package },
-    { n: 3, label: "Partiya", icon: Layers },
-    { n: 4, label: "Narx",    icon: Banknote },
-    { n: 5, label: "Skaner",  icon: Scan },
-  ];
+    { n:1, label:"Mijoz",   Icon: User },
+    { n:2, label:"Dori",    Icon: Package },
+    { n:3, label:"Partiya", Icon: Layers },
+    { n:4, label:"Narx",    Icon: Banknote },
+    { n:5, label:"Skaner",  Icon: Scan },
+  ]
 
-  const boxScans  = scanLog.filter(l => l.type === "barcode").length;
-  const qrScans   = scanLog.filter(l => l.type === "qr").length;
-  const warnCount = scanLog.filter(l => l.warning).length;
+  const boxScans  = scanLog.filter(l => l.type === "barcode").length
+  const qrScans   = scanLog.filter(l => l.type === "qr").length
+  const warnCount = scanLog.filter(l => l.warning).length
 
   return (
     <>
-      <div className="sf-card">
-        {/* Header */}
-        <div className="sf-header">
-          <div className="sf-header-left">
-            <ShoppingCart size={18} strokeWidth={2.2} className="sf-header-icon" />
-            <span>Yangi sotuv</span>
-          </div>
-          <button className="sf-reset-btn" onClick={reset}>
-            <RefreshCw size={14} strokeWidth={2} /> Tozalash
-          </button>
+    <div style={{ background:"var(--color-background-primary)", border:"0.5px solid var(--color-border-tertiary)", borderRadius:18, overflow:"hidden", position:"sticky", top:20 }}>
+      {/* Header */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 20px 14px", borderBottom:"0.5px solid var(--color-border-tertiary)", background:"var(--color-background-secondary)" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8, fontSize:16, fontWeight:500 }}>
+          <ShoppingCart size={18} style={{ color:"#2563eb" }} /> Yangi sotuv
         </div>
-
-        {/* Steps */}
-        <div className="sf-steps">
-          {STEPS.map((s, i) => {
-            const Icon   = s.icon;
-            const done   = step > s.n;
-            const active = step === s.n;
-            return (
-              <div key={s.n} className="sf-step-wrapper">
-                <div
-                  className={`sf-step${active ? " sf-step-active" : done ? " sf-step-done" : ""}`}
-                  onClick={() => done && setStep(s.n)}
-                  style={{ cursor: done ? "pointer" : "default" }}
-                >
-                  {done ? <CheckCircle size={14} strokeWidth={2.5} /> : <Icon size={13} strokeWidth={2.5} />}
-                  <span className="sf-step-label">{s.label}</span>
-                </div>
-                {i < STEPS.length - 1 && (
-                  <div className={`sf-step-line${done ? " sf-line-done" : ""}`} />
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Body */}
-        <div className="sf-body">
-
-          {/* ── STEP 1: Mijoz ── */}
-          {step === 1 && (
-            <div className="sf-panel">
-              <div className="sf-panel-head"><User size={16} strokeWidth={2.2} /> Mijozni tanlang</div>
-              <Dropdown
-                resetKey={resetKey} value={customer}
-                placeholder="Ism yoki telefon raqam…"
-                loadFn={q => customersApi.getAll(q)}
-                renderSelected={c => (
-                  <div className="dd-val">
-                    <div className="dd-val-avatar">{c.name.charAt(0)}</div>
-                    <div>
-                      <div className="dd-val-name">{c.name}</div>
-                      <div className="dd-val-sub">{c.phone}</div>
-                    </div>
-                  </div>
-                )}
-                renderItem={c => (
-                  <div className="dd-row">
-                    <div className="dd-avatar">{c.name.charAt(0)}</div>
-                    <div>
-                      <div className="dd-row-main">{c.name}</div>
-                      <div className="dd-row-sub"><Phone size={10} /> {c.phone}</div>
-                    </div>
-                  </div>
-                )}
-                onSelect={c => { setCustomer(c); setStep(2); }}
-              />
-              {customer && (
-                <div className="sf-chosen">
-                  <div className="sf-chosen-avatar">{customer.name.charAt(0)}</div>
-                  <div className="sf-chosen-info">
-                    <div className="sf-chosen-name">{customer.name}</div>
-                    <div className="sf-chosen-sub">{customer.phone}</div>
-                  </div>
-                  <button className="sf-chosen-change" onClick={() => setCustomer(null)}><X size={13} /></button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── STEP 2: Dori ── */}
-          {step === 2 && (
-            <div className="sf-panel">
-              <div className="sf-panel-head"><Package size={16} strokeWidth={2.2} /> Dorini tanlang</div>
-              <Dropdown
-                resetKey={resetKey} value={product}
-                placeholder="Dori nomini kiriting…"
-                loadFn={q => productsApi.getAll(q)}
-                renderSelected={p => (
-                  <div className="dd-val">
-                    <div className="dd-val-icon"><Package size={14} /></div>
-                    <div>
-                      <div className="dd-val-name">{p.name}</div>
-                      {p.barcode && <div className="dd-val-sub">{p.barcode}</div>}
-                    </div>
-                  </div>
-                )}
-                renderItem={p => (
-                  <div className="dd-row">
-                    <div className="dd-icon-wrap"><Package size={14} strokeWidth={2} /></div>
-                    <div>
-                      <div className="dd-row-main">{p.name}</div>
-                      {p.barcode && <div className="dd-row-sub"><Tag size={10} /> {p.barcode}</div>}
-                    </div>
-                  </div>
-                )}
-                onSelect={p => { setProduct(p); setBatch(null); setStep(3); }}
-              />
-            </div>
-          )}
-
-          {/* ── STEP 3: Partiya ── */}
-          {step === 3 && product && (
-            <div className="sf-panel">
-              <div className="sf-panel-head">
-                <Layers size={16} strokeWidth={2.2} />
-                Partiyani tanlang
-                <span className="sf-panel-badge"><Package size={10} /> {product.name}</span>
-              </div>
-              <BatchList
-                productId={product.id} selected={batch}
-                onSelect={b => {
-                  setBatch(b); setUnitPrice(b.price);
-                  setQty(0); setScanLog([]); setStep(4);
-                }}
-              />
-            </div>
-          )}
-
-          {/* ── STEP 4: Narx ── */}
-          {step === 4 && batch && (
-            <div className="sf-panel">
-              <div className="sf-panel-head"><Banknote size={16} strokeWidth={2.2} /> Narx va quti sozlamalari</div>
-
-              <div className="sf-batch-summary">
-                <div className="sbs-item">
-                  <span className="sbs-label">Barkod (quti)</span>
-                  <span className="sbs-val chip chip-purple"><Tag size={10} /> {batch.series}</span>
-                </div>
-                {batch.boxSeries && (
-                  <div className="sbs-item">
-                    <span className="sbs-label">QR seriya (markirovka)</span>
-                    <span className="sbs-val chip chip-blue"><QrCode size={10} /> {batch.boxSeries}</span>
-                  </div>
-                )}
-                <div className="sbs-item">
-                  <span className="sbs-label">Dozaj</span>
-                  <span className="sbs-val chip chip-gray"><FlaskConical size={10} /> {batch.mg}</span>
-                </div>
-                <div className="sbs-item">
-                  <span className="sbs-label">Omborda</span>
-                  <span className="sbs-val sbs-green"><CheckCircle size={12} /> {batch.quantity} ta</span>
-                </div>
-                <div className="sbs-item">
-                  <span className="sbs-label">Muddat</span>
-                  <span className="sbs-val"><Calendar size={11} /> {fmtD(batch.expiry)}</span>
-                </div>
-              </div>
-
-              <div className="scan-mode-box">
-                <div className="smb-title">Skaner qoidalari</div>
-                <div className="smb-row">
-                  <div className="smb-item">
-                    <div className="smb-icon smb-blue"><Package size={14} /></div>
-                    <div>
-                      <div className="smb-label">Quti barkodi</div>
-                      <div className="smb-desc">
-                        <code>{batch.series}</code><br />
-                        Scan → +{unitsPerBox || "?"} dona
-                      </div>
-                    </div>
-                  </div>
-                  <div className="smb-divider" />
-                  <div className="smb-item">
-                    <div className="smb-icon smb-violet"><QrCode size={14} /></div>
-                    <div>
-                      <div className="smb-label">Markirovka (GS1 QR)</div>
-                      <div className="smb-desc">
-                        <code>01{batch.series.padStart(13,"0").substring(0,13)}21…</code><br />
-                        Scan → +1 dona
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="sf-fields">
-                <div className="sf-field">
-                  <label className="sf-label">
-                    <Banknote size={12} strokeWidth={2.5} />
-                    Sotish narxi (1 dona)<span className="req">*</span>
-                  </label>
-                  <div className="sf-input-wrap">
-                    <input type="number" min="0" className="sf-input" value={unitPrice}
-                      onChange={e => setUnitPrice(Number(e.target.value))} placeholder="12000" />
-                    <span className="sf-input-suffix">so'm</span>
-                  </div>
-                </div>
-                <div className="sf-field">
-                  <label className="sf-label">
-                    <Package size={12} strokeWidth={2.5} />
-                    1 qutida nechta dona?
-                  </label>
-                  <div className="sf-input-wrap">
-                    <input type="number" min="1" className="sf-input" value={unitsPerBox}
-                      onChange={e => setUnitsPerBox(Number(e.target.value))} placeholder="30" />
-                    <span className="sf-input-suffix">dona</span>
-                  </div>
-                  <p className="sf-hint">
-                    <Package size={11} /> Quti barkodi skanerlanganda shu miqdor qo'shiladi
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── STEP 5: Skaner ── */}
-          {step === 5 && batch && (
-            <div className="sf-panel">
-              <div className="sf-panel-head"><Scan size={16} strokeWidth={2.2} /> Skanerlash</div>
-
-              {/* Counter */}
-              <div className="sf-counter">
-                <div className="sf-count-num">{qty}</div>
-                <div className="sf-count-label">dona skanerlangan</div>
-                <div className="sf-count-price">{fmt(totalPrice)}</div>
-              </div>
-
-              {/* Mini stats */}
-              <div className="sf-mini-stats">
-                <div className="ms-item ms-blue">
-                  <Package size={13} strokeWidth={2} />
-                  <div>
-                    <div className="ms-val">{boxScans}</div>
-                    <div className="ms-lbl">Quti</div>
-                  </div>
-                </div>
-                <div className="ms-item ms-violet">
-                  <QrCode size={13} strokeWidth={2} />
-                  <div>
-                    <div className="ms-val">{qrScans}</div>
-                    <div className="ms-lbl">Markirovka</div>
-                  </div>
-                </div>
-                <div className="ms-item ms-green">
-                  <BarChart3 size={13} strokeWidth={2} />
-                  <div>
-                    <div className="ms-val">{fmt(totalPrice)}</div>
-                    <div className="ms-lbl">Jami</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Warning banner */}
-              {warnCount > 0 && (
-                <div className="scan-warn-banner">
-                  <AlertTriangle size={14} />
-                  {warnCount} ta seriyasi mos kelmaydigan dori qo'shildi — tekshiring!
-                </div>
-              )}
-
-              {/* Scan input */}
-              <div className="sf-scan-box">
-                <div className="sf-scan-label"><Scan size={13} strokeWidth={2} /> Barkod yoki QR kodni skanerlang</div>
-
-                <div className="sf-series-ref">
-                  <span><Tag size={10} /> Quti barkodi: <strong>{batch.series}</strong></span>
-                  {batch.boxSeries && (
-                    <span><QrCode size={10} /> QR: <strong>{batch.boxSeries}</strong></span>
-                  )}
-                </div>
-
-                <div className="sf-scan-input-wrap">
-                  <input
-                    ref={scanRef}
-                    className="sf-scan-input"
-                    value={scanInput}
-                    onChange={handleChange}
-                    onKeyDown={e => e.key === "Enter" && handleScan()}
-                    placeholder="Scan qiling yoki yozing, Enter bosing…"
-                    autoFocus
-                  />
-                  <button className="sf-scan-btn" onClick={handleScan} disabled={!scanInput.trim()}>
-                    <Scan size={15} />
-                  </button>
-                </div>
-                <p className="sf-scan-hint">
-                  Quti barkodi → +{unitsPerBox} dona &nbsp;|&nbsp; Markirovka QR → +1 dona
-                </p>
-              </div>
-
-              {/* Manual */}
-              <div className="sf-manual">
-                <button className="manual-btn manual-sub" onClick={subOne} disabled={qty === 0}>
-                  <Minus size={14} strokeWidth={2.5} />
-                </button>
-                <div className="manual-center">
-                  <span className="manual-label">Qo'lda kiritish</span>
-                  <span className="manual-qty">{qty} dona</span>
-                </div>
-                <button className="manual-btn manual-add" onClick={addOne}>
-                  <Plus size={14} strokeWidth={2.5} />
-                </button>
-              </div>
-
-              {/* Scan log */}
-              {scanLog.length > 0 && (
-                <div className="sf-log">
-                  <div className="sf-log-head">
-                    <span><ClipboardList size={13} /> Jurnal ({scanLog.length} scan / {qty} dona)</span>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      {/* ✦ EXCEL EXPORT — scan log ✦ */}
-                      <button className="sf-log-excel" onClick={() =>
-                        exportScanLogExcel(scanLog, {
-                          customer: customer?.name || "",
-                          product:  product?.name  || "",
-                          series:   batch?.series  || "",
-                          qty,
-                          price:    unitPrice,
-                        }, `scan_log_${Date.now()}.xlsx`)
-                      }>
-                        <Download size={11} /> Excel
-                      </button>
-                      <button className="sf-log-clear" onClick={() => { setScanLog([]); setQty(0); }}>
-                        <Trash2 size={11} /> Tozalash
-                      </button>
-                    </div>
-                  </div>
-                  <div className="sf-log-list">
-                    {[...scanLog].reverse().slice(0, 10).map((l, i) => (
-                      <div key={i} className={`sf-log-item${l.warning ? " sf-log-warn" : l.type === "barcode" ? " sf-log-box" : " sf-log-unit"}`}>
-                        {l.type === "barcode"
-                          ? <Package size={12} className="log-icon-box" />
-                          : l.type === "qr"
-                            ? <QrCode size={12} className="log-icon-unit" />
-                            : <Plus size={12} className="log-icon-unit" />}
-                        <span className="sf-log-series">{l.series}</span>
-                        <span className={`ltb ${l.type === "barcode" ? "ltb-box" : l.type === "qr" ? "ltb-qr" : "ltb-manual"}`}>
-                          {l.type === "barcode" ? "quti" : l.type === "qr" ? "QR" : "qo'l"}
-                        </span>
-                        <span className="sf-log-count">+{l.count}</span>
-                        {l.warning && <AlertTriangle size={11} className="log-icon-warn" />}
-                        <span className="sf-log-time">{new Date(l.time).toLocaleTimeString("uz-UZ")}</span>
-                      </div>
-                    ))}
-                    {scanLog.length > 10 && (
-                      <div className="sf-log-more">… va yana {scanLog.length - 10} ta</div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="sf-footer">
-          {step > 1
-            ? <button className="sf-btn-back" onClick={() => setStep(s => s - 1)}>
-                <ArrowLeft size={14} strokeWidth={2.5} /> Ortga
-              </button>
-            : <div />}
-          <div className="sf-footer-right">
-            {step < 5 && (
-              <button className="sf-btn-next" disabled={!canNext()} onClick={() => setStep(s => s + 1)}>
-                Keyingi <ChevronRight size={14} strokeWidth={2.5} />
-              </button>
-            )}
-            {step === 5 && qty > 0 && (
-              <button className="sf-btn-save" disabled={saving} onClick={handleSave}>
-                {saving
-                  ? <><Loader2 size={15} className="spin" /> Saqlanmoqda…</>
-                  : <><CheckCircle size={15} strokeWidth={2.5} /> Saqlash — {fmt(totalPrice)}</>}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {confirmModal && (
-        <ConfirmModal
-          title="Seriya mos kelmadi"
-          message={confirmModal.message}
-          onConfirm={confirmAdd}
-          onCancel={() => { setConfirmModal(null); scanRef.current?.focus(); }}
-        />
-      )}
-    </>
-  );
-}
-
-// ─── Sales Table ──────────────────────────────────────────
-const PER_PAGE = 10;
-
-function SalesTable({ showToast, refreshKey }) {
-  const [sales,     setSales]     = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [filters,   setFilters]   = useState({ startDate: "", endDate: "" });
-  const [page,      setPage]      = useState(1);
-  const [detail,    setDetail]    = useState(null);
-  const [custModal, setCustModal] = useState(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = {};
-      if (filters.startDate) params.startDate = filters.startDate;
-      if (filters.endDate)   params.endDate   = filters.endDate;
-      const data = await salesApi.getAll(params);
-      setSales(Array.isArray(data) ? data : []);
-      setPage(1);
-    } catch (e) {
-      showToast(e.message, "error");
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, showToast]);
-
-  useEffect(() => { load(); }, [load, refreshKey]);
-
-  const handleDelete = async (sale) => {
-    if (!window.confirm(`Sotuv #${sale.id} bekor qilinsinmi?\nStock qaytariladi.`)) return;
-    try {
-      await salesApi.remove(sale.id);
-      showToast("Sotuv bekor qilindi, mahsulot qaytarildi");
-      setDetail(null);
-      load();
-    } catch (e) {
-      showToast(e.message, "error");
-    }
-  };
-
-  const totalRev  = sales.reduce((s, x) => s + x.totalPrice, 0);
-  const paged     = sales.slice((page - 1) * PER_PAGE, page * PER_PAGE);
-  const hasFilter = filters.startDate || filters.endDate;
-
-  return (
-    <div className="st-card">
-      <div className="st-header">
-        <div className="st-header-left">
-          <History size={18} strokeWidth={2.2} className="st-header-icon" />
-          <div>
-            <div className="st-title">Sotuvlar tarixi</div>
-            <div className="st-subtitle">{sales.length} ta sotuv</div>
-          </div>
-        </div>
-        <button className="btn-export" disabled={!sales.length}
-          onClick={() => exportSalesExcel(sales, `sotuvlar_${new Date().toISOString().slice(0,10)}.xlsx`)}>
-          <Download size={14} strokeWidth={2.5} /> Excel
+        <button onClick={reset} style={{ display:"inline-flex", alignItems:"center", gap:5, background:"none", border:"0.5px solid var(--color-border-secondary)", borderRadius:8, padding:"5px 12px", fontSize:12, fontWeight:500, color:"var(--color-text-tertiary)", cursor:"pointer" }}>
+          <RefreshCw size={13} /> Tozalash
         </button>
       </div>
 
-      {sales.length > 0 && (
-        <div className="st-rev-bar">
-          <div className="rev-item">
-            <div className="rev-icon rev-green"><TrendingUp size={16} strokeWidth={2} /></div>
-            <div>
-              <div className="rev-label">Jami tushum</div>
-              <div className="rev-val">{fmt(totalRev)}</div>
+      {/* Steps */}
+      <div style={{ display:"flex", alignItems:"center", padding:"14px 20px", borderBottom:"0.5px solid var(--color-border-tertiary)", overflowX:"auto", gap:0 }}>
+        {STEPS.map((s, i) => {
+          const done = step > s.n, active = step === s.n
+          return (
+            <div key={s.n} style={{ display:"flex", alignItems:"center", flexShrink:0 }}>
+              <div onClick={() => done && setStep(s.n)} style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 11px", borderRadius:20, fontSize:12, fontWeight:500, cursor: done ? "pointer" : "default", background: active ? "#eff6ff" : done ? "#dcfce7" : "var(--color-background-secondary)", color: active ? "#2563eb" : done ? "#16a34a" : "var(--color-text-tertiary)", boxShadow: active ? "0 0 0 2px #bfdbfe" : "none", whiteSpace:"nowrap" }}>
+                {done ? <CheckCircle size={13} /> : <s.Icon size={12} />} {s.label}
+              </div>
+              {i < STEPS.length - 1 && <div style={{ width:18, height:2, background: done ? "#16a34a" : "var(--color-border-secondary)", margin:"0 3px", flexShrink:0 }} />}
             </div>
-          </div>
-          <div className="rev-divider" />
-          <div className="rev-item">
-            <div className="rev-icon rev-blue"><ReceiptText size={16} strokeWidth={2} /></div>
-            <div>
-              <div className="rev-label">Sotuvlar soni</div>
-              <div className="rev-val">{sales.length} ta</div>
-            </div>
-          </div>
-        </div>
-      )}
+          )
+        })}
+      </div>
 
-      <div className="st-filters">
-        <div className="filter-group">
-          <Calendar size={13} className="filter-icon" strokeWidth={2} />
-          <input type="date" className="filter-input" value={filters.startDate}
-            onChange={e => setFilters(f => ({ ...f, startDate: e.target.value }))} />
-          <span className="filter-sep">—</span>
-          <input type="date" className="filter-input" value={filters.endDate}
-            onChange={e => setFilters(f => ({ ...f, endDate: e.target.value }))} />
-        </div>
-        {hasFilter && (
-          <button className="filter-clear" onClick={() => setFilters({ startDate: "", endDate: "" })}>
-            <X size={12} /> Tozalash
-          </button>
+      {/* Body */}
+      <div style={{ padding:20, minHeight:260 }}>
+
+        {/* Step 1 — Mijoz */}
+        {step === 1 && (
+          <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:7, fontSize:14, fontWeight:500 }}><User size={16} /> Mijozni tanlang</div>
+            <Dropdown
+              value={customer} placeholder="Ism yoki telefon raqam…"
+              items={MOCK_CUSTOMERS}
+              filterFn={(c, q) => c.name.toLowerCase().includes(q.toLowerCase()) || c.phone.includes(q)}
+              renderSelected={c => (
+                <div style={{ display:"flex", alignItems:"center", gap:10, flex:1 }}>
+                  <Avatar name={c.name} size={30} />
+                  <div><div style={{ fontWeight:500, fontSize:14 }}>{c.name}</div><div style={{ fontSize:11, color:"var(--color-text-tertiary)" }}>{c.phone}</div></div>
+                </div>
+              )}
+              renderItem={c => (
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <Avatar name={c.name} size={32} />
+                  <div><div style={{ fontWeight:500, fontSize:13 }}>{c.name}</div><div style={{ fontSize:11, color:"var(--color-text-tertiary)", display:"flex", alignItems:"center", gap:4 }}><Phone size={10} /> {c.phone}</div></div>
+                </div>
+              )}
+              onSelect={c => { setCustomer(c); setStep(2) }}
+            />
+            {customer && (
+              <div style={{ display:"flex", alignItems:"center", gap:12, background:"#f0fdf4", border:"1.5px solid #86efac", borderRadius:11, padding:"12px 14px" }}>
+                <Avatar name={customer.name} />
+                <div style={{ flex:1 }}>
+                  <div style={{ fontWeight:500 }}>{customer.name}</div>
+                  <div style={{ fontSize:12, color:"var(--color-text-secondary)", marginTop:2 }}>{customer.phone}</div>
+                </div>
+                <button onClick={() => setCustomer(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--color-text-tertiary)", display:"flex" }}><X size={14} /></button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 2 — Dori */}
+        {step === 2 && (
+          <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:7, fontSize:14, fontWeight:500 }}><Package size={16} /> Dorini tanlang</div>
+            <Dropdown
+              value={product} placeholder="Dori nomini kiriting…"
+              items={MOCK_PRODUCTS}
+              filterFn={(p, q) => p.name.toLowerCase().includes(q.toLowerCase()) || (p.ikpuCode || "").includes(q)}
+              renderSelected={p => (
+                <div style={{ display:"flex", alignItems:"center", gap:10, flex:1 }}>
+                  <div style={{ width:30, height:30, borderRadius:8, background:"#eff6ff", color:"#2563eb", display:"flex", alignItems:"center", justifyContent:"center" }}><Package size={14} /></div>
+                  <div><div style={{ fontWeight:500, fontSize:14 }}>{p.name}</div>{p.ikpuCode && <div style={{ fontSize:11, color:"var(--color-text-tertiary)", fontFamily:"monospace" }}>{p.ikpuCode}</div>}</div>
+                </div>
+              )}
+              renderItem={p => (
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ width:32, height:32, borderRadius:8, background:"#eff6ff", color:"#2563eb", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Package size={14} /></div>
+                  <div><div style={{ fontWeight:500, fontSize:13 }}>{p.name}</div>{p.ikpuCode && <div style={{ fontSize:11, color:"var(--color-text-tertiary)", fontFamily:"monospace" }}>{p.ikpuCode}</div>}</div>
+                </div>
+              )}
+              onSelect={p => { setProduct(p); setBatch(null); setStep(3) }}
+            />
+          </div>
+        )}
+
+        {/* Step 3 — Partiya */}
+        {step === 3 && product && (
+          <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:7, fontSize:14, fontWeight:500, flexWrap:"wrap" }}>
+              <Layers size={16} /> Partiyani tanlang
+              <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:"#eff6ff", color:"#2563eb", fontSize:11, fontWeight:500, padding:"3px 9px", borderRadius:20, marginLeft:6 }}><Package size={10} />{product.name}</span>
+            </div>
+            <BatchList productId={product.id} selected={batch} onSelect={b => { setBatch(b); setUnitPrice(b.price); setQty(0); setScanLog([]); setStep(4) }} />
+          </div>
+        )}
+
+        {/* Step 4 — Narx */}
+        {step === 4 && batch && (
+          <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+            <div style={{ fontSize:14, fontWeight:500, display:"flex", alignItems:"center", gap:7 }}><Banknote size={16} /> Narx va quti sozlamalari</div>
+
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, background:"var(--color-background-secondary)", border:"0.5px solid var(--color-border-tertiary)", borderRadius:11, padding:14 }}>
+              {[
+                { label:"Barkod (quti)", val: <Chip color="purple"><Tag size={10} />{batch.series}</Chip> },
+                ...(batch.boxSeries ? [{ label:"QR seriya", val: <Chip color="blue"><QrCode size={10} />{batch.boxSeries}</Chip> }] : []),
+                { label:"Dozaj", val: <Chip color="gray"><FlaskConical size={10} />{batch.mg}</Chip> },
+                { label:"Omborda", val: <span style={{ color:"#16a34a", fontWeight:500, fontSize:13, display:"inline-flex", alignItems:"center", gap:4 }}><CheckCircle size={12} />{batch.remainingQty} ta</span> },
+                { label:"Muddat", val: <span style={{ fontSize:13, display:"inline-flex", alignItems:"center", gap:4, color:"var(--color-text-secondary)" }}><Calendar size={11} />{fmtD(batch.expiry)}</span> },
+                { label:"Shartnoma", val: <span style={{ fontSize:12, fontFamily:"monospace", color:"var(--color-text-secondary)" }}>{batch.contractNumber || "—"}</span> },
+              ].map(({ label, val }) => (
+                <div key={label} style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                  <span style={{ fontSize:10, fontWeight:500, textTransform:"uppercase", color:"var(--color-text-tertiary)" }}>{label}</span>
+                  {val}
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+              {[
+                { label:"Sotish narxi (1 dona)", key:"price", val: unitPrice, set: setUnitPrice, suffix:"so'm", req:true },
+                { label:"1 qutida nechta dona?", key:"upb", val: unitsPerBox, set: v => setUnitsPerBox(v), suffix:"dona", hint:`Quti barkodi skanerlanganda +${unitsPerBox} dona qo'shiladi` },
+              ].map(f => (
+                <div key={f.key} style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                  <label style={{ display:"inline-flex", alignItems:"center", gap:5, fontSize:11, fontWeight:500, textTransform:"uppercase", letterSpacing:".04em", color:"var(--color-text-secondary)" }}>
+                    {f.label}{f.req && <span style={{ color:"#ef4444" }}>*</span>}
+                  </label>
+                  <div style={{ position:"relative" }}>
+                    <input type="number" min="0" value={f.val} onChange={e => f.set(Number(e.target.value))}
+                      style={{ width:"100%", border:"0.5px solid var(--color-border-secondary)", borderRadius:10, padding:"11px 52px 11px 13px", fontSize:15, fontWeight:500, outline:"none", fontFamily:"var(--font-sans)", color:"var(--color-text-primary)", background:"var(--color-background-primary)" }} />
+                    <span style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", fontSize:12, color:"var(--color-text-tertiary)", fontWeight:500 }}>{f.suffix}</span>
+                  </div>
+                  {f.hint && <p style={{ fontSize:11, color:"var(--color-text-tertiary)", margin:0 }}>{f.hint}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 5 — Skaner */}
+        {step === 5 && batch && (
+          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+            {/* Counter */}
+            <div style={{ textAlign:"center", padding:"20px 0 14px", border:"0.5px solid var(--color-border-tertiary)", borderRadius:14, background:"var(--color-background-secondary)" }}>
+              <div style={{ fontSize:60, fontWeight:700, color:"#2563eb", lineHeight:1 }}>{qty}</div>
+              <div style={{ fontSize:13, color:"var(--color-text-tertiary)", marginTop:4 }}>dona skanerlangan</div>
+              <div style={{ fontSize:20, fontWeight:500, color:"#16a34a", marginTop:8 }}>{fmt(totalPrice)}</div>
+            </div>
+
+            {/* Mini stats */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
+              {[
+                { icon: <Package size={13} />, val: boxScans, lbl:"Quti", bg:"#eff6ff", color:"#2563eb" },
+                { icon: <QrCode size={13} />, val: qrScans, lbl:"Markirovka", bg:"#f5f3ff", color:"#7c3aed" },
+                { icon: <BarChart3 size={13} />, val: fmt(totalPrice), lbl:"Jami", bg:"#f0fdf4", color:"#16a34a" },
+              ].map((s, i) => (
+                <div key={i} style={{ display:"flex", alignItems:"center", gap:8, borderRadius:10, padding:"10px 12px", background:s.bg, color:s.color }}>
+                  {s.icon}
+                  <div><div style={{ fontSize:12, fontWeight:700, lineHeight:1.2 }}>{s.val}</div><div style={{ fontSize:10, color:"var(--color-text-tertiary)", marginTop:2 }}>{s.lbl}</div></div>
+                </div>
+              ))}
+            </div>
+
+            {warnCount > 0 && (
+              <div style={{ display:"flex", alignItems:"center", gap:8, background:"#fffbeb", border:"1.5px solid #fde68a", borderRadius:10, padding:"10px 14px", fontSize:13, fontWeight:500, color:"#92400e" }}>
+                <AlertTriangle size={14} /> {warnCount} ta seriyasi mos kelmaydigan dori qo'shildi!
+              </div>
+            )}
+
+            {/* Scan input */}
+            <div style={{ background:"var(--color-background-secondary)", border:"0.5px solid var(--color-border-tertiary)", borderRadius:12, padding:14, display:"flex", flexDirection:"column", gap:8 }}>
+              <div style={{ fontSize:11, fontWeight:500, textTransform:"uppercase", letterSpacing:".04em", color:"var(--color-text-secondary)", display:"flex", alignItems:"center", gap:6 }}><Scan size={13} /> Barkod yoki QR kodni skanerlang</div>
+              <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                <span style={{ display:"inline-flex", alignItems:"center", gap:5, fontSize:11, color:"var(--color-text-secondary)", background:"var(--color-background-primary)", padding:"4px 10px", borderRadius:7 }}><Tag size={10} /> <strong style={{ fontFamily:"monospace" }}>{batch.series}</strong></span>
+                {batch.boxSeries && <span style={{ display:"inline-flex", alignItems:"center", gap:5, fontSize:11, color:"var(--color-text-secondary)", background:"var(--color-background-primary)", padding:"4px 10px", borderRadius:7 }}><QrCode size={10} /> <strong style={{ fontFamily:"monospace" }}>{batch.boxSeries}</strong></span>}
+              </div>
+              <div style={{ display:"flex", gap:8 }}>
+                <input ref={scanRef} value={scanInput} onChange={e => setScanInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleScan()}
+                  placeholder="Scan qiling yoki yozing, Enter bosing…" autoFocus
+                  style={{ flex:1, border:"1.5px solid #2563eb", borderRadius:10, padding:"11px 14px", fontSize:14, fontWeight:500, outline:"none", fontFamily:"var(--font-sans)", color:"var(--color-text-primary)", background:"var(--color-background-primary)" }} />
+                <button onClick={handleScan} disabled={!scanInput.trim()} style={{ background:"#2563eb", color:"#fff", border:"none", borderRadius:10, width:46, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0, opacity: scanInput.trim() ? 1 : 0.5 }}><Scan size={15} /></button>
+              </div>
+              <p style={{ fontSize:11, color:"var(--color-text-tertiary)", margin:0, textAlign:"center" }}>Quti barkodi → +{unitsPerBox} dona &nbsp;|&nbsp; Markirovka QR → +1 dona</p>
+            </div>
+
+            {/* Manual */}
+            <div style={{ display:"flex", alignItems:"center", gap:12, background:"var(--color-background-secondary)", border:"0.5px solid var(--color-border-tertiary)", borderRadius:12, padding:"10px 14px" }}>
+              <button onClick={subOne} disabled={qty === 0} style={{ width:38, height:38, border:"none", borderRadius:9, background:"#fee2e2", color:"#dc2626", display:"flex", alignItems:"center", justifyContent:"center", cursor: qty === 0 ? "not-allowed" : "pointer", opacity: qty === 0 ? 0.4 : 1 }}><Minus size={14} /></button>
+              <div style={{ flex:1, textAlign:"center" }}>
+                <div style={{ fontSize:11, color:"var(--color-text-tertiary)", fontWeight:500 }}>Qo'lda kiritish</div>
+                <div style={{ fontSize:14, fontWeight:700 }}>{qty} dona</div>
+              </div>
+              <button onClick={addOne} style={{ width:38, height:38, border:"none", borderRadius:9, background:"#dcfce7", color:"#16a34a", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}><Plus size={14} /></button>
+            </div>
+
+            {/* Scan Log */}
+            {scanLog.length > 0 && (
+              <div style={{ background:"var(--color-background-secondary)", borderRadius:11, padding:12 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:11, fontWeight:500, textTransform:"uppercase", color:"var(--color-text-secondary)", marginBottom:8 }}>
+                  <span style={{ display:"flex", alignItems:"center", gap:5 }}><ClipboardList size={13} /> Jurnal ({scanLog.length} scan / {qty} dona)</span>
+                  <button onClick={() => { setScanLog([]); setQty(0) }} style={{ background:"none", border:"none", cursor:"pointer", fontSize:11, color:"#ef4444", fontWeight:500, display:"flex", alignItems:"center", gap:4 }}><Trash2 size={11} /> Tozalash</button>
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", gap:4, maxHeight:180, overflowY:"auto" }}>
+                  {[...scanLog].reverse().slice(0, 10).map((l, i) => (
+                    <div key={i} style={{ display:"flex", alignItems:"center", gap:7, fontSize:12, padding:"5px 8px", borderRadius:7, background: l.warning ? "#fffbeb" : l.type === "barcode" ? "#eff6ff" : "#f0fdf4" }}>
+                      {l.type === "barcode" ? <Package size={12} style={{ color:"#2563eb", flexShrink:0 }} /> : l.type === "qr" ? <QrCode size={12} style={{ color:"#7c3aed", flexShrink:0 }} /> : <Plus size={12} style={{ color:"#16a34a", flexShrink:0 }} />}
+                      <span style={{ fontFamily:"monospace", fontWeight:700, color:"#6d28d9", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:140, fontSize:11 }}>{l.series}</span>
+                      <span style={{ display:"inline-block", fontSize:9, fontWeight:700, padding:"1px 5px", borderRadius:4, background: l.type === "barcode" ? "#dbeafe" : l.type === "qr" ? "#ede9fe" : "#dcfce7", color: l.type === "barcode" ? "#1d4ed8" : l.type === "qr" ? "#7c3aed" : "#15803d" }}>{l.type === "barcode" ? "quti" : l.type === "qr" ? "QR" : "qo'l"}</span>
+                      <span style={{ fontWeight:700, color:"#2563eb", flexShrink:0 }}>+{l.count}</span>
+                      {l.warning && <AlertTriangle size={11} style={{ color:"#d97706", flexShrink:0 }} />}
+                      <span style={{ color:"var(--color-text-tertiary)", fontSize:10, flexShrink:0 }}>{new Date(l.time).toLocaleTimeString("uz-UZ")}</span>
+                    </div>
+                  ))}
+                  {scanLog.length > 10 && <div style={{ textAlign:"center", fontSize:11, color:"var(--color-text-tertiary)", padding:4 }}>… va yana {scanLog.length - 10} ta</div>}
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
-      {loading ? (
-        <div className="state-box"><Loader2 size={28} className="spin text-blue" strokeWidth={1.5} /><p>Yuklanmoqda…</p></div>
-      ) : sales.length === 0 ? (
-        <div className="state-box">
-          <ReceiptText size={40} strokeWidth={1} className="text-muted" />
-          <p>{hasFilter ? "Bu sana oralig'ida sotuv topilmadi" : "Hali sotuv yo'q"}</p>
+      {/* Footer */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 20px", borderTop:"0.5px solid var(--color-border-tertiary)", background:"var(--color-background-secondary)", gap:10 }}>
+        {step > 1
+          ? <button onClick={() => setStep(s => s - 1)} style={{ display:"inline-flex", alignItems:"center", gap:6, background:"var(--color-background-primary)", color:"var(--color-text-secondary)", border:"0.5px solid var(--color-border-secondary)", borderRadius:9, padding:"9px 16px", fontSize:13, fontWeight:500, cursor:"pointer" }}><ArrowLeft size={14} /> Ortga</button>
+          : <div />}
+        <div style={{ display:"flex", gap:8 }}>
+          {step < 5 && <button disabled={!canNext()} onClick={() => setStep(s => s + 1)} style={{ display:"inline-flex", alignItems:"center", gap:6, background: canNext() ? "#2563eb" : "#bfdbfe", color:"#fff", border:"none", borderRadius:9, padding:"9px 18px", fontSize:13, fontWeight:500, cursor: canNext() ? "pointer" : "not-allowed" }}>Keyingi <ChevronRight size={14} /></button>}
+          {step === 5 && qty > 0 && <button disabled={saving} onClick={handleSave} style={{ display:"inline-flex", alignItems:"center", gap:7, background:"#16a34a", color:"#fff", border:"none", borderRadius:9, padding:"9px 18px", fontSize:13, fontWeight:500, cursor:"pointer" }}>
+            {saving ? <><Loader2 size={15} className="spin" /> Saqlanmoqda…</> : <><CheckCircle size={15} /> Saqlash — {fmt(totalPrice)}</>}
+          </button>}
+        </div>
+      </div>
+    </div>
+
+    {/* Confirm Modal */}
+    {confirmModal && (
+      <Overlay onClose={() => { setConfirmModal(null); scanRef.current?.focus() }}>
+        <div style={{ background:"var(--color-background-primary)", borderRadius:18, width:"100%", maxWidth:420, overflow:"hidden", boxShadow:"0 32px 80px rgba(0,0,0,.2)" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, padding:"18px 22px 14px", background:"#fffbeb", borderBottom:"1.5px solid #fef3c7" }}>
+            <AlertTriangle size={18} style={{ color:"#d97706" }} />
+            <h3 style={{ fontSize:16, fontWeight:500, color:"#92400e", margin:0 }}>Seriya mos kelmadi</h3>
+          </div>
+          <div style={{ padding:"18px 22px 22px" }}>
+            <p style={{ fontSize:14, color:"var(--color-text-secondary)", lineHeight:1.7, marginBottom:20, whiteSpace:"pre-line" }}>{confirmModal.message}</p>
+            <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
+              <button onClick={() => { setConfirmModal(null); scanRef.current?.focus() }} style={{ background:"var(--color-background-secondary)", color:"var(--color-text-secondary)", border:"0.5px solid var(--color-border-secondary)", borderRadius:9, padding:"9px 16px", fontSize:13, fontWeight:500, cursor:"pointer" }}>Bekor</button>
+              <button onClick={confirmAdd} style={{ background:"#d97706", color:"#fff", border:"none", borderRadius:9, padding:"9px 18px", fontSize:13, fontWeight:500, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:6 }}><CheckCircle size={14} /> Baribir qo'shish</button>
+            </div>
+          </div>
+        </div>
+      </Overlay>
+    )}
+    </>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════
+// SALES TABLE
+// ═══════════════════════════════════════════════════════════
+const PER_PAGE = 8
+
+function SaleDetailModal({ sale, onClose, onDelete }) {
+  return (
+    <Modal title={`Sotuv tafsiloti — #${sale.id}`} onClose={onClose} width={700}>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:18 }}>
+        {[
+          { label:"Mijoz", val: sale.customer.name },
+          { label:"Telefon", val: sale.customer.phone },
+          { label:"Sana", val: fmtDT(sale.createdAt) },
+          { label:"Jami", val: fmt(sale.totalPrice), accent: true },
+        ].map(m => (
+          <div key={m.label} style={{ background: m.accent ? "#eff6ff" : "var(--color-background-secondary)", border:`0.5px solid ${m.accent ? "#bfdbfe" : "var(--color-border-tertiary)"}`, borderRadius:11, padding:"13px 14px" }}>
+            <div style={{ fontSize:10, fontWeight:500, textTransform:"uppercase", color:"var(--color-text-tertiary)", marginBottom:5 }}>{m.label}</div>
+            <div style={{ fontSize: m.accent ? 18 : 14, fontWeight:500, color: m.accent ? "#2563eb" : "var(--color-text-primary)" }}>{m.val}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ overflowX:"auto" }}>
+        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+          <thead><tr style={{ background:"var(--color-background-secondary)", borderBottom:"0.5px solid var(--color-border-tertiary)" }}>
+            {["Mahsulot","Seriya / Dozaj","Muddat","Shartnoma","Faktura","Miqdor","Narx","Jami"].map(h => <th key={h} style={{ padding:"10px 12px", fontSize:10, fontWeight:500, textTransform:"uppercase", color:"var(--color-text-tertiary)", textAlign:"left", whiteSpace:"nowrap" }}>{h}</th>)}
+          </tr></thead>
+          <tbody>
+            {sale.items.map(it => (
+              <tr key={it.id} style={{ borderBottom:"0.5px solid var(--color-border-tertiary)" }}>
+                <td style={{ padding:"10px 12px", fontWeight:500 }}>{it.product.name}</td>
+                <td style={{ padding:"10px 12px" }}><Chip color="purple"><Tag size={9} />{it.batch.series}</Chip><Chip color="gray"><FlaskConical size={9} />{it.batch.mg}</Chip></td>
+                <td style={{ padding:"10px 12px", fontSize:11, color:"var(--color-text-tertiary)", whiteSpace:"nowrap" }}>{fmtD(it.batch.expiry)}</td>
+                <td style={{ padding:"10px 12px", fontFamily:"monospace", fontSize:11, color:"var(--color-text-secondary)" }}>{it.batch.contractNumber || "—"}</td>
+                <td style={{ padding:"10px 12px", fontFamily:"monospace", fontSize:11, color:"var(--color-text-secondary)" }}>{it.batch.invoiceNumber || "—"}</td>
+                <td style={{ padding:"10px 12px" }}><span style={{ background:"var(--color-background-secondary)", color:"var(--color-text-primary)", fontWeight:700, fontSize:12, padding:"3px 10px", borderRadius:20, display:"inline-block" }}>{it.quantity}</span></td>
+                <td style={{ padding:"10px 12px", fontFamily:"monospace", fontSize:12 }}>{fmt(it.price)}</td>
+                <td style={{ padding:"10px 12px", fontFamily:"monospace", fontSize:13, fontWeight:700 }}>{fmt(it.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:18, paddingTop:14, borderTop:"0.5px solid var(--color-border-tertiary)" }}>
+        <button onClick={() => onDelete(sale)} style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#fee2e2", color:"#dc2626", border:"none", borderRadius:9, padding:"9px 14px", fontSize:13, fontWeight:500, cursor:"pointer" }}><Trash2 size={13} /> Bekor qilish</button>
+        <button onClick={onClose} style={{ background:"var(--color-background-secondary)", color:"var(--color-text-secondary)", border:"0.5px solid var(--color-border-secondary)", borderRadius:9, padding:"8px 16px", fontSize:13, fontWeight:500, cursor:"pointer" }}>Yopish</button>
+      </div>
+    </Modal>
+  )
+}
+
+function SalesTable({ sales, onDelete }) {
+  const [dateFrom, setDateFrom] = useState("")
+  const [dateTo, setDateTo]   = useState("")
+  const [page, setPage]         = useState(1)
+  const [detail, setDetail]     = useState(null)
+
+  const filtered = sales.filter(s => {
+    const d = new Date(s.createdAt)
+    if (dateFrom && d < new Date(dateFrom)) return false
+    if (dateTo   && d > new Date(dateTo + "T23:59:59")) return false
+    return true
+  })
+
+  const totalRev = filtered.reduce((s, x) => s + x.totalPrice, 0)
+  const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE)
+  const pages = Math.ceil(filtered.length / PER_PAGE)
+
+  return (
+    <div style={{ background:"var(--color-background-primary)", border:"0.5px solid var(--color-border-tertiary)", borderRadius:18, overflow:"hidden" }}>
+      {/* Header */}
+      <div style={{ display:"flex", alignItems:"center", gap:14, padding:"20px 22px 16px", borderBottom:"0.5px solid var(--color-border-tertiary)" }}>
+        <History size={18} style={{ color:"#7c3aed" }} />
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:17, fontWeight:500 }}>Sotuvlar tarixi</div>
+          <div style={{ fontSize:12, color:"var(--color-text-tertiary)", marginTop:2 }}>{filtered.length} ta sotuv</div>
+        </div>
+      </div>
+
+      {/* Revenue bar */}
+      {filtered.length > 0 && (
+        <div style={{ display:"flex", gap:0, background:"var(--color-background-secondary)", borderBottom:"0.5px solid var(--color-border-tertiary)", padding:"14px 22px" }}>
+          {[
+            { icon: <TrendingUp size={16} />, label:"Jami tushum", val: fmt(totalRev), iconBg:"#dcfce7", iconColor:"#16a34a" },
+            { icon: <ReceiptText size={16} />, label:"Sotuvlar soni", val: `${filtered.length} ta`, iconBg:"#dbeafe", iconColor:"#2563eb" },
+          ].map((r, i) => (
+            <div key={i} style={{ display:"flex", alignItems:"center", gap:12, flex:1, paddingRight: i === 0 ? 20 : 0, borderRight: i === 0 ? "0.5px solid var(--color-border-tertiary)" : "none", paddingLeft: i > 0 ? 20 : 0 }}>
+              <div style={{ width:38, height:38, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", background:r.iconBg, color:r.iconColor }}>{r.icon}</div>
+              <div><div style={{ fontSize:11, fontWeight:500, textTransform:"uppercase", color:"var(--color-text-tertiary)" }}>{r.label}</div><div style={{ fontSize:20, fontWeight:500, marginTop:2 }}>{r.val}</div></div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Filters */}
+      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 22px", borderBottom:"0.5px solid var(--color-border-tertiary)", flexWrap:"wrap" }}>
+        <Calendar size={13} style={{ color:"var(--color-text-tertiary)" }} />
+        <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1) }} style={{ border:"0.5px solid var(--color-border-secondary)", borderRadius:8, padding:"7px 11px", fontSize:13, outline:"none", fontFamily:"var(--font-sans)", color:"var(--color-text-primary)", background:"var(--color-background-primary)" }} />
+        <span style={{ color:"var(--color-text-tertiary)", fontSize:13 }}>—</span>
+        <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1) }} style={{ border:"0.5px solid var(--color-border-secondary)", borderRadius:8, padding:"7px 11px", fontSize:13, outline:"none", fontFamily:"var(--font-sans)", color:"var(--color-text-primary)", background:"var(--color-background-primary)" }} />
+        {(dateFrom || dateTo) && (
+          <button onClick={() => { setDateFrom(""); setDateTo(""); setPage(1) }} style={{ display:"inline-flex", alignItems:"center", gap:5, background:"#fef2f2", color:"#dc2626", border:"none", borderRadius:8, padding:"7px 12px", fontSize:12, fontWeight:500, cursor:"pointer" }}><X size={12} /> Tozalash</button>
+        )}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:12, padding:"64px 24px", color:"var(--color-text-tertiary)", fontSize:14 }}>
+          <ReceiptText size={40} strokeWidth={1} />
+          <p>{dateFrom || dateTo ? "Bu sana oralig'ida sotuv topilmadi" : "Hali sotuv yo'q"}</p>
         </div>
       ) : (
         <>
-          <div className="tbl-scroll">
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th>#</th><th>Mijoz</th><th>Mahsulot</th>
-                  <th>Miqdor</th><th>Jami</th><th>Sana</th><th />
-                </tr>
-              </thead>
+          <div style={{ overflowX:"auto" }}>
+            <table style={{ width:"100%", borderCollapse:"collapse" }}>
+              <thead><tr style={{ background:"var(--color-background-secondary)", borderBottom:"0.5px solid var(--color-border-tertiary)" }}>
+                {["#","Mijoz","Mahsulot","Miqdor","Jami","Sana",""].map(h => <th key={h} style={{ padding:"11px 16px", fontSize:10, fontWeight:500, textTransform:"uppercase", color:"#7c3aed", textAlign:"left", whiteSpace:"nowrap" }}>{h}</th>)}
+              </tr></thead>
               <tbody>
                 {paged.map(sale => (
-                  <tr key={sale.id} className="tbl-row" onClick={() => setDetail(sale)}>
-                    <td><span className="td-id">#{sale.id}</span></td>
-                    <td>
-                      <div className="td-cust-cell">
-                        <div className="td-avatar">{sale.customer.name.charAt(0)}</div>
-                        <div>
-                          <div className="td-cust">{sale.customer.name}</div>
-                          <div className="td-phone">{sale.customer.phone}</div>
-                        </div>
+                  <tr key={sale.id} onClick={() => setDetail(sale)} style={{ borderBottom:"0.5px solid var(--color-border-tertiary)", cursor:"pointer" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "var(--color-background-secondary)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    <td style={{ padding:"12px 16px" }}><span style={{ fontWeight:700, color:"#7c3aed", fontSize:13, background:"#f5f3ff", padding:"3px 8px", borderRadius:6, display:"inline-block" }}>#{sale.id}</span></td>
+                    <td style={{ padding:"12px 16px" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <Avatar name={sale.customer.name} size={30} />
+                        <div><div style={{ fontWeight:500, fontSize:13 }}>{sale.customer.name}</div><div style={{ fontSize:11, color:"var(--color-text-tertiary)" }}>{sale.customer.phone}</div></div>
                       </div>
                     </td>
-                    <td>
-                      <div className="td-items">
+                    <td style={{ padding:"12px 16px" }}>
+                      <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
                         {sale.items.slice(0, 2).map(it => (
-                          <div key={it.id} className="td-chip">
-                            {it.product.name}<span className="chip-x">×{it.quantity}</span>
+                          <div key={it.id} style={{ display:"inline-flex", alignItems:"center", gap:5, background:"var(--color-background-secondary)", borderRadius:5, padding:"2px 8px", fontSize:12, width:"fit-content" }}>
+                            {it.product.name}<span style={{ color:"#2563eb", fontWeight:700, fontSize:11 }}>×{it.quantity}</span>
                           </div>
                         ))}
-                        {sale.items.length > 2 && <span className="td-more">+{sale.items.length - 2} ta</span>}
+                        {sale.items.length > 2 && <span style={{ fontSize:11, color:"var(--color-text-tertiary)" }}>+{sale.items.length - 2} ta</span>}
                       </div>
                     </td>
-                    <td><span className="td-qty-pill">{sale.items.reduce((s, i) => s + i.quantity, 0)} dona</span></td>
-                    <td><span className="td-total">{fmt(sale.totalPrice)}</span></td>
-                    <td><span className="td-date">{fmtDT(sale.createdAt)}</span></td>
-                    <td onClick={e => e.stopPropagation()}>
-                      <button className="btn-history" onClick={() => setCustModal(sale.customer)}>
-                        <History size={13} strokeWidth={2} /> Tarix
-                      </button>
+                    <td style={{ padding:"12px 16px" }}><span style={{ background:"var(--color-background-secondary)", fontWeight:700, fontSize:12, padding:"3px 10px", borderRadius:20, display:"inline-block" }}>{sale.items.reduce((s, i) => s + i.quantity, 0)} dona</span></td>
+                    <td style={{ padding:"12px 16px", fontWeight:700, fontSize:14, whiteSpace:"nowrap" }}>{fmt(sale.totalPrice)}</td>
+                    <td style={{ padding:"12px 16px", fontSize:11, color:"var(--color-text-tertiary)", whiteSpace:"nowrap" }}>{fmtDT(sale.createdAt)}</td>
+                    <td style={{ padding:"12px 16px" }} onClick={e => e.stopPropagation()}>
+                      <button onClick={() => setDetail(sale)} style={{ display:"inline-flex", alignItems:"center", gap:5, background:"#f5f3ff", color:"#7c3aed", border:"none", borderRadius:7, padding:"5px 10px", fontSize:11, fontWeight:500, cursor:"pointer" }}><ReceiptText size={12} /> Ko'rish</button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <div className="st-footer">
-            <span className="pag-info">{(page-1)*PER_PAGE+1}–{Math.min(page*PER_PAGE, sales.length)} / {sales.length}</span>
-            <Pagination total={sales.length} page={page} perPage={PER_PAGE} onChange={setPage} />
-            <button className="btn-export-sm" disabled={!paged.length}
-              onClick={() => exportSalesExcel(paged, `sotuvlar_p${page}.xlsx`)}>
-              <Download size={12} /> Bu sahifa
-            </button>
-          </div>
+
+          {/* Pagination */}
+          {pages > 1 && (
+            <div style={{ display:"flex", alignItems:"center", gap:8, padding:"12px 20px", borderTop:"0.5px solid var(--color-border-tertiary)", flexWrap:"wrap" }}>
+              <span style={{ fontSize:12, color:"var(--color-text-tertiary)" }}>{(page-1)*PER_PAGE+1}–{Math.min(page*PER_PAGE, filtered.length)} / {filtered.length}</span>
+              <div style={{ display:"flex", gap:4, flex:1, justifyContent:"center" }}>
+                <button disabled={page === 1} onClick={() => setPage(p => p - 1)} style={{ width:32, height:32, border:"0.5px solid var(--color-border-secondary)", borderRadius:8, background:"var(--color-background-primary)", cursor: page === 1 ? "not-allowed" : "pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--color-text-secondary)", opacity: page === 1 ? 0.4 : 1 }}><ChevronRight size={13} style={{ transform:"rotate(180deg)" }} /></button>
+                {Array.from({ length: pages }, (_, i) => i + 1).map(n => (
+                  <button key={n} onClick={() => setPage(n)} style={{ width:32, height:32, border:"0.5px solid var(--color-border-secondary)", borderRadius:8, background: n === page ? "#2563eb" : "var(--color-background-primary)", color: n === page ? "#fff" : "var(--color-text-secondary)", cursor:"pointer", fontSize:13, fontWeight:500, display:"flex", alignItems:"center", justifyContent:"center" }}>{n}</button>
+                ))}
+                <button disabled={page === pages} onClick={() => setPage(p => p + 1)} style={{ width:32, height:32, border:"0.5px solid var(--color-border-secondary)", borderRadius:8, background:"var(--color-background-primary)", cursor: page === pages ? "not-allowed" : "pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--color-text-secondary)", opacity: page === pages ? 0.4 : 1 }}><ChevronRight size={13} /></button>
+              </div>
+            </div>
+          )}
         </>
       )}
 
-      {detail    && <SaleDetailModal sale={detail} onClose={() => setDetail(null)} onDelete={handleDelete} />}
-      {custModal && <CustomerModal customer={custModal} onClose={() => setCustModal(null)} showToast={showToast} />}
+      {detail && (
+        <SaleDetailModal
+          sale={detail}
+          onClose={() => setDetail(null)}
+          onDelete={s => { onDelete(s); setDetail(null) }}
+        />
+      )}
     </div>
-  );
+  )
 }
 
-// ─── Sale Detail Modal ────────────────────────────────────
-function SaleDetailModal({ sale, onClose, onDelete }) {
-  return (
-    <Modal title={`Sotuv tafsiloti — #${sale.id}`} onClose={onClose} size="lg">
-      <div className="dm-meta">
-        {[
-          { label: "Mijoz",   val: sale.customer.name,    icon: User },
-          { label: "Telefon", val: sale.customer.phone,   icon: Phone },
-          { label: "Sana",    val: fmtDT(sale.createdAt), icon: Calendar },
-          { label: "Jami",    val: fmt(sale.totalPrice),  icon: Banknote, accent: true },
-        ].map(m => (
-          <div key={m.label} className={`dm-meta-item${m.accent ? " dm-accent" : ""}`}>
-            <div className="dm-label"><m.icon size={11} strokeWidth={2.5} /> {m.label}</div>
-            <div className="dm-val">{m.val}</div>
-          </div>
-        ))}
-      </div>
+// ═══════════════════════════════════════════════════════════
+// ROOT — Sales Page
+// ═══════════════════════════════════════════════════════════
+export default function Sales() {
+  const [sales, setSales]         = useState(INITIAL_SALES)
+  const [toast, setToast]         = useState(null)
+  const [activeTab, setActiveTab] = useState("new")
 
-      <table className="tbl tbl-modal">
-        <thead>
-          <tr><th>Mahsulot</th><th>Seriya / Dozaj</th><th>Muddat</th><th>Miqdor</th><th>Narx</th><th>Jami</th><th>Scan log</th></tr>
-        </thead>
-        <tbody>
-          {sale.items.map(it => (
-            <tr key={it.id}>
-              <td className="td-product-name">{it.product.name}</td>
-              <td>
-                <span className="chip chip-purple"><Tag size={9} /> {it.batch.series}</span>
-                <span className="chip chip-gray"><FlaskConical size={9} /> {it.batch.mg}</span>
-              </td>
-              <td className="td-date">{fmtD(it.batch.expiry)}</td>
-              <td><span className="td-qty-pill">{it.quantity}</span></td>
-              <td className="mono">{fmt(it.price)}</td>
-              <td className="mono td-total">{fmt(it.total)}</td>
-              <td>
-                {it.scanLog && Array.isArray(it.scanLog) && it.scanLog.length > 0 ? (
-                  <button className="btn-export-sm" onClick={() =>
-                    exportScanLogExcel(it.scanLog, {
-                      customer: sale.customer.name,
-                      product:  it.product.name,
-                      series:   it.batch.series,
-                      qty:      it.quantity,
-                      price:    it.price,
-                    }, `sotuv_${sale.id}_scanlog.xlsx`)
-                  }>
-                    <Download size={11} /> {it.scanLog.length} scan
-                  </button>
-                ) : (
-                  <span className="td-date">—</span>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+  const showToast = useCallback((msg, type = "success") => setToast({ msg, type }), [])
 
-      <div className="dm-footer">
-        <button className="btn-danger" onClick={() => onDelete(sale)}>
-          <Trash2 size={13} strokeWidth={2} /> Bekor qilish
-        </button>
-        <div className="dm-footer-right">
-          <button className="btn-export-sm" onClick={() => exportSalesExcel([sale], `sotuv_${sale.id}.xlsx`)}>
-            <Download size={13} /> Excel (scan log)
-          </button>
-          <button className="btn-sec" onClick={onClose}>Yopish</button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
+  const handleNewSale = useCallback(sale => {
+    setSales(prev => [sale, ...prev])
+  }, [])
 
-// ─── Customer History Modal ───────────────────────────────
-function CustomerModal({ customer, onClose, showToast }) {
-  const [sales,   setSales]   = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [page,    setPage]    = useState(1);
-
-  useEffect(() => {
-    salesApi.getAll({ customerId: customer.id })
-      .then(d => setSales(Array.isArray(d) ? d : []))
-      .catch(() => showToast("Xato yuz berdi", "error"))
-      .finally(() => setLoading(false));
-  }, [customer.id]);
-
-  const total = sales.reduce((s, x) => s + x.totalPrice, 0);
-  const paged = sales.slice((page - 1) * PER_PAGE, page * PER_PAGE);
-
-  return (
-    <Modal title={`${customer.name} — Xaridlar tarixi`} onClose={onClose} size="xl">
-      {loading ? (
-        <div className="state-box"><Loader2 size={28} className="spin text-blue" strokeWidth={1.5} /><p>Yuklanmoqda…</p></div>
-      ) : sales.length === 0 ? (
-        <div className="state-box"><ReceiptText size={36} strokeWidth={1} className="text-muted" /><p>Hali xarid yo'q</p></div>
-      ) : (
-        <>
-          <div className="cm-summary">
-            <div className="cm-stat">
-              <div className="cm-stat-icon cm-icon-blue"><ReceiptText size={15} /></div>
-              <div>
-                <div className="cm-stat-label">Jami xaridlar</div>
-                <div className="cm-stat-val">{sales.length} ta</div>
-              </div>
-            </div>
-            <div className="cm-stat">
-              <div className="cm-stat-icon cm-icon-green"><TrendingUp size={15} /></div>
-              <div>
-                <div className="cm-stat-label">Umumiy summa</div>
-                <div className="cm-stat-val cm-green">{fmt(total)}</div>
-              </div>
-            </div>
-            <button className="btn-export cm-export"
-              onClick={() => exportSalesExcel(sales, `${customer.name}_xaridlar.xlsx`)}>
-              <Download size={13} /> Excel (barchasi)
-            </button>
-          </div>
-          <div className="tbl-scroll">
-            <table className="tbl tbl-modal">
-              <thead>
-                <tr><th>#</th><th>Sana</th><th>Mahsulot</th><th>Seriya</th><th>Miqdor</th><th>Narx</th><th>Jami</th></tr>
-              </thead>
-              <tbody>
-                {paged.map(sale =>
-                  sale.items.map((it, idx) => (
-                    <tr key={`${sale.id}-${it.id}`}>
-                      {idx === 0 && <td rowSpan={sale.items.length} className="td-id">#{sale.id}</td>}
-                      {idx === 0 && <td rowSpan={sale.items.length} className="td-date">{fmtDT(sale.createdAt)}</td>}
-                      <td className="td-product-name">{it.product.name}</td>
-                      <td>
-                        <span className="chip chip-purple"><Tag size={9} /> {it.batch.series}</span>
-                        <span className="chip chip-gray"><FlaskConical size={9} /> {it.batch.mg}</span>
-                      </td>
-                      <td><span className="td-qty-pill">{it.quantity}</span></td>
-                      <td className="mono">{fmt(it.price)}</td>
-                      <td className="mono td-total">{fmt(it.total)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-          <div className="st-footer">
-            <span className="pag-info">{(page-1)*PER_PAGE+1}–{Math.min(page*PER_PAGE, sales.length)} / {sales.length}</span>
-            <Pagination total={sales.length} page={page} perPage={PER_PAGE} onChange={setPage} />
-            <button className="btn-export-sm" onClick={() => exportSalesExcel(paged, `${customer.name}_p${page}.xlsx`)}>
-              <Download size={12} /> Bu sahifa
-            </button>
-          </div>
-        </>
-      )}
-    </Modal>
-  );
-}
-
-// ─── Root ─────────────────────────────────────────────────
-export const Sales = () => {
-  const [toast,      setToast]      = useState(null);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [activeTab,  setActiveTab]  = useState("new");
-
-  const showToast = (msg, type = "success") => setToast({ msg, type });
+  const handleDelete = useCallback(sale => {
+    if (!window.confirm(`Sotuv #${sale.id} bekor qilinsinmi?`)) return
+    setSales(prev => prev.filter(s => s.id !== sale.id))
+    showToast("Sotuv bekor qilindi")
+  }, [showToast])
 
   return (
     <>
-      <style>{CSS}</style>
+      <style>{`
+        @keyframes slideUp { from { opacity:0; transform:translateY(14px) } to { opacity:1; transform:translateY(0) } }
+        @keyframes pop { from { opacity:0; transform:scale(.94) translateY(10px) } to { opacity:1; transform:scale(1) translateY(0) } }
+        .spin { animation: spinA .7s linear infinite }
+        @keyframes spinA { to { transform:rotate(360deg) } }
+        input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none }
+        input[type=number] { -moz-appearance: textfield }
+        * { box-sizing: border-box; margin:0; padding:0 }
+      `}</style>
+
       {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
 
-      <div className="page">
-        <div className="page-tabs">
-          <button className={`page-tab${activeTab === "new" ? " tab-active" : ""}`}
-            onClick={() => setActiveTab("new")}>
-            <ShoppingCart size={14} strokeWidth={2.2} /> Yangi sotuv
-          </button>
-          <button className={`page-tab${activeTab === "history" ? " tab-active" : ""}`}
-            onClick={() => setActiveTab("history")}>
-            <History size={14} strokeWidth={2.2} /> Tarix
-          </button>
+      <div style={{ minHeight:"100vh", background:"var(--color-background-tertiary)", fontFamily:"var(--font-sans)", color:"var(--color-text-primary)" }}>
+
+        {/* Tab bar — mobile */}
+        <div style={{ background:"var(--color-background-primary)", borderBottom:"0.5px solid var(--color-border-tertiary)", padding:"0 20px", display:"flex", gap:4 }}>
+          {[
+            { key:"new",     label:"Yangi sotuv", icon: <ShoppingCart size={14} /> },
+            { key:"history", label:"Tarix",       icon: <History size={14} /> },
+          ].map(t => (
+            <button key={t.key} onClick={() => setActiveTab(t.key)} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"13px 18px", fontSize:13, fontWeight:500, border:"none", background:"none", cursor:"pointer", color: activeTab === t.key ? "#2563eb" : "var(--color-text-tertiary)", borderBottom:`2px solid ${activeTab === t.key ? "#2563eb" : "transparent"}` }}>
+              {t.icon} {t.label}
+            </button>
+          ))}
         </div>
-        <div className="page-body">
-          <div className={`col-left${activeTab === "new" ? " col-show" : " col-hide"}`}>
-            <SaleForm showToast={showToast} onDone={() => setRefreshKey(k => k + 1)} />
-          </div>
-          <div className={`col-right${activeTab === "history" ? " col-show" : " col-hide"}`}>
-            <SalesTable showToast={showToast} refreshKey={refreshKey} />
-          </div>
+
+        {/* Content */}
+        <div style={{ display:"grid", gridTemplateColumns:"480px 1fr", gap:20, padding:24, maxWidth:1380, margin:"0 auto", alignItems:"start" }}>
+          <SaleForm showToast={showToast} onDone={handleNewSale} />
+          <SalesTable sales={sales} onDelete={handleDelete} />
         </div>
       </div>
     </>
-  );
-};
+  )
+}
 
 // ─── CSS ──────────────────────────────────────────────────
 const CSS = `

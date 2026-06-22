@@ -1,16 +1,16 @@
-import { api } from "./axios";
+import { apiFetch } from "./axios";
 
 export const productsApi = {
-  getAll: () => api.get("/products"),
+  getAll: () => apiFetch.get("/products"),
 
-  getOne: (id) => api.get(`/products/${id}`),
+  getOne: (id) => apiFetch.get(`/products/${id}`),
 
   getBatches: (productId) =>
-    api.get(`/batches?productId=${productId}`),
+    apiFetch.get(`/batches?productId=${productId}`),
 
-  create: (body) => api.post("/products", body),
+  create: (body) => apiFetch.post("/products", body),
 
-  update: (id, body) => api.put(`/products/${id}`, body),
+  update: (id, body) => apiFetch.put(`/products/${id}`, body),
 
-  remove: (id) => api.delete(`/products/${id}`),
+  remove: (id) => apiFetch.delete(`/products/${id}`),
 };

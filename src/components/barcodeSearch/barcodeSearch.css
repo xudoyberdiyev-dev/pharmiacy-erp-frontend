@@ -1,0 +1,113 @@
+.barcode-search {
+    position: relative;
+    margin-bottom: 10px;
+}
+
+.barcode-search-inner {
+    display: flex;
+    align-items: center;
+
+    background: #fff;
+
+    border: 2px solid #2563eb;
+    border-radius: 11px;
+
+    transition: .2s;
+}
+
+.barcode-search-focus {
+    box-shadow: 0 0 0 3px #dbeafe;
+}
+
+.barcode-search-icon {
+    margin-left: 14px;
+    color: #2563eb;
+    flex-shrink: 0;
+}
+
+.barcode-search-input {
+    flex: 1;
+
+    border: none;
+    outline: none;
+
+    background: transparent;
+
+    padding: 12px 10px;
+
+    font-size: 14px;
+}
+
+.barcode-search-input::placeholder {
+    color: #93c5fd;
+}
+
+.barcode-search-clear {
+    border: none;
+    background: transparent;
+
+    cursor: pointer;
+
+    padding: 0 14px;
+
+    display: flex;
+    align-items: center;
+}
+
+.barcode-search-dropdown {
+    position: absolute;
+
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+
+    background: white;
+
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+
+    overflow: hidden;
+
+    z-index: 200;
+
+    box-shadow: 0 12px 32px rgba(0,0,0,.12);
+}
+
+.barcode-search-item {
+    width: 100%;
+
+    border: none;
+
+    background: transparent;
+
+    cursor: pointer;
+
+    text-align: left;
+
+    padding: 11px 16px;
+
+    border-bottom: 1px solid #f1f5f9;
+
+    transition: .15s;
+}
+
+.barcode-search-item:last-child {
+    border-bottom: none;
+}
+
+.barcode-search-item:hover {
+    background: #f0f7ff;
+}
+
+.barcode-search-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.barcode-search-meta {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}

@@ -7,6 +7,7 @@ import {
   FileCode, Hash, ChevronDown, Download,
   FileText, Layers,
 } from "lucide-react";
+import ToastStack from "../components/toast/Toast";
 
 let mockBatchId = 500;
 
@@ -30,16 +31,7 @@ const formatPrice = (p) => Number(p).toLocaleString("uz-UZ") + " so'm";
 function isExpired(expiry)     { return expiry ? new Date(expiry) < new Date() : false; }
 function isExpiringSoon(expiry){ if (!expiry) return false; const d = (new Date(expiry) - new Date()) / 86400000; return d > 0 && d <= 30; }
 
-function Toast({ msg, type, onClose }) {
-  useState(() => { const t = setTimeout(onClose, 3500); return () => clearTimeout(t); });
-  return (
-    <div className={`toast toast-${type}`} role="alert">
-      <span className="toast-icon">{type === "success" ? <CheckCircle size={17} /> : <ShieldAlert size={17} />}</span>
-      <span>{msg}</span>
-      <button className="toast-close" onClick={onClose}><X size={14} /></button>
-    </div>
-  );
-}
+
 
 function Modal({ title, onClose, children }) {
   return (
@@ -279,7 +271,7 @@ export const Batch = () => {
   return (
     <>
       <style>{STYLES}</style>
-      {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+      {toast && <ToastStack msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
 
       <div className="page">
         <div className="page-header">

@@ -1,0 +1,41 @@
+/* ===========================
+   Pagination
+=========================== */
+
+.p-pagination {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.p-page-btn {
+  width: 31px;
+  height: 31px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: all .15s;
+}
+
+.p-page-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.p-page-btn:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+
+.p-page-active {
+  background: #1841a1 !important;
+  color: #fff !important;
+  border-color: #1853d1 !important;
+}

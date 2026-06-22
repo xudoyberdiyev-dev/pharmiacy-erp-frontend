@@ -1,4 +1,4 @@
-import { api } from "./axios";
+import { apiFetch } from "./axios";
 
 export const customersApi = {
   getAll: (search) =>
@@ -8,7 +8,7 @@ export const customersApi = {
 
   getOne: (id) => api.get(`/customers/${id}`),
 
-  getHistory: (id) => api.get(`/customers/${id}/history`),
+  getHistory: (id) => apiFetch.get(`/customers/${id}/history`),
 
   create: (body) => api.post("/customers", body),
 

@@ -1,17 +1,17 @@
-import { api } from "./axios";
+import { apiFetch } from "./axios";
 
 export const batchesApi = {
   getAll: (productId) =>
-    api.get(`/batches`, { params: productId ? { productId } : {} }),
+    apiFetch.get(`/batches`, { params: productId ? { productId } : {} }),
 
   getBySeries: (series) =>
-    api.get(`/batches/by-series/${encodeURIComponent(series)}`),
+    apiFetch.get(`/batches/by-series/${encodeURIComponent(series)}`),
 
-  getOne: (id) => api.get(`/batches/${id}`),
+  getOne: (id) => apiFetch.get(`/batches/${id}`),
 
-  create: (body) => api.post("/batches", body),
+  create: (body) => apiFetch.post("/batches", body),
 
-  update: (id, body) => api.put(`/batches/${id}`, body),
+  update: (id, body) => apiFetch.put(`/batches/${id}`, body),
 
-  remove: (id) => api.delete(`/batches/${id}`),
+  remove: (id) => apiFetch.delete(`/batches/${id}`),
 };

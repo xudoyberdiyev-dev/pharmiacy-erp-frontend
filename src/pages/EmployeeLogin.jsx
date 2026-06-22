@@ -1,16 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Activity, QrCode, Camera, X, CheckCircle } from "lucide-react";
 import { useAuth } from "../layout/AuthProvider";
-import "./login.css";
-
-// ─── MOCK: token kiritilsa shu hodim sifatida kiradi ───────
-const MOCK_EMPLOYEE = {
-  id: "mock-emp-1",
-  firstName: "Aziz",
-  lastName: "Karimov",
-  role: "EMPLOYEE",
-};
+import "./css/login.css";
+import { authAPI } from "../api/auth.api";
 
 export default function EmployeeLogin() {
   const [scanning, setScanning] = useState(false);
@@ -18,24 +11,62 @@ export default function EmployeeLogin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
   const videoRef = useRef(null);
   const streamRef = useRef(null);
-  const scanIntervalRef = useRef(null);
+  const scanTimeoutRef = useRef(null);
+  const redirectTimeoutRef = useRef(null);
+  const mountedRef = useRef(true);
+
   const { loginEmployee } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    return () => stopCamera();
-  }, []);
-
-  const stopCamera = () => {
-    clearInterval(scanIntervalRef.current);
+  const stopCamera = useCallback(() => {
+    clearTimeout(scanTimeoutRef.current);
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
     setScanning(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      stopCamera();
+      clearTimeout(redirectTimeoutRef.current);
+    };
+  }, [stopCamera]);
+
+  const doLogin = useCallback(
+    async (qrToken) => {
+      if (!qrToken || !qrToken.trim()) {
+        setError("Token noto'g'ri");
+        return;
+      }
+
+      setLoading(true);
+      setError("");
+
+      try {
+        const { token, user } = await authAPI.qrLogin(qrToken.trim());
+        if (!mountedRef.current) return;
+
+        setSuccess(`Xush kelibsiz, ${user.firstName}!`);
+        loginEmployee(token, user);
+
+        redirectTimeoutRef.current = setTimeout(() => {
+          if (mountedRef.current) navigate("/");
+        }, 1000);
+      } catch (err) {
+        if (mountedRef.current) setError(err.message || "QR kod yaroqsiz");
+      } finally {
+        if (mountedRef.current) setLoading(false);
+      }
+    },
+    [loginEmployee, navigate]
+  );
 
   const startCamera = async () => {
     setError("");
@@ -43,44 +74,30 @@ export default function EmployeeLogin() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" },
       });
+
+      if (!mountedRef.current) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        await videoRef.current.play();
       }
       setScanning(true);
 
-      // ── MOCK: kamera 2 soniyadan keyin "QR topildi" deb hisoblanadi ──
-      scanIntervalRef.current = setTimeout(() => {
-        stopCamera();
-        doLogin("mock-scanned-qr-token");
-      }, 2000);
+      // TODO: bu yerga real QR-decoder (masalan jsQR yoki @zxing/browser) ulanadi.
+      // Hozircha kamera faqat ko'rsatiladi — token kameradan avtomatik o'qilmaydi,
+      // foydalanuvchi pastdagi "token bilan" maydondan kiritadi.
     } catch (err) {
       setError("Kamera ruxsati berilmadi. Tokenni qo'lda kiriting.");
     }
   };
 
-  const doLogin = (qrToken) => {
-    setLoading(true);
-    setError("");
-
-    // ── MOCK LOGIN — API o'rniga setTimeout bilan simulyatsiya ──
-    setTimeout(() => {
-      if (!qrToken || !qrToken.trim()) {
-        setError("Token noto'g'ri");
-        setLoading(false);
-        return;
-      }
-      setSuccess(`Xush kelibsiz, ${MOCK_EMPLOYEE.firstName}!`);
-      loginEmployee("mock-employee-token-" + Date.now(), MOCK_EMPLOYEE);
-      setTimeout(() => navigate("/employee"), 1200);
-      setLoading(false);
-    }, 600);
-  };
-
   const handleManualSubmit = (e) => {
     e.preventDefault();
-    if (!manualToken.trim()) return;
+    if (!manualToken.trim() || loading) return;
     doLogin(manualToken.trim());
   };
 
@@ -109,7 +126,7 @@ export default function EmployeeLogin() {
             <h2 className="loginTitle">QR kod bilan kiring</h2>
             <p className="loginDesc">QR kodingizni kameraga ko'rsating</p>
 
-            {error && <div className="loginError">{error}</div>}
+            {error && <div className="loginError" role="alert">{error}</div>}
 
             <div className="scanArea">
               {scanning ? (
@@ -127,6 +144,7 @@ export default function EmployeeLogin() {
                   className="startScanBtn"
                   onClick={startCamera}
                   disabled={loading}
+                  type="button"
                 >
                   <Camera size={24} />
                   <span>Kamera orqali skanerlash</span>
@@ -138,12 +156,12 @@ export default function EmployeeLogin() {
               <span>yoki token bilan</span>
             </div>
 
-            <form onSubmit={handleManualSubmit} className="manualForm">
+            <form onSubmit={handleManualSubmit} className="manualForm" noValidate>
               <div className="inputWrapManual">
                 <QrCode size={16} className="inputIcon" />
                 <input
                   type="text"
-                  placeholder="QR token ni kiriting... (istalgan matn)"
+                  placeholder="QR token ni kiriting..."
                   value={manualToken}
                   onChange={(e) => setManualToken(e.target.value)}
                   disabled={loading}

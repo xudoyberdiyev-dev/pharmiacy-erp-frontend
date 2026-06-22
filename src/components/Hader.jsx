@@ -9,7 +9,6 @@ import {
   BarChart3,
   FileText,
   UserCheck,
-  Bell,
   LogOut,
   Activity,
   User,
@@ -19,17 +18,17 @@ import './header.css';
 import { useAuth } from '../layout/AuthProvider';
 
 const navItems = [
-  { to: '/',          label: 'Dashboard',    icon: LayoutDashboard, end: true },
+  { to: '/',          label: 'Dashboard',    icon: LayoutDashboard, end: true, roles: ['ADMIN'] },
   { to: '/products',  label: 'Mahsulotlar',  icon: Pill },
   { to: '/batches',   label: 'Partiyalar',   icon: Boxes },
   { to: '/customers', label: 'Mijozlar',     icon: User },
   { to: '/sales',     label: 'Sotuv',        icon: ShoppingCart },
   { to: '/marking',   label: 'Markirovka',   icon: Tag },
   { to: '/import',    label: 'Excel import', icon: FileSpreadsheet },
-  { to: '/reports',   label: 'Hisobotlar',   icon: BarChart3 },
+  { to: '/reports',   label: 'Hisobotlar',   icon: BarChart3, roles: ['ADMIN'] },
   { to: '/contract',  label: 'Shartnoma',    icon: FileText },
-  { to: '/employees', label: 'Xodimlar',     icon: UserCheck, roles: ['admin'] },
-  {to:'/history',label:'Xarakatlar Tarixi',icon:History ,role:['admin']}
+  { to: '/employees', label: 'Xodimlar',     icon: UserCheck,role:['ADMIN']},
+  { to: '/history',   label: 'Xarakatlar Tarixi', icon: History, roles: ['ADMIN'] },
 ];
 
 export default function Header() {
@@ -39,10 +38,12 @@ export default function Header() {
   const visibleItems = navItems.filter(
     (item) => !item.roles || item.roles.includes(user?.role)
   );
+  
 
   const handleLogout = () => {
+    const loginPath = user?.role === 'employee' ? '/employee-login' : '/admin-login';
     logout();
-    navigate('/admin-login');
+    navigate(loginPath);
   };
 
   return (
@@ -58,7 +59,7 @@ export default function Header() {
 
         <div className="divider" />
 
-        {/* NAV */}
+        {/* NAV — admin/employee rolega qarab filtrlanadi */}
         <nav className="navRow">
           {visibleItems.map(({ to, label, icon: Icon, end }) => (
             <NavLink
@@ -75,18 +76,6 @@ export default function Header() {
 
         {/* RIGHT */}
         <div className="right">
-         
-
-          <div className="userBox">
-            <div className="avatar">
-              <User size={14} />
-            </div>
-            <div className="userInfo">
-              <span className="userName">{user?.username || 'Admin'}</span>
-              {user?.role && <span className="userRole">{user.role}</span>}
-            </div>
-          </div>
-
           <button className="logoutBtn" onClick={handleLogout} title="Chiqish">
             <LogOut size={15} />
           </button>

@@ -6,6 +6,7 @@ import {
   Building2, Calendar, ChevronRight, Eye,
   Download, Filter, Tag, Banknote,
 } from "lucide-react";
+import ToastStack from "../components/toast/Toast";
 
 let mockContractId = 300;
 
@@ -59,16 +60,7 @@ const STATUS_MAP = {
 const formatDate  = (d) => d ? new Date(d).toLocaleDateString("uz-UZ") : "—";
 const formatPrice = (p) => Number(p).toLocaleString("uz-UZ") + " so'm";
 
-function Toast({ msg, type, onClose }) {
-  useState(() => { const t = setTimeout(onClose, 3500); return () => clearTimeout(t); });
-  return (
-    <div className={`toast toast-${type}`} role="alert">
-      <span className="toast-icon">{type === "success" ? <CheckCircle size={17} /> : <ShieldAlert size={17} />}</span>
-      <span>{msg}</span>
-      <button className="toast-close" onClick={onClose}><X size={14} /></button>
-    </div>
-  );
-}
+
 
 function Modal({ title, onClose, children, wide }) {
   return (
@@ -428,7 +420,7 @@ export const Contract = () => {
   return (
     <>
       <style>{STYLES}</style>
-      {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+      {toast && <ToastStack msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
 
       <div className="page">
         <div className="page-header">

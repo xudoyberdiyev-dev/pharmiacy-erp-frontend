@@ -1,0 +1,80 @@
+/* ===========================
+   Stat Card
+=========================== */
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  padding: 16px 18px;
+
+  background: #fff;
+
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+
+  transition: box-shadow .15s;
+}
+
+.stat-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,.06);
+}
+
+.stat-icon {
+  width: 40px;
+  height: 40px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  border-radius: 10px;
+}
+
+.stat-value {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+
+  color: #0f172a;
+}
+
+.stat-label {
+  margin-top: 3px;
+
+  font-size: 12px;
+
+  color: #94a3b8;
+}
+
+/* ===========================
+   Colors
+=========================== */
+
+.icon-blue {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.icon-violet {
+  background: #f5f3ff;
+  color: #7c3aed;
+}
+
+.icon-teal {
+  background: #f0fdfa;
+  color: #0d9488;
+}
+
+.icon-red {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.icon-gray {
+  background: #f8fafc;
+  color: #94a3b8;
+}
