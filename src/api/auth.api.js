@@ -1,19 +1,36 @@
-import { apiFetch } from "./axios";
+import api from "./axios";
 
 export const authAPI = {
-  adminLogin: (username, password) =>
-    apiFetch("/auth/admin/login", {
-      method: "POST",
-      body: { username, password },
-      auth: false,
-    }),
+  adminLogin: async (username, password) => {
+    const res = await api.post(
+      "/auth/admin/login",
+      { username, password },
+      {
+        headers: {
+          Authorization: undefined, // token yubormaydi
+        },
+      }
+    );
 
-  qrLogin: (qrToken) =>
-    apiFetch("/auth/qr-login", {
-      method: "POST",
-      body: { qrToken },
-      auth: false,
-    }),
+    return res;
+  },
 
-  getMe: () => apiFetch("/auth/me", { method: "GET" }),
+  qrLogin: async (qrToken) => {
+    const res = await api.post(
+      "/auth/qr-login",
+      { qrToken },
+      {
+        headers: {
+          Authorization: undefined,
+        },
+      }
+    );
+
+    return res;
+  },
+
+  getMe: async () => {
+    const res = await api.get("/auth/me");
+    return res;
+  },
 };

@@ -1,41 +1,61 @@
+import axios from "axios";
+
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 
 function getToken() {
   return localStorage.getItem("token");
 }
 
-export async function apiFetch(path, { method = "GET", body, auth = true, headers = {} } = {}) {
-  const finalHeaders = { "Content-Type": "application/json", ...headers };
+const api = axios.create({
+  baseURL: BASE_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
 
-  if (auth) {
-    const token = getToken();
-    if (token) finalHeaders.Authorization = `Bearer ${token}`;
+// Har bir request oldidan token qo'shadi
+api.interceptors.request.use((config) => {
+  if (config.auth === false) {
+    return config;
   }
 
-  let res;
-  try {
-    res = await fetch(`${BASE_URL}${path}`, {
-      method,
-      headers: finalHeaders,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-  } catch {
-    throw new Error("Serverga ulanib bo'lmadi. Internetni yoki backendni tekshiring.");
+  const token = localStorage.getItem("token");
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
 
-  let json = null;
-  try {
-    json = await res.json();
-  } catch {
-    // bo'sh javob (masalan 204 No Content)
-  }
+  return config;
+});
+// Response xatolarini ushlaydi
+api.interceptors.response.use(
+  (response) => {
+    if (response.data?.success === false) {
+      return Promise.reject(
+        new Error(response.data.message || "Xatolik yuz berdi")
+      );
+    }
 
-  if (!res.ok || json?.success === false) {
-    const message = json?.message || `Xatolik yuz berdi (${res.status})`;
-    const err = new Error(message);
-    err.status = res.status;
-    throw err;
-  }
+    return response.data?.data ?? response.data;
+  },
+  (error) => {
+    if (!error.response) {
+      return Promise.reject(
+        new Error(
+          "Serverga ulanib bo'lmadi. Internetni yoki backendni tekshiring."
+        )
+      );
+    }
 
-  return json?.data ?? json;
-}
+    const err = new Error(
+      error.response.data?.message ||
+        `Xatolik yuz berdi (${error.response.status})`
+    );
+
+    err.status = error.response.status;
+
+    return Promise.reject(err);
+  }
+);
+
+export default api;

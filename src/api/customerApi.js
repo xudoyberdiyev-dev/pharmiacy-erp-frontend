@@ -2,17 +2,17 @@ import { apiFetch } from "./axios";
 
 export const customersApi = {
   getAll: (search) =>
-    api.get("/customers", {
+    apiFetch.get("/customers", {
       params: search ? { search } : {},
     }),
 
-  getOne: (id) => api.get(`/customers/${id}`),
+  getOne: (id) => apiFetch.get(`/customers/${id}`),
 
   getHistory: (id) => apiFetch.get(`/customers/${id}/history`),
 
-  create: (body) => api.post("/customers", body),
+  create: (body) => apiFetch.post("/customers", body),
 
-  update: (id, body) => api.put(`/customers/${id}`, body),
+  update: (id, body) => apiFetch.put(`/customers/${id}`, body),
 
-  remove: (id) => api.delete(`/customers/${id}`),
+  remove: (id) => apiFetch.delete(`/customers/${id}`),
 };
