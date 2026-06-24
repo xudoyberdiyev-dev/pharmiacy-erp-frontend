@@ -57,7 +57,7 @@ export default function EmployeeLogin() {
         loginEmployee(token, user);
 
         redirectTimeoutRef.current = setTimeout(() => {
-          if (mountedRef.current) navigate("/");
+          if (mountedRef.current) navigate("/products");
         }, 1000);
       } catch (err) {
         if (mountedRef.current) setError(err.message || "QR kod yaroqsiz");

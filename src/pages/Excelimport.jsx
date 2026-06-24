@@ -190,7 +190,7 @@ export const Excelimport = () => {
             onDragLeave={() => setDragOver(false)}
             onClick={() => fileRef.current?.click()}
           >
-            <input ref={fileRef} type="file" accept=".csv,.txt" style={{ display: "none" }} onChange={e => handleFile(e.target.files?.[0])} />
+            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={e => handleFile(e.target.files?.[0])} />
             <div className="dz-icon"><Upload size={36} strokeWidth={1.5} /></div>
             <div className="dz-title">CSV faylni shu yerga tashlang</div>
             <div className="dz-sub">yoki bosing va faylni tanlang</div>

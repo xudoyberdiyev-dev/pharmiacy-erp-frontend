@@ -6,7 +6,8 @@ import {
   CheckCircle, ShieldAlert, AlertTriangle, Loader2,
   X, ChevronRight, Search, Phone, QrCode, ClipboardList,
   ReceiptText, TrendingUp, ArrowLeft, RefreshCw, BarChart3,
-  Hash, FileText, ChevronLeft, AlertCircle,
+  Hash, FileText, ChevronLeft, AlertCircle, Download,
+  ShoppingBag, PlusCircle,
 } from "lucide-react"
 
 // ═══════════════════════════════════════════════════════════
@@ -31,25 +32,21 @@ api.interceptors.response.use(
 )
 
 const salesApi = {
-  // Customers
-  customers:    (params)    => api.get("/customers", { params }),
-  // Products & Batches
-  products:     (params)    => api.get("/products", { params }),
-  batches:      (productId) => api.get(`/products/${productId}/batches`),
-  // Sales
-  sales:        (params)    => api.get("/sales", { params }),
-  sale:         (id)        => api.get(`/sales/${id}`),
-  createSale:   (body)      => api.post("/sales", body),
-  cancelSale:   (id)        => api.delete(`/sales/${id}/cancel`),
-  report:       (params)    => api.get("/sales/report", { params }),
+  customers:  (params)   => api.get("/customers",    { params }),
+  products:   (params)   => api.get("/products",     { params }),
+  batches:    (params)   => api.get("/batches",      { params }),
+  sales:      (params)   => api.get("/sales",        { params }),
+  sale:       (id)       => api.get(`/sales/${id}`),
+  createSale: (body)     => api.post("/sales",       body),
+  cancelSale: (id)       => api.delete(`/sales/${id}/cancel`),
 }
 
 // ═══════════════════════════════════════════════════════════
 // UTILS
 // ═══════════════════════════════════════════════════════════
-const fmt   = p => Number(p || 0).toLocaleString("uz-UZ") + " so'm"
-const fmtD  = d => d ? new Date(d).toLocaleDateString("uz-UZ") : "—"
-const fmtDT = d => d ? new Date(d).toLocaleString("uz-UZ") : "—"
+const fmt   = p  => Number(p || 0).toLocaleString("uz-UZ") + " so'm"
+const fmtD  = d  => d ? new Date(d).toLocaleDateString("uz-UZ") : "—"
+const fmtDT = d  => d ? new Date(d).toLocaleString("uz-UZ") : "—"
 
 function parseGS1(code) {
   if (!code) return { type: "unknown", original: code }
@@ -94,6 +91,134 @@ function beep(freq = 880, dur = 0.14) {
 }
 const beepOk  = () => beep(880, 0.12)
 const beepErr = () => { beep(200, 0.22); setTimeout(() => beep(200, 0.22), 260) }
+
+// ═══════════════════════════════════════════════════════════
+// EXCEL EXPORT — har bir scan alohida qatorda
+// ═══════════════════════════════════════════════════════════
+function exportSaleToExcel(sale) {
+  const rows = [
+    [
+      "Sotuv ID",
+      "Sana",
+      "Mijoz",
+      "Telefon",
+      "INN",
+      "Shartnoma",
+      "Faktura",
+      "Lot",
+      "Mahsulot",
+      "IKPU",
+      "Seriya",
+      "Quti seriyasi",
+      "Dozaj",
+      "Yaroqlilik muddati",
+      "Batch shartnoma",
+      "Batch faktura",
+      "Scan turi",
+      "Skan kodi",
+      "Skan miqdori",
+      "Ogohlantirish",
+      "Narx",
+      "Miqdor",
+      "Jami summa"
+    ]
+  ]
+
+  for (const item of (sale.items || [])) {
+    const scanLog = Array.isArray(item.scanLog)
+      ? item.scanLog
+      : []
+
+    if (scanLog.length === 0) {
+      rows.push([
+        sale.id,
+        fmtDT(sale.createdAt),
+        sale.customer?.name || "",
+        sale.customer?.phone || "",
+        sale.customer?.inn || "",
+        sale.contractNumber || "",
+        sale.invoiceNumber || "",
+        sale.lotNumber || "",
+
+        item.product?.name || "",
+        item.product?.ikpuCode || "",
+        item.batch?.series || "",
+        item.batch?.boxSeries || "",
+        item.batch?.mg || "",
+        fmtD(item.batch?.expiry),
+        item.batch?.contract?.contractNumber || "",
+        item.batch?.invoice?.invoiceNumber || "",
+
+        "",
+        "",
+        "",
+        "",
+
+        item.price,
+        item.quantity,
+        item.total
+      ])
+    } else {
+      scanLog.forEach(log => {
+        rows.push([
+          sale.id,
+          fmtDT(sale.createdAt),
+          sale.customer?.name || "",
+          sale.customer?.phone || "",
+          sale.customer?.inn || "",
+          sale.contractNumber || "",
+          sale.invoiceNumber || "",
+          sale.lotNumber || "",
+
+          item.product?.name || "",
+          item.product?.ikpuCode || "",
+          item.batch?.series || "",
+          item.batch?.boxSeries || "",
+          item.batch?.mg || "",
+          fmtD(item.batch?.expiry),
+          item.batch?.contract?.contractNumber || "",
+          item.batch?.invoice?.invoiceNumber || "",
+
+          log.type === "barcode"
+            ? "Quti barkodi"
+            : log.type === "qr"
+            ? "QR markirovka"
+            : "Qo'lda",
+
+          log.series || log.original || "",
+          log.count || 1,
+          log.warning ? "Seriya mos kelmadi" : "",
+
+          item.price,
+          item.quantity,
+          item.total
+        ])
+      })
+    }
+  }
+
+  const csv = rows
+    .map(row =>
+      row.map(cell =>
+        `"${String(cell ?? "").replace(/"/g, '""')}"`
+      ).join(",")
+    )
+    .join("\n")
+
+  const blob = new Blob(
+    ["\uFEFF" + csv],
+    { type: "text/csv;charset=utf-8;" }
+  )
+
+  const url = URL.createObjectURL(blob)
+
+  const a = document.createElement("a")
+  a.href = url
+  a.download = `sotuv-${sale.id}.csv`
+  a.click()
+
+  URL.revokeObjectURL(url)
+}
 
 // ═══════════════════════════════════════════════════════════
 // TOAST
@@ -148,9 +273,9 @@ function Modal({ title, onClose, children, size = "md" }) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// DROPDOWN (async-aware)
+// DROPDOWN
 // ═══════════════════════════════════════════════════════════
-function Dropdown({ value, placeholder, items, loading, renderSelected, renderItem, onSelect, filterFn, onSearch, searchValue, setSearchValue }) {
+function Dropdown({ value, placeholder, items, loading, renderSelected, renderItem, onSelect, onSearch, searchValue, setSearchValue }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
   useEffect(() => {
@@ -158,11 +283,6 @@ function Dropdown({ value, placeholder, items, loading, renderSelected, renderIt
     document.addEventListener("mousedown", fn)
     return () => document.removeEventListener("mousedown", fn)
   }, [])
-
-  const filtered = filterFn && searchValue
-    ? items.filter(i => filterFn(i, searchValue))
-    : items
-
   return (
     <div ref={ref} className="dd-wrap">
       <div className={`dd-trigger${open ? " dd-open" : ""}${value ? " dd-has-val" : ""}`} onClick={() => setOpen(v => !v)}>
@@ -187,9 +307,9 @@ function Dropdown({ value, placeholder, items, loading, renderSelected, renderIt
           <div className="dd-list">
             {loading
               ? <div className="dd-state"><Loader2 size={18} className="spin"/> Yuklanmoqda…</div>
-              : filtered.length === 0
+              : items.length === 0
                 ? <div className="dd-state"><Search size={16}/> Topilmadi</div>
-                : filtered.map((item, i) => (
+                : items.map((item, i) => (
                   <div
                     key={item.id ?? i}
                     className={`dd-item${value?.id === item.id ? " dd-active" : ""}`}
@@ -207,40 +327,31 @@ function Dropdown({ value, placeholder, items, loading, renderSelected, renderIt
 }
 
 // ═══════════════════════════════════════════════════════════
-// BATCH CARD
+// BATCH CARD LIST
 // ═══════════════════════════════════════════════════════════
 function BatchList({ batches, loading, selected, onSelect }) {
-  if (loading) return (
-    <div className="state-sm"><Loader2 size={18} className="spin" style={{color:"#2563eb"}}/> Partiyalar yuklanmoqda…</div>
-  )
+  if (loading) return <div className="state-sm"><Loader2 size={18} className="spin" style={{color:"#2563eb"}}/> Partiyalar yuklanmoqda…</div>
   const available = (batches || []).filter(b => b.remainingQty > 0)
-  if (!available.length) return (
-    <div className="state-sm warn"><AlertCircle size={18}/> Bu dori uchun mavjud partiya yo'q</div>
-  )
+  if (!available.length) return <div className="state-sm warn"><AlertCircle size={18}/> Bu dori uchun mavjud partiya yo'q</div>
   return (
     <div className="batch-list">
       {available.map(b => {
-        const sel = selected?.id === b.id
-        const expDate = new Date(b.expiry)
-        const nearExp = expDate - Date.now() < 60 * 24 * 60 * 60 * 1000
+        const sel     = selected?.id === b.id
+        const nearExp = new Date(b.expiry) - Date.now() < 60 * 24 * 60 * 60 * 1000
         return (
           <div key={b.id} className={`batch-item${sel ? " batch-sel" : ""}${nearExp ? " batch-warn" : ""}`} onClick={() => onSelect(b)}>
             <div className="bi-top">
               <span className="bi-series"><Tag size={11}/>{b.series}</span>
               <span className="bi-qty-badge"><CheckCircle size={10}/>{b.remainingQty} ta</span>
             </div>
-            {b.boxSeries && (
-              <div className="bi-qr-row"><QrCode size={10}/> QR: <strong>{b.boxSeries}</strong></div>
-            )}
+            {b.boxSeries && <div className="bi-qr-row"><QrCode size={10}/> QR: <strong>{b.boxSeries}</strong></div>}
             <div className="bi-mid">
               <span className="chip chip-gray"><FlaskConical size={9}/>{b.mg}</span>
               <span className={`bi-exp${nearExp ? " bi-exp-warn" : ""}`}><Calendar size={10}/>{fmtD(b.expiry)}</span>
             </div>
             <div className="bi-meta">
               <span className="bi-price"><Banknote size={11}/>{fmt(b.price)} / dona</span>
-              {b.contract?.contractNumber && (
-                <span className="bi-contract"><FileText size={9}/>{b.contract.contractNumber}</span>
-              )}
+              {b.contract?.contractNumber && <span className="bi-contract"><FileText size={9}/>{b.contract.contractNumber}</span>}
             </div>
             {nearExp && <div className="bi-exp-label"><AlertTriangle size={10}/> Muddati yaqin</div>}
             {sel && <CheckCircle size={15} className="bi-check"/>}
@@ -252,90 +363,16 @@ function BatchList({ batches, loading, selected, onSelect }) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// SALE FORM — 5 bosqich
+// SCAN PANEL — bitta cart item uchun
 // ═══════════════════════════════════════════════════════════
-function SaleForm({ onSaved, showToast }) {
-  const [step, setStep]       = useState(1)
-  const [customer, setCustomer] = useState(null)
-  const [product, setProduct] = useState(null)
-  const [batch, setBatch]     = useState(null)
-  const [unitPrice, setUnitPrice] = useState(0)
-  const [unitsPerBox, setUnitsPerBox] = useState(30)
-  const [qty, setQty]         = useState(0)
-  const [scanLog, setScanLog] = useState([])
+function ScanPanel({ cartItem, onUpdate, showToast }) {
+  const { batch, unitsPerBox, qty, scanLog } = cartItem
   const [scanInput, setScanInput] = useState("")
-  const [saving, setSaving]   = useState(false)
   const [confirmModal, setConfirmModal] = useState(null)
-
-  // Customer search
-  const [custSearch, setCustSearch] = useState("")
-  const [customers, setCustomers]   = useState([])
-  const [custLoading, setCustLoading] = useState(false)
-  // Product search
-  const [prodSearch, setProdSearch] = useState("")
-  const [products, setProducts]     = useState([])
-  const [prodLoading, setProdLoading] = useState(false)
-  // Batches
-  const [batches, setBatches]   = useState([])
-  const [batchLoading, setBatchLoading] = useState(false)
-
   const scanRef = useRef(null)
-  const debounceRef = useRef(null)
 
-  // ── fetch customers ──
-  const fetchCustomers = useCallback(async (search = "") => {
-    setCustLoading(true)
-    try {
-      const res = await salesApi.customers({ search, limit: 20 })
-      setCustomers(Array.isArray(res) ? res : res.items || [])
-    } catch { setCustomers([]) }
-    finally { setCustLoading(false) }
-  }, [])
+  useEffect(() => { scanRef.current?.focus() }, [])
 
-  useEffect(() => { fetchCustomers() }, [fetchCustomers])
-
-  const handleCustSearch = val => {
-    clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => fetchCustomers(val), 300)
-  }
-
-  // ── fetch products ──
-  const fetchProducts = useCallback(async (search = "") => {
-    setProdLoading(true)
-    try {
-      const res = await salesApi.products({ search, limit: 30 })
-      setProducts(Array.isArray(res) ? res : res.items || [])
-    } catch { setProducts([]) }
-    finally { setProdLoading(false) }
-  }, [])
-
-  useEffect(() => { if (step === 2) fetchProducts() }, [step, fetchProducts])
-
-  const handleProdSearch = val => {
-    clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => fetchProducts(val), 300)
-  }
-
-  // ── fetch batches ──
-  const fetchBatches = useCallback(async (productId) => {
-    setBatchLoading(true)
-    try {
-      const res = await salesApi.batches(productId)
-      setBatches(Array.isArray(res) ? res : res.items || [])
-    } catch { setBatches([]) }
-    finally { setBatchLoading(false) }
-  }, [])
-
-  useEffect(() => { if (step === 3 && product) fetchBatches(product.id) }, [step, product, fetchBatches])
-  useEffect(() => { if (step === 5 && scanRef.current) scanRef.current.focus() }, [step])
-
-  const reset = () => {
-    setStep(1); setCustomer(null); setProduct(null); setBatch(null)
-    setUnitPrice(0); setUnitsPerBox(30); setQty(0); setScanLog([]); setScanInput("")
-    setCustSearch(""); setProdSearch("")
-  }
-
-  // ── scan handler ──
   const handleScan = () => {
     const val = scanInput.trim()
     if (!val || !batch) return
@@ -349,34 +386,481 @@ function SaleForm({ onSaved, showToast }) {
     const parsed = parseGS1(val)
     const result = checkMatch(parsed, batch, unitsPerBox)
     if (result.match) {
-      setQty(q => q + result.addQty)
-      setScanLog(l => [...l, { type: result.scanType, series: result.extracted, original: val, count: result.addQty, time: new Date() }])
+      const log = { type: result.scanType, series: result.extracted, original: val, count: result.addQty, time: new Date() }
+      onUpdate({ qty: qty + result.addQty, scanLog: [...scanLog, log] })
       beepOk()
     } else {
       beepErr()
       const exp = batch.boxSeries ? `"${batch.series}" yoki "${batch.boxSeries}"` : `"${batch.series}"`
-      setConfirmModal({ extracted: result.extracted, original: val, scanType: result.scanType, addQty: result.addQty || 1, message: `Skanerlangan: "${result.extracted}"\nKutilgan: ${exp}\n\nBoshqa partiyaga tegishli bo'lishi mumkin.` })
+      setConfirmModal({
+        extracted: result.extracted, original: val,
+        scanType: result.scanType, addQty: result.addQty || 1,
+        message: `Skanerlangan: "${result.extracted}"\nKutilgan: ${exp}\n\nBoshqa partiyaga tegishli bo'lishi mumkin.`,
+      })
     }
   }
 
   const confirmAdd = () => {
     if (!confirmModal) return
-    setQty(q => q + confirmModal.addQty)
-    setScanLog(l => [...l, { type: confirmModal.scanType, series: confirmModal.extracted, original: confirmModal.original, count: confirmModal.addQty, time: new Date(), warning: true }])
+    const log = { type: confirmModal.scanType, series: confirmModal.extracted, original: confirmModal.original, count: confirmModal.addQty, time: new Date(), warning: true }
+    onUpdate({ qty: qty + confirmModal.addQty, scanLog: [...scanLog, log] })
     beepOk(); setConfirmModal(null); scanRef.current?.focus()
   }
 
-  // ── save ──
+  const boxScans  = scanLog.filter(l => l.type === "barcode").length
+  const qrScans   = scanLog.filter(l => l.type === "qr").length
+  const warnCount = scanLog.filter(l => l.warning).length
+
+  return (
+    <>
+      <div className="scan-panel">
+        {/* Counter */}
+        <div className="sp-counter">
+          <div className="sp-count-num">{qty}</div>
+          <div className="sp-count-label">dona</div>
+          <div className="sp-count-price">{fmt(qty * cartItem.unitPrice)}</div>
+        </div>
+
+        {/* Mini stats */}
+        <div className="sf-mini-stats">
+          <div className="ms-item ms-blue"><Package size={13}/><div><div className="ms-val">{boxScans}</div><div className="ms-lbl">Quti</div></div></div>
+          <div className="ms-item ms-violet"><QrCode size={13}/><div><div className="ms-val">{qrScans}</div><div className="ms-lbl">QR</div></div></div>
+          <div className="ms-item ms-green"><BarChart3 size={13}/><div><div className="ms-val ms-val-sm">{fmt(qty * cartItem.unitPrice)}</div><div className="ms-lbl">Jami</div></div></div>
+        </div>
+
+        {warnCount > 0 && (
+          <div className="scan-warn-banner"><AlertTriangle size={14}/> {warnCount} ta seriyasi mos kelmaydigan dori</div>
+        )}
+
+        {/* Scan input */}
+        <div className="sf-scan-box">
+          <div className="sf-scan-label"><Scan size={12}/> Barkod yoki QR skanerlang</div>
+          <div className="sf-series-ref">
+            <span><Tag size={10}/> <strong>{batch.series}</strong></span>
+            {batch.boxSeries && <span><QrCode size={10}/> <strong>{batch.boxSeries}</strong></span>}
+          </div>
+          <div className="sf-scan-input-wrap">
+            <input
+              ref={scanRef}
+              value={scanInput}
+              onChange={e => setScanInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleScan()}
+              placeholder="Scan qiling yoki yozing, Enter bosing…"
+              className="sf-scan-input"
+              autoFocus
+            />
+            <button className="sf-scan-btn" onClick={handleScan} disabled={!scanInput.trim()}>
+              <Scan size={15}/>
+            </button>
+          </div>
+          <p className="sf-scan-hint">Quti barkodi → +{unitsPerBox} dona &nbsp;|&nbsp; QR markirovka → +1 dona</p>
+        </div>
+
+        {/* Manual */}
+        <div className="sf-manual">
+          <button className="manual-btn manual-sub" disabled={qty === 0} onClick={() => {
+            if (qty <= 0) return
+            onUpdate({ qty: qty - 1, scanLog: scanLog.length ? scanLog.slice(0, -1) : scanLog })
+          }}><Minus size={14}/></button>
+          <div className="manual-center">
+            <span className="manual-label">Qo'lda kiritish</span>
+            <span className="manual-qty">{qty} dona</span>
+          </div>
+          <button className="manual-btn manual-add" onClick={() => {
+            const log = { type: "manual", series: batch.series, original: "__m__" + Date.now(), count: 1, time: new Date() }
+            onUpdate({ qty: qty + 1, scanLog: [...scanLog, log] })
+          }}><Plus size={14}/></button>
+        </div>
+
+        {/* Scan log */}
+        {scanLog.length > 0 && (
+          <div className="sf-log">
+            <div className="sf-log-head">
+              <span><ClipboardList size={12}/> Jurnal ({scanLog.length} scan / {qty} dona)</span>
+              <button className="sf-log-clear" onClick={() => onUpdate({ qty: 0, scanLog: [] })}>
+                <Trash2 size={10}/> Tozalash
+              </button>
+            </div>
+            <div className="sf-log-list">
+              {[...scanLog].reverse().slice(0, 10).map((l, i) => (
+                <div key={i} className={`sf-log-item${l.type === "barcode" ? " sf-log-box" : l.type === "qr" ? " sf-log-qr" : " sf-log-manual"}${l.warning ? " sf-log-warn" : ""}`}>
+                  {l.type === "barcode" ? <Package size={11} className="log-icon-box"/> : l.type === "qr" ? <QrCode size={11} className="log-icon-qr"/> : <Plus size={11} className="log-icon-manual"/>}
+                  <span className="sf-log-series">{l.series}</span>
+                  <span className={`ltb ltb-${l.type === "barcode" ? "box" : l.type === "qr" ? "qr" : "manual"}`}>
+                    {l.type === "barcode" ? "quti" : l.type === "qr" ? "QR" : "qo'l"}
+                  </span>
+                  <span className="sf-log-count">+{l.count}</span>
+                  {l.warning && <AlertTriangle size={10} style={{color:"#d97706",flexShrink:0}}/>}
+                  <span className="sf-log-time">{new Date(l.time).toLocaleTimeString("uz-UZ")}</span>
+                </div>
+              ))}
+              {scanLog.length > 10 && <div className="sf-log-more">… yana {scanLog.length - 10} ta</div>}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Confirm modal */}
+      {confirmModal && (
+        <div className="overlay" onClick={() => { setConfirmModal(null); scanRef.current?.focus() }}>
+          <div className="modal modal-sm" onClick={e => e.stopPropagation()}>
+            <div className="modal-head modal-head-warn">
+              <h3 className="modal-title" style={{color:"#92400e",display:"flex",alignItems:"center",gap:8}}>
+                <AlertTriangle size={17} style={{color:"#d97706"}}/> Seriya mos kelmadi
+              </h3>
+              <button className="modal-x" onClick={() => { setConfirmModal(null); scanRef.current?.focus() }}><X size={15}/></button>
+            </div>
+            <div className="modal-body">
+              <p className="confirm-msg">{confirmModal.message}</p>
+              <div className="confirm-actions">
+                <button className="btn-sec" onClick={() => { setConfirmModal(null); scanRef.current?.focus() }}>Bekor</button>
+                <button className="sf-btn-warn" onClick={confirmAdd}><CheckCircle size={13}/> Baribir qo'shish</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════
+// CART ITEM EDITOR — mahsulot + partiya + narx + skaner
+// ═══════════════════════════════════════════════════════════
+function CartItemEditor({ item, index, onUpdate, onRemove, showToast }) {
+  const [step, setStep] = useState(item.product ? (item.batch ? (item.unitPrice > 0 ? "scan" : "price") : "batch") : "product")
+  const [products, setProducts]   = useState([])
+  const [prodSearch, setProdSearch] = useState("")
+  const [prodLoading, setProdLoading] = useState(false)
+  const [batches, setBatches]     = useState([])
+  const [batchLoading, setBatchLoading] = useState(false)
+  const debounceRef = useRef(null)
+
+  const fetchProducts = useCallback(async (search = "") => {
+    setProdLoading(true)
+    try {
+      const res = await salesApi.products({ search, limit: 30 })
+      setProducts(Array.isArray(res) ? res : res.items || [])
+    } catch { setProducts([]) }
+    finally { setProdLoading(false) }
+  }, [])
+
+  const fetchBatches = useCallback(async (productId) => {
+    setBatchLoading(true)
+    try {
+      const res = await salesApi.batches({ productId, limit: 50 })
+      setBatches(Array.isArray(res) ? res : res.items || [])
+    } catch { setBatches([]) }
+    finally { setBatchLoading(false) }
+  }, [])
+
+  useEffect(() => {
+    if (step === "product") fetchProducts()
+  }, [step, fetchProducts])
+
+  useEffect(() => {
+    if (step === "batch" && item.product) fetchBatches(item.product.id)
+  }, [step, item.product, fetchBatches])
+
+  const cardLabel = item.product
+    ? `${index + 1}. ${item.product.name}`
+    : `${index + 1}. Mahsulot tanlanmagan`
+
+  return (
+    <div className="cart-item-card">
+      {/* Cart item header */}
+      <div className="ci-header">
+        <div className="ci-title">
+          <ShoppingBag size={13} style={{color:"#7c3aed"}}/>
+          <span>{cardLabel}</span>
+          {item.batch && <span className="ci-series-badge"><Tag size={9}/>{item.batch.series}</span>}
+        </div>
+        <div className="ci-header-right">
+          {item.qty > 0 && (
+            <span className="ci-qty-total">
+              {item.qty} dona · {fmt(item.qty * item.unitPrice)}
+            </span>
+          )}
+          <button className="ci-remove" onClick={onRemove} title="O'chirish">
+            <Trash2 size={13}/>
+          </button>
+        </div>
+      </div>
+
+      {/* Step tabs inside cart item */}
+      <div className="ci-tabs">
+        {[
+          { key: "product", label: "Mahsulot", done: !!item.product },
+          { key: "batch",   label: "Partiya",  done: !!item.batch,  disabled: !item.product },
+          { key: "price",   label: "Narx",     done: item.unitPrice > 0, disabled: !item.batch },
+          { key: "scan",    label: "Skaner",   done: item.qty > 0,  disabled: item.unitPrice <= 0 },
+        ].map(t => (
+          <button
+            key={t.key}
+            disabled={t.disabled}
+            className={`ci-tab${step === t.key ? " ci-tab-active" : ""}${t.done ? " ci-tab-done" : ""}`}
+            onClick={() => !t.disabled && setStep(t.key)}
+          >
+            {t.done && step !== t.key ? <CheckCircle size={10}/> : null}
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div className="ci-body">
+        {step === "product" && (
+          <Dropdown
+            value={item.product} placeholder="Nomi, barcode yoki IKPU kodi…"
+            items={products} loading={prodLoading}
+            searchValue={prodSearch} setSearchValue={setProdSearch}
+            onSearch={v => {
+              clearTimeout(debounceRef.current)
+              debounceRef.current = setTimeout(() => fetchProducts(v), 300)
+            }}
+            renderSelected={p => (
+              <div className="dd-row">
+                <div className="dd-icon-wrap"><Package size={13}/></div>
+                <div>
+                  <div className="dd-row-main">{p.name}</div>
+                  {p.ikpuCode && <div className="dd-row-sub mono">{p.ikpuCode}</div>}
+                </div>
+              </div>
+            )}
+            renderItem={p => (
+              <div className="dd-row">
+                <div className="dd-icon-wrap"><Package size={13}/></div>
+                <div>
+                  <div className="dd-row-main">{p.name}</div>
+                  <div className="dd-row-sub">
+                    {p.ikpuCode && <span className="mono">{p.ikpuCode}</span>}
+                    {p.unit && <span>· {p.unit}</span>}
+                  </div>
+                </div>
+              </div>
+            )}
+            onSelect={p => {
+              onUpdate({ product: p, batch: null, qty: 0, scanLog: [] })
+              setStep("batch")
+            }}
+          />
+        )}
+
+        {step === "batch" && item.product && (
+          <BatchList
+            batches={batches} loading={batchLoading}
+            selected={item.batch}
+            onSelect={b => {
+              onUpdate({ batch: b, unitPrice: Number(b.price) || 0, qty: 0, scanLog: [] })
+              setStep("price")
+            }}
+          />
+        )}
+
+        {step === "price" && item.batch && (
+          <div className="ci-price-panel">
+            <div className="sf-batch-summary">
+              {[
+                { label: "Seriya",  val: <span className="chip chip-purple"><Tag size={9}/>{item.batch.series}</span> },
+                ...(item.batch.boxSeries ? [{ label: "QR seriya", val: <span className="chip chip-blue"><QrCode size={9}/>{item.batch.boxSeries}</span> }] : []),
+                { label: "Dozaj",   val: <span className="chip chip-gray"><FlaskConical size={9}/>{item.batch.mg}</span> },
+                { label: "Omborda", val: <span className="sbs-green sbs-val"><CheckCircle size={11}/>{item.batch.remainingQty} ta</span> },
+                { label: "Muddat",  val: <span className="sbs-val"><Calendar size={10}/>{fmtD(item.batch.expiry)}</span> },
+              ].map(({ label, val }) => (
+                <div key={label} className="sbs-item">
+                  <span className="sbs-label">{label}</span>
+                  {val}
+                </div>
+              ))}
+            </div>
+
+            <div className="sf-fields">
+              <div className="sf-field">
+                <label className="sf-label">Sotish narxi (1 dona) <span className="req">*</span></label>
+                <div className="sf-input-wrap">
+                  <input type="number" min="0" value={item.unitPrice}
+                    onChange={e => onUpdate({ unitPrice: Number(e.target.value) })}
+                    className="sf-input" autoFocus/>
+                  <span className="sf-input-suffix">so'm</span>
+                </div>
+              </div>
+              <div className="sf-field">
+                <label className="sf-label">1 qutida nechta dona</label>
+                <div className="sf-input-wrap">
+                  <input type="number" min="1" value={item.unitsPerBox}
+                    onChange={e => onUpdate({ unitsPerBox: Number(e.target.value) })}
+                    className="sf-input"/>
+                  <span className="sf-input-suffix">dona</span>
+                </div>
+                <span className="sf-hint">Quti barkodi skanerlanganda +{item.unitsPerBox} dona qo'shiladi</span>
+              </div>
+            </div>
+
+            <button
+              className="sf-btn-next"
+              disabled={item.unitPrice <= 0}
+              onClick={() => setStep("scan")}
+            >
+              Skanerlashga o'tish <ChevronRight size={13}/>
+            </button>
+          </div>
+        )}
+
+        {step === "scan" && item.batch && (
+          <ScanPanel
+            cartItem={item}
+            onUpdate={updates => onUpdate(updates)}
+            showToast={showToast}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════
+// STEP INDICATOR
+// ═══════════════════════════════════════════════════════════
+const STEPS = [
+  { n: 1, label: "Mijoz",     Icon: User },
+  { n: 2, label: "Hujjatlar", Icon: FileText },
+  { n: 3, label: "Mahsulotlar", Icon: ShoppingBag },
+]
+
+function StepBar({ step, setStep }) {
+  return (
+    <div className="sf-steps">
+      {STEPS.map((s, i) => {
+        const done   = step > s.n
+        const active = step === s.n
+        return (
+          <div key={s.n} className="sf-step-wrapper">
+            <div
+              className={`sf-step${active ? " sf-step-active" : done ? " sf-step-done" : ""}`}
+              onClick={() => done && setStep(s.n)}
+              style={{ cursor: done ? "pointer" : "default" }}
+            >
+              {done ? <CheckCircle size={12}/> : <s.Icon size={11}/>}
+              <span className="sf-step-label">{s.label}</span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div className={`sf-step-line${done ? " sf-line-done" : ""}`}/>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════
+// EMPTY CART ITEM
+// ═══════════════════════════════════════════════════════════
+function emptyCartItem() {
+  return {
+    id:          Date.now() + Math.random(),
+    product:     null,
+    batch:       null,
+    unitPrice:   0,
+    unitsPerBox: 30,
+    qty:         0,
+    scanLog:     [],
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// SALE FORM — 3 bosqich: Mijoz → Hujjatlar → Mahsulotlar
+// ═══════════════════════════════════════════════════════════
+function SaleForm({ onSaved, showToast }) {
+  const [step, setStep] = useState(1)
+
+  // Step 1
+  const [customer, setCustomer]     = useState(null)
+  const [custSearch, setCustSearch] = useState("")
+  const [customers, setCustomers]   = useState([])
+  const [custLoading, setCustLoading] = useState(false)
+
+  // Step 2
+  const [contractNumber, setContractNumber] = useState("")
+  const [invoiceNumber,  setInvoiceNumber]  = useState("")
+  const [lotNumber,      setLotNumber]      = useState("")
+
+  // Step 3 — Cart
+  const [cartItems, setCartItems] = useState([emptyCartItem()])
+  const [saving, setSaving] = useState(false)
+  const debounceRef = useRef(null)
+
+  const fetchCustomers = useCallback(async (search = "") => {
+    setCustLoading(true)
+    try {
+      const res = await salesApi.customers({ search, limit: 20 })
+      setCustomers(Array.isArray(res) ? res : res.items || [])
+    } catch { setCustomers([]) }
+    finally { setCustLoading(false) }
+  }, [])
+
+  useEffect(() => { fetchCustomers() }, [fetchCustomers])
+
+  const reset = () => {
+    setStep(1)
+    setCustomer(null); setCustSearch("")
+    setContractNumber(""); setInvoiceNumber(""); setLotNumber("")
+    setCartItems([emptyCartItem()])
+  }
+
+  const canNext = () => {
+    if (step === 1) return !!customer
+    if (step === 2) return contractNumber.trim() !== "" && invoiceNumber.trim() !== "" && lotNumber.trim() !== ""
+    return false
+  }
+
+  const updateCartItem = (id, updates) => {
+    setCartItems(prev => prev.map(it => it.id === id ? { ...it, ...updates } : it))
+  }
+
+  const removeCartItem = (id) => {
+    setCartItems(prev => prev.length === 1 ? [emptyCartItem()] : prev.filter(it => it.id !== id))
+  }
+
+  const addCartItem = () => {
+    setCartItems(prev => [...prev, emptyCartItem()])
+  }
+
+  // Cart totals
+  const totalQty   = cartItems.reduce((s, it) => s + (it.qty || 0), 0)
+  const totalPrice = cartItems.reduce((s, it) => s + (it.qty || 0) * (it.unitPrice || 0), 0)
+  const readyItems = cartItems.filter(it => it.product && it.batch && it.unitPrice > 0 && it.qty > 0)
+
   const handleSave = async () => {
-    if (!customer || !product || !batch || qty < 1) return
+    if (!customer || readyItems.length === 0) return
+    if (readyItems.length < cartItems.length) {
+      const empty = cartItems.filter(it => !it.product || !it.batch || it.unitPrice <= 0 || it.qty <= 0)
+      const names = empty.map((_, i) => `${cartItems.indexOf(empty[i]) + 1}-mahsulot`).join(", ")
+      if (!window.confirm(`${names} to'liq emas. Faqat tayyor mahsulotlar saqlansinmi?`)) return
+    }
     setSaving(true)
     try {
       const body = {
-        customerId: customer.id,
-        items: [{ productId: product.id, batchId: batch.id, quantity: qty, price: unitPrice }],
+        customerId:     customer.id,
+        contractNumber: contractNumber.trim(),
+        invoiceNumber:  invoiceNumber.trim(),
+        lotNumber:      lotNumber.trim(),
+        items: readyItems.map(it => ({
+          productId: it.product.id,
+          batchId:   it.batch.id,
+          quantity:  it.qty,
+          price:     Number(it.unitPrice),
+          scanLog:   it.scanLog.map(l => ({
+            type:    l.type,
+            series:  l.series,
+            original: l.original,
+            count:   l.count,
+            warning: !!l.warning,
+          })),
+        })),
       }
       const sale = await salesApi.createSale(body)
-      showToast("Sotuv muvaffaqiyatli saqlandi!")
+      showToast(`Sotuv #${sale.id} muvaffaqiyatli saqlandi!`)
       onSaved(sale)
       reset()
     } catch (e) {
@@ -386,29 +870,7 @@ function SaleForm({ onSaved, showToast }) {
     }
   }
 
-  const canNext = () => {
-    if (step === 1) return !!customer
-    if (step === 2) return !!product
-    if (step === 3) return !!batch
-    if (step === 4) return unitPrice > 0
-    return false
-  }
-
-  const totalPrice = qty * unitPrice
-  const boxScans  = scanLog.filter(l => l.type === "barcode").length
-  const qrScans   = scanLog.filter(l => l.type === "qr").length
-  const warnCount = scanLog.filter(l => l.warning).length
-
-  const STEPS = [
-    { n:1, label:"Mijoz",   Icon: User },
-    { n:2, label:"Dori",    Icon: Package },
-    { n:3, label:"Partiya", Icon: Layers },
-    { n:4, label:"Narx",    Icon: Banknote },
-    { n:5, label:"Skaner",  Icon: Scan },
-  ]
-
   return (
-    <>
     <div className="sf-card">
       {/* Header */}
       <div className="sf-header">
@@ -419,32 +881,24 @@ function SaleForm({ onSaved, showToast }) {
         <button className="sf-reset-btn" onClick={reset}><RefreshCw size={12}/> Tozalash</button>
       </div>
 
-      {/* Steps */}
-      <div className="sf-steps">
-        {STEPS.map((s, i) => {
-          const done = step > s.n, active = step === s.n
-          return (
-            <div key={s.n} className="sf-step-wrapper">
-              <div
-                className={`sf-step${active ? " sf-step-active" : done ? " sf-step-done" : ""}`}
-                onClick={() => done && setStep(s.n)}
-                style={{ cursor: done ? "pointer" : "default" }}
-              >
-                {done ? <CheckCircle size={12}/> : <s.Icon size={11}/>}
-                <span className="sf-step-label">{s.label}</span>
-              </div>
-              {i < STEPS.length - 1 && (
-                <div className={`sf-step-line${done ? " sf-line-done" : ""}`}/>
-              )}
-            </div>
-          )
-        })}
-      </div>
+      <StepBar step={step} setStep={setStep}/>
 
-      {/* Body */}
+      {/* Summary chips */}
+      {step > 1 && (
+        <div className="sf-summary-row">
+          {customer && (
+            <span className="sum-chip sum-user">
+              <User size={10}/>{customer.name}
+              <button onClick={() => { setCustomer(null); setStep(1) }}><X size={10}/></button>
+            </span>
+          )}
+          {contractNumber && <span className="sum-chip sum-doc"><FileText size={10}/>{contractNumber}</span>}
+          {lotNumber && <span className="sum-chip sum-doc"><Hash size={10}/>Lot: {lotNumber}</span>}
+        </div>
+      )}
+
       <div className="sf-body">
-
-        {/* STEP 1 — Mijoz */}
+        {/* ─── STEP 1: Mijoz ─────────────────── */}
         {step === 1 && (
           <div className="sf-panel">
             <div className="sf-panel-head"><User size={15}/> Mijozni tanlang</div>
@@ -452,14 +906,14 @@ function SaleForm({ onSaved, showToast }) {
               value={customer} placeholder="Ism yoki telefon bo'yicha…"
               items={customers} loading={custLoading}
               searchValue={custSearch} setSearchValue={setCustSearch}
-              onSearch={handleCustSearch}
+              onSearch={v => {
+                clearTimeout(debounceRef.current)
+                debounceRef.current = setTimeout(() => fetchCustomers(v), 300)
+              }}
               renderSelected={c => (
                 <div className="dd-row">
                   <div className="dd-avatar">{c.name[0]}</div>
-                  <div>
-                    <div className="dd-row-main">{c.name}</div>
-                    <div className="dd-row-sub"><Phone size={10}/>{c.phone}</div>
-                  </div>
+                  <div><div className="dd-row-main">{c.name}</div><div className="dd-row-sub"><Phone size={10}/>{c.phone}</div></div>
                 </div>
               )}
               renderItem={c => (
@@ -467,203 +921,94 @@ function SaleForm({ onSaved, showToast }) {
                   <div className="dd-avatar">{c.name[0]}</div>
                   <div>
                     <div className="dd-row-main">{c.name}</div>
-                    <div className="dd-row-sub"><Phone size={10}/>{c.phone}{c.inn && <><Hash size={9}/>{c.inn}</>}</div>
+                    <div className="dd-row-sub">
+                      <Phone size={10}/>{c.phone}
+                      {c.inn && <><Hash size={9}/>{c.inn}</>}
+                    </div>
                   </div>
                 </div>
               )}
               onSelect={c => { setCustomer(c); setStep(2) }}
             />
-            {customer && (
-              <div className="sf-chosen">
-                <div className="sf-chosen-avatar">{customer.name[0]}</div>
-                <div>
-                  <div className="sf-chosen-name">{customer.name}</div>
-                  <div className="sf-chosen-sub">{customer.phone}{customer.inn && ` · INN: ${customer.inn}`}</div>
-                </div>
-                <button className="sf-chosen-change" onClick={() => setCustomer(null)}><X size={13}/></button>
-              </div>
-            )}
           </div>
         )}
 
-        {/* STEP 2 — Dori */}
+        {/* ─── STEP 2: Hujjatlar ─────────────── */}
         {step === 2 && (
           <div className="sf-panel">
-            <div className="sf-panel-head"><Package size={15}/> Dorini tanlang</div>
-            <Dropdown
-              value={product} placeholder="Nomi yoki IKPU kodi…"
-              items={products} loading={prodLoading}
-              searchValue={prodSearch} setSearchValue={setProdSearch}
-              onSearch={handleProdSearch}
-              renderSelected={p => (
-                <div className="dd-row">
-                  <div className="dd-icon-wrap"><Package size={13}/></div>
-                  <div>
-                    <div className="dd-row-main">{p.name}</div>
-                    {p.ikpuCode && <div className="dd-row-sub mono">{p.ikpuCode}</div>}
-                  </div>
+            <div className="sf-panel-head"><FileText size={15}/> Hujjat ma'lumotlari</div>
+            <div className="sf-docs-info">
+              <AlertCircle size={13} style={{color:"#2563eb",flexShrink:0}}/>
+              <span>Shartnoma, faktura va lot raqamini kiriting.</span>
+            </div>
+            {[
+              { label: "Shartnoma raqami", Icon: FileText, val: contractNumber, set: setContractNumber, ph: "SH-2026-001" },
+              { label: "Faktura raqami",   Icon: Hash,     val: invoiceNumber,  set: setInvoiceNumber,  ph: "F-2026-0892" },
+              { label: "Lot raqami",       Icon: Tag,      val: lotNumber,      set: setLotNumber,      ph: "LOT-2026-00451" },
+            ].map(({ label, Icon, val, set, ph }, i, arr) => (
+              <div className="sf-field" key={label}>
+                <label className="sf-label"><Icon size={11}/> {label} <span className="req">*</span></label>
+                <div className="sf-input-wrap">
+                  <input
+                    className="sf-input sf-input-mono"
+                    value={val}
+                    onChange={e => set(e.target.value)}
+                    placeholder={ph}
+                    autoFocus={i === 0}
+                    onKeyDown={e => e.key === "Enter" && i === arr.length - 1 && canNext() && setStep(3)}
+                  />
                 </div>
-              )}
-              renderItem={p => (
-                <div className="dd-row">
-                  <div className="dd-icon-wrap"><Package size={13}/></div>
-                  <div>
-                    <div className="dd-row-main">{p.name}</div>
-                    <div className="dd-row-sub">
-                      {p.ikpuCode && <span className="mono">{p.ikpuCode}</span>}
-                      {p.unit && <span>· {p.unit}</span>}
-                    </div>
-                  </div>
-                </div>
-              )}
-              onSelect={p => { setProduct(p); setBatch(null); setStep(3) }}
-            />
+              </div>
+            ))}
           </div>
         )}
 
-        {/* STEP 3 — Partiya */}
-        {step === 3 && product && (
+        {/* ─── STEP 3: Mahsulotlar (Cart) ────── */}
+        {step === 3 && (
           <div className="sf-panel">
             <div className="sf-panel-head">
-              <Layers size={15}/> Partiyani tanlang
-              <span className="sf-panel-badge"><Package size={10}/>{product.name}</span>
-            </div>
-            <BatchList
-              batches={batches} loading={batchLoading}
-              selected={batch}
-              onSelect={b => { setBatch(b); setUnitPrice(b.price || 0); setQty(0); setScanLog([]); setStep(4) }}
-            />
-          </div>
-        )}
-
-        {/* STEP 4 — Narx */}
-        {step === 4 && batch && (
-          <div className="sf-panel">
-            <div className="sf-panel-head"><Banknote size={15}/> Narx va sozlamalar</div>
-
-            <div className="sf-batch-summary">
-              {[
-                { label:"Seriya", val: <span className="chip chip-purple"><Tag size={9}/>{batch.series}</span> },
-                ...(batch.boxSeries ? [{ label:"QR seriya", val: <span className="chip chip-blue"><QrCode size={9}/>{batch.boxSeries}</span> }] : []),
-                { label:"Dozaj",   val: <span className="chip chip-gray"><FlaskConical size={9}/>{batch.mg}</span> },
-                { label:"Omborda", val: <span className="sbs-green sbs-val"><CheckCircle size={11}/>{batch.remainingQty} ta</span> },
-                { label:"Muddat",  val: <span className="sbs-val"><Calendar size={10}/>{fmtD(batch.expiry)}</span> },
-                ...(batch.contract?.contractNumber ? [{ label:"Shartnoma", val: <span className="mono sbs-val">{batch.contract.contractNumber}</span> }] : []),
-              ].map(({ label, val }) => (
-                <div key={label} className="sbs-item">
-                  <span className="sbs-label">{label}</span>
-                  {val}
-                </div>
-              ))}
+              <ShoppingBag size={15}/> Mahsulotlar
+              {readyItems.length > 0 && (
+                <span className="sf-panel-badge">
+                  {readyItems.length} ta · {fmt(totalPrice)}
+                </span>
+              )}
             </div>
 
-            <div className="sf-fields">
-              {[
-                { label:"Sotish narxi (1 dona)", id:"price", val: unitPrice, set: setUnitPrice, suffix:"so'm", req:true },
-                { label:"1 qutida nechta dona", id:"upb",   val: unitsPerBox, set: v => setUnitsPerBox(v), suffix:"dona", hint:`Quti barkodi skanerlanganda +${unitsPerBox} dona qo'shiladi` },
-              ].map(f => (
-                <div key={f.id} className="sf-field">
-                  <label className="sf-label" htmlFor={f.id}>{f.label}{f.req && <span className="req">*</span>}</label>
-                  <div className="sf-input-wrap">
-                    <input id={f.id} type="number" min="0" value={f.val}
-                      onChange={e => f.set(Number(e.target.value))}
-                      className="sf-input"/>
-                    <span className="sf-input-suffix">{f.suffix}</span>
-                  </div>
-                  {f.hint && <span className="sf-hint">{f.hint}</span>}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* STEP 5 — Skaner */}
-        {step === 5 && batch && (
-          <div className="sf-panel">
-            {/* Counter */}
-            <div className="sf-counter">
-              <div className="sf-count-num">{qty}</div>
-              <div className="sf-count-label">dona skanerlangan</div>
-              <div className="sf-count-price">{fmt(totalPrice)}</div>
-            </div>
-
-            {/* Mini stats */}
-            <div className="sf-mini-stats">
-              <div className="ms-item ms-blue"><Package size={13}/><div><div className="ms-val">{boxScans}</div><div className="ms-lbl">Quti</div></div></div>
-              <div className="ms-item ms-violet"><QrCode size={13}/><div><div className="ms-val">{qrScans}</div><div className="ms-lbl">QR</div></div></div>
-              <div className="ms-item ms-green"><BarChart3 size={13}/><div><div className="ms-val ms-val-sm">{fmt(totalPrice)}</div><div className="ms-lbl">Jami</div></div></div>
-            </div>
-
-            {warnCount > 0 && (
-              <div className="scan-warn-banner">
-                <AlertTriangle size={14}/> {warnCount} ta seriyasi mos kelmaydigan dori qo'shildi
-              </div>
-            )}
-
-            {/* Scan input */}
-            <div className="sf-scan-box">
-              <div className="sf-scan-label"><Scan size={12}/> Barkod yoki QR skanerlang</div>
-              <div className="sf-series-ref">
-                <span><Tag size={10}/> <strong>{batch.series}</strong></span>
-                {batch.boxSeries && <span><QrCode size={10}/> <strong>{batch.boxSeries}</strong></span>}
-              </div>
-              <div className="sf-scan-input-wrap">
-                <input
-                  ref={scanRef}
-                  value={scanInput}
-                  onChange={e => setScanInput(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && handleScan()}
-                  placeholder="Scan qiling yoki yozing, Enter bosing…"
-                  className="sf-scan-input"
-                  autoFocus
+            {/* Cart items */}
+            <div className="cart-list">
+              {cartItems.map((item, index) => (
+                <CartItemEditor
+                  key={item.id}
+                  item={item}
+                  index={index}
+                  onUpdate={updates => updateCartItem(item.id, updates)}
+                  onRemove={() => removeCartItem(item.id)}
+                  showToast={showToast}
                 />
-                <button
-                  className="sf-scan-btn"
-                  onClick={handleScan}
-                  disabled={!scanInput.trim()}
-                ><Scan size={15}/></button>
-              </div>
-              <p className="sf-scan-hint">Quti barkodi → +{unitsPerBox} dona &nbsp;|&nbsp; QR markirovka → +1 dona</p>
+              ))}
             </div>
 
-            {/* Manual */}
-            <div className="sf-manual">
-              <button className="manual-btn manual-sub" disabled={qty === 0} onClick={() => {
-                if (qty <= 0) return
-                setQty(q => q - 1)
-                setScanLog(l => l.length ? [...l.slice(0, -1)] : l)
-              }}><Minus size={14}/></button>
-              <div className="manual-center">
-                <span className="manual-label">Qo'lda kiritish</span>
-                <span className="manual-qty">{qty} dona</span>
-              </div>
-              <button className="manual-btn manual-add" onClick={() => {
-                setQty(q => q + 1)
-                setScanLog(l => [...l, { type:"manual", series: batch.series, original:"__m__"+Date.now(), count:1, time: new Date() }])
-              }}><Plus size={14}/></button>
-            </div>
+            {/* Add product button */}
+            <button className="add-product-btn" onClick={addCartItem}>
+              <PlusCircle size={15}/>
+              Yana mahsulot qo'shish
+            </button>
 
-            {/* Log */}
-            {scanLog.length > 0 && (
-              <div className="sf-log">
-                <div className="sf-log-head">
-                  <span><ClipboardList size={12}/> Jurnal ({scanLog.length} scan / {qty} dona)</span>
-                  <button className="sf-log-clear" onClick={() => { setScanLog([]); setQty(0) }}>
-                    <Trash2 size={10}/> Tozalash
-                  </button>
+            {/* Cart summary */}
+            {readyItems.length > 0 && (
+              <div className="cart-summary">
+                <div className="cs-row">
+                  <span>Tayyor mahsulotlar:</span>
+                  <strong>{readyItems.length} ta</strong>
                 </div>
-                <div className="sf-log-list">
-                  {[...scanLog].reverse().slice(0, 12).map((l, i) => (
-                    <div key={i} className={`sf-log-item${l.type === "barcode" ? " sf-log-box" : l.type === "qr" ? " sf-log-qr" : " sf-log-manual"}${l.warning ? " sf-log-warn" : ""}`}>
-                      {l.type === "barcode" ? <Package size={11} className="log-icon-box"/> : l.type === "qr" ? <QrCode size={11} className="log-icon-qr"/> : <Plus size={11} className="log-icon-manual"/>}
-                      <span className="sf-log-series">{l.series}</span>
-                      <span className={`ltb ltb-${l.type === "barcode" ? "box" : l.type === "qr" ? "qr" : "manual"}`}>{l.type === "barcode" ? "quti" : l.type === "qr" ? "QR" : "qo'l"}</span>
-                      <span className="sf-log-count">+{l.count}</span>
-                      {l.warning && <AlertTriangle size={10} style={{color:"#d97706",flexShrink:0}}/>}
-                      <span className="sf-log-time">{new Date(l.time).toLocaleTimeString("uz-UZ")}</span>
-                    </div>
-                  ))}
-                  {scanLog.length > 12 && <div className="sf-log-more">… yana {scanLog.length - 12} ta</div>}
+                <div className="cs-row">
+                  <span>Jami miqdor:</span>
+                  <strong>{totalQty} dona</strong>
+                </div>
+                <div className="cs-row cs-total">
+                  <span>Jami summa:</span>
+                  <strong>{fmt(totalPrice)}</strong>
                 </div>
               </div>
             )}
@@ -675,14 +1020,15 @@ function SaleForm({ onSaved, showToast }) {
       <div className="sf-footer">
         {step > 1
           ? <button className="sf-btn-back" onClick={() => setStep(s => s - 1)}><ArrowLeft size={13}/> Ortga</button>
-          : <div/>}
+          : <div/>
+        }
         <div className="sf-footer-right">
-          {step < 5 && (
+          {step < 3 && (
             <button className="sf-btn-next" disabled={!canNext()} onClick={() => setStep(s => s + 1)}>
               Keyingi <ChevronRight size={13}/>
             </button>
           )}
-          {step === 5 && qty > 0 && (
+          {step === 3 && readyItems.length > 0 && (
             <button className="sf-btn-save" onClick={handleSave} disabled={saving}>
               {saving
                 ? <><Loader2 size={14} className="spin"/> Saqlanmoqda…</>
@@ -692,28 +1038,6 @@ function SaleForm({ onSaved, showToast }) {
         </div>
       </div>
     </div>
-
-    {/* Confirm Modal */}
-    {confirmModal && (
-      <div className="overlay" onClick={() => { setConfirmModal(null); scanRef.current?.focus() }}>
-        <div className="modal modal-sm" onClick={e => e.stopPropagation()}>
-          <div className="modal-head modal-head-warn">
-            <h3 className="modal-title" style={{color:"#92400e",display:"flex",alignItems:"center",gap:8}}>
-              <AlertTriangle size={17} style={{color:"#d97706"}}/> Seriya mos kelmadi
-            </h3>
-            <button className="modal-x" onClick={() => { setConfirmModal(null); scanRef.current?.focus() }}><X size={15}/></button>
-          </div>
-          <div className="modal-body">
-            <p className="confirm-msg">{confirmModal.message}</p>
-            <div className="confirm-actions">
-              <button className="btn-sec" onClick={() => { setConfirmModal(null); scanRef.current?.focus() }}>Bekor</button>
-              <button className="sf-btn-warn" onClick={confirmAdd}><CheckCircle size={13}/> Baribir qo'shish</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )}
-    </>
   )
 }
 
@@ -721,9 +1045,10 @@ function SaleForm({ onSaved, showToast }) {
 // SALE DETAIL MODAL
 // ═══════════════════════════════════════════════════════════
 function SaleDetailModal({ saleId, onClose, onCancelled, showToast }) {
-  const [sale, setSale]       = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [sale,       setSale]       = useState(null)
+  const [loading,    setLoading]    = useState(true)
   const [cancelling, setCancelling] = useState(false)
+  const [expandLog,  setExpandLog]  = useState(null) // itemId
 
   useEffect(() => {
     salesApi.sale(saleId)
@@ -748,19 +1073,23 @@ function SaleDetailModal({ saleId, onClose, onCancelled, showToast }) {
   }
 
   return (
-    <Modal title={`Sotuv #${saleId}`} onClose={onClose} size="lg">
+    <Modal title={`Sotuv #${saleId}`} onClose={onClose} size="xl">
       {loading ? (
         <div className="state-box"><Loader2 size={28} className="spin" style={{color:"#2563eb"}}/></div>
       ) : !sale ? (
         <div className="state-box"><ShieldAlert size={28} style={{color:"#fca5a5"}}/> Yuklanmadi</div>
       ) : (
         <>
+          {/* Meta */}
           <div className="dm-meta">
             {[
-              { label:<><User size={10}/> Mijoz</>,        val: sale.customer?.name || "—" },
-              { label:<><Phone size={10}/> Telefon</>,     val: sale.customer?.phone || "—" },
-              { label:<><Calendar size={10}/> Sana</>,     val: fmtDT(sale.createdAt) },
-              { label:<><Banknote size={10}/> Jami</>,     val: fmt(sale.totalPrice), accent: true },
+              { label: <><User size={10}/> Mijoz</>,       val: sale.customer?.name  || "—" },
+              { label: <><Phone size={10}/> Telefon</>,    val: sale.customer?.phone || "—" },
+              { label: <><FileText size={10}/> Shartnoma</>,val: sale.contractNumber || "—" },
+              { label: <><Hash size={10}/> Faktura</>,     val: sale.invoiceNumber   || "—" },
+              { label: <><Tag size={10}/> Lot</>,          val: sale.lotNumber       || "—" },
+              { label: <><Calendar size={10}/> Sana</>,    val: fmtDT(sale.createdAt) },
+              { label: <><Banknote size={10}/> Jami</>,    val: fmt(sale.totalPrice), accent: true },
             ].map((m, i) => (
               <div key={i} className={`dm-meta-item${m.accent ? " dm-accent" : ""}`}>
                 <div className="dm-label">{m.label}</div>
@@ -769,36 +1098,78 @@ function SaleDetailModal({ saleId, onClose, onCancelled, showToast }) {
             ))}
           </div>
 
-          <div className="tbl-scroll">
-            <table className="tbl tbl-modal">
-              <thead><tr>
-                {["Mahsulot","Seriya","Dozaj","Muddat","Shartnoma","Faktura","Miqdor","Narx","Jami"].map(h => (
-                  <th key={h}>{h}</th>
-                ))}
-              </tr></thead>
-              <tbody>
-                {(sale.items || []).map(it => (
-                  <tr key={it.id}>
-                    <td className="td-product-name">{it.product?.name}</td>
-                    <td><span className="chip chip-purple"><Tag size={9}/>{it.batch?.series}</span></td>
-                    <td><span className="chip chip-gray"><FlaskConical size={9}/>{it.batch?.mg}</span></td>
-                    <td className="td-date">{fmtD(it.batch?.expiry)}</td>
-                    <td className="mono">{it.batch?.contract?.contractNumber || "—"}</td>
-                    <td className="mono">{it.batch?.invoice?.invoiceNumber || "—"}</td>
-                    <td><span className="td-qty-pill">{it.quantity}</span></td>
-                    <td className="mono">{fmt(it.price)}</td>
-                    <td className="td-total">{fmt(it.total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {/* Items */}
+          <div className="dm-items">
+            {(sale.items || []).map(it => {
+              const scanLog = Array.isArray(it.scanLog) ? it.scanLog : []
+              const isOpen  = expandLog === it.id
+              return (
+                <div key={it.id} className="dm-item-card">
+                  <div className="dmic-top">
+                    <div className="dmic-prod">
+                      <Package size={13} style={{color:"#7c3aed", flexShrink:0}}/>
+                      <strong>{it.product?.name}</strong>
+                    </div>
+                    <div className="dmic-right">
+                      <span className="td-qty-pill">{it.quantity} dona</span>
+                      <span className="td-total">{fmt(it.total)}</span>
+                    </div>
+                  </div>
+                  <div className="dmic-meta">
+                    <span className="chip chip-purple"><Tag size={9}/>{it.batch?.series}</span>
+                    {it.batch?.boxSeries && <span className="chip chip-blue"><QrCode size={9}/>{it.batch.boxSeries}</span>}
+                    <span className="chip chip-gray"><FlaskConical size={9}/>{it.batch?.mg}</span>
+                    <span className="bi-exp"><Calendar size={10}/>{fmtD(it.batch?.expiry)}</span>
+                    {it.batch?.contract?.contractNumber && (
+                      <span className="doc-sh"><FileText size={9}/>{it.batch.contract.contractNumber}</span>
+                    )}
+                    {it.batch?.invoice?.invoiceNumber && (
+                      <span className="doc-inv"><Hash size={9}/>{it.batch.invoice.invoiceNumber}</span>
+                    )}
+                    <span className="marking-badge"><QrCode size={9}/>{it.quantity} marking</span>
+                    <span className="mono" style={{fontSize:11,color:"#64748b"}}>{fmt(it.price)} / dona</span>
+                  </div>
+
+                  {/* Scan log toggle */}
+                  {scanLog.length > 0 && (
+                    <div>
+                      <button className="dmic-log-toggle" onClick={() => setExpandLog(isOpen ? null : it.id)}>
+                        <ClipboardList size={11}/>
+                        {isOpen ? "Jurnalni yopish" : `Jurnal ko'rish (${scanLog.length} ta scan)`}
+                        <ChevronRight size={11} style={{transform: isOpen ? "rotate(90deg)" : "none", transition: ".15s"}}/>
+                      </button>
+                      {isOpen && (
+                        <div className="dmic-log-list">
+                          {scanLog.map((l, i) => (
+                            <div key={i} className={`sf-log-item${l.type === "barcode" ? " sf-log-box" : l.type === "qr" ? " sf-log-qr" : " sf-log-manual"}${l.warning ? " sf-log-warn" : ""}`}>
+                              {l.type === "barcode" ? <Package size={11} className="log-icon-box"/> : l.type === "qr" ? <QrCode size={11} className="log-icon-qr"/> : <Plus size={11} className="log-icon-manual"/>}
+                              <span className="sf-log-series">{l.series || l.original}</span>
+                              <span className={`ltb ltb-${l.type === "barcode" ? "box" : l.type === "qr" ? "qr" : "manual"}`}>
+                                {l.type === "barcode" ? "quti" : l.type === "qr" ? "QR" : "qo'l"}
+                              </span>
+                              <span className="sf-log-count">+{l.count}</span>
+                              {l.warning && <AlertTriangle size={10} style={{color:"#d97706"}}/>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
 
           <div className="dm-footer">
             <button className="btn-danger" onClick={handleCancel} disabled={cancelling}>
               {cancelling ? <><Loader2 size={13} className="spin"/> Bekor qilinmoqda…</> : <><Trash2 size={13}/> Bekor qilish</>}
             </button>
-            <button className="btn-sec" onClick={onClose}>Yopish</button>
+            <div style={{display:"flex",gap:8}}>
+              <button className="btn-export" onClick={() => { exportSaleToExcel(sale); showToast("Excel yuklab olindi") }}>
+                <Download size={13}/> Excel yuklab olish
+              </button>
+              <button className="btn-sec" onClick={onClose}>Yopish</button>
+            </div>
           </div>
         </>
       )}
@@ -812,14 +1183,14 @@ function SaleDetailModal({ saleId, onClose, onCancelled, showToast }) {
 const PER_PAGE = 10
 
 function SalesTable({ refreshKey, showToast }) {
-  const [sales,     setSales]   = useState([])
-  const [meta,      setMeta]    = useState({ total: 0, totalPages: 1 })
-  const [loading,   setLoading] = useState(true)
-  const [error,     setError]   = useState(null)
-  const [page,      setPage]    = useState(1)
-  const [dateFrom,  setDateFrom]  = useState("")
-  const [dateTo,    setDateTo]    = useState("")
-  const [detail,    setDetail]    = useState(null)
+  const [sales,    setSales]    = useState([])
+  const [meta,     setMeta]     = useState({ total: 0, totalPages: 1 })
+  const [loading,  setLoading]  = useState(true)
+  const [error,    setError]    = useState(null)
+  const [page,     setPage]     = useState(1)
+  const [dateFrom, setDateFrom] = useState("")
+  const [dateTo,   setDateTo]   = useState("")
+  const [detail,   setDetail]   = useState(null)
 
   const fetchSales = useCallback(async () => {
     setLoading(true); setError(null)
@@ -829,11 +1200,9 @@ function SalesTable({ refreshKey, showToast }) {
       if (dateTo)   params.dateTo   = new Date(dateTo + "T23:59:59").toISOString()
       const res = await salesApi.sales(params)
       if (Array.isArray(res)) {
-        setSales(res)
-        setMeta({ total: res.length, totalPages: 1 })
+        setSales(res); setMeta({ total: res.length, totalPages: 1 })
       } else {
-        setSales(res.items || [])
-        setMeta(res.meta || { total: 0, totalPages: 1 })
+        setSales(res.items || []); setMeta(res.meta || { total: 0, totalPages: 1 })
       }
     } catch (e) { setError(e.message) }
     finally { setLoading(false) }
@@ -846,7 +1215,6 @@ function SalesTable({ refreshKey, showToast }) {
 
   return (
     <div className="st-card">
-      {/* Header */}
       <div className="st-header">
         <div className="st-header-left">
           <History size={17} className="st-header-icon"/>
@@ -857,7 +1225,6 @@ function SalesTable({ refreshKey, showToast }) {
         </div>
       </div>
 
-      {/* Revenue bar */}
       {!loading && !error && sales.length > 0 && (
         <div className="st-rev-bar">
           <div className="rev-item">
@@ -872,13 +1239,12 @@ function SalesTable({ refreshKey, showToast }) {
         </div>
       )}
 
-      {/* Filters */}
       <div className="st-filters">
         <Calendar size={13} className="filter-icon"/>
         <div className="filter-group">
           <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="filter-input"/>
           <span className="filter-sep">—</span>
-          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="filter-input"/>
+          <input type="date" value={dateTo}   onChange={e => setDateTo(e.target.value)}   className="filter-input"/>
           {(dateFrom || dateTo) && (
             <button onClick={() => { setDateFrom(""); setDateTo("") }} className="filter-clear">
               <X size={11}/> Tozalash
@@ -888,7 +1254,6 @@ function SalesTable({ refreshKey, showToast }) {
         {loading && <Loader2 size={14} className="spin" style={{color:"#2563eb",marginLeft:"auto"}}/>}
       </div>
 
-      {/* Content */}
       {error ? (
         <div className="state-box">
           <ShieldAlert size={40} style={{color:"#fca5a5"}}/>
@@ -907,7 +1272,7 @@ function SalesTable({ refreshKey, showToast }) {
           <div className="tbl-scroll">
             <table className="tbl">
               <thead><tr>
-                {["#","Mijoz","Mahsulotlar","Miqdor","Jami","Sana",""].map(h => <th key={h}>{h}</th>)}
+                {["#","Mijoz","Shartnoma/Lot","Mahsulotlar","Jami","Sana",""].map(h => <th key={h}>{h}</th>)}
               </tr></thead>
               <tbody>
                 {sales.map(sale => {
@@ -926,6 +1291,12 @@ function SalesTable({ refreshKey, showToast }) {
                         </div>
                       </td>
                       <td>
+                        <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                          {sale.contractNumber && <span className="doc-sh" style={{width:"fit-content"}}><FileText size={9}/>{sale.contractNumber}</span>}
+                          {sale.lotNumber && <span className="doc-inv" style={{width:"fit-content"}}><Hash size={9}/>Lot: {sale.lotNumber}</span>}
+                        </div>
+                      </td>
+                      <td>
                         <div className="td-items">
                           {(sale.items || []).slice(0, 2).map(it => (
                             <div key={it.id} className="td-chip">
@@ -935,7 +1306,6 @@ function SalesTable({ refreshKey, showToast }) {
                           {itemCount > 2 && <span className="td-more">+{itemCount - 2} ta</span>}
                         </div>
                       </td>
-                      <td><span className="td-qty-pill">{totalQty} dona</span></td>
                       <td><span className="td-total">{fmt(sale.totalPrice)}</span></td>
                       <td><span className="td-date">{fmtDT(sale.createdAt)}</span></td>
                       <td onClick={e => e.stopPropagation()}>
@@ -950,27 +1320,21 @@ function SalesTable({ refreshKey, showToast }) {
             </table>
           </div>
 
-          {/* Pagination */}
           {meta.totalPages > 1 && (
             <div className="st-footer">
               <span className="pag-info">{(page-1)*PER_PAGE+1}–{Math.min(page*PER_PAGE, meta.total)} / {meta.total}</span>
               <div className="pag">
-                <button className="pag-btn" disabled={page === 1} onClick={() => setPage(p => p-1)}>
-                  <ChevronLeft size={13}/>
-                </button>
+                <button className="pag-btn" disabled={page === 1} onClick={() => setPage(p => p-1)}><ChevronLeft size={13}/></button>
                 {Array.from({ length: meta.totalPages }, (_, i) => i+1).map(n => (
                   <button key={n} className={`pag-btn${n === page ? " pag-active" : ""}`} onClick={() => setPage(n)}>{n}</button>
                 ))}
-                <button className="pag-btn" disabled={page === meta.totalPages} onClick={() => setPage(p => p+1)}>
-                  <ChevronRight size={13}/>
-                </button>
+                <button className="pag-btn" disabled={page === meta.totalPages} onClick={() => setPage(p => p+1)}><ChevronRight size={13}/></button>
               </div>
             </div>
           )}
         </>
       )}
 
-      {/* Detail modal */}
       {detail && (
         <SaleDetailModal
           saleId={detail}
@@ -987,8 +1351,8 @@ function SalesTable({ refreshKey, showToast }) {
 // ROOT
 // ═══════════════════════════════════════════════════════════
 export default function Sales() {
-  const [activeTab,   setActiveTab]   = useState("new")
-  const [refreshKey,  setRefreshKey]  = useState(0)
+  const [activeTab,  setActiveTab]  = useState("new")
+  const [refreshKey, setRefreshKey] = useState(0)
   const { toasts, add: showToast, remove: removeToast } = useToast()
 
   const handleSaved = useCallback(() => {
@@ -1002,11 +1366,10 @@ export default function Sales() {
       <ToastStack toasts={toasts} remove={removeToast}/>
 
       <div className="page">
-        {/* Mobile tab bar */}
         <div className="page-tabs">
           {[
-            { key:"new",     label:"Yangi sotuv", Icon: ShoppingCart },
-            { key:"history", label:"Tarix",       Icon: History },
+            { key: "new",     label: "Yangi sotuv", Icon: ShoppingCart },
+            { key: "history", label: "Tarix",       Icon: History },
           ].map(t => (
             <button
               key={t.key}
@@ -1049,8 +1412,7 @@ const STYLES = `
   display: none;
   background: #fff;
   border-bottom: 1.5px solid #e2e8f0;
-  padding: 0 20px;
-  gap: 4px;
+  padding: 0 20px; gap: 4px;
 }
 .page-tab {
   display: inline-flex; align-items: center; gap: 6px;
@@ -1064,29 +1426,21 @@ const STYLES = `
 /* ── LAYOUT ── */
 .page-body {
   display: grid;
-  grid-template-columns: 460px 1fr;
-  gap: 20px;
-  padding: 24px;
-  max-width: 1400px;
-  margin: 0 auto;
-  align-items: start;
+  grid-template-columns: 520px 1fr;
+  gap: 20px; padding: 24px;
+  max-width: 1440px; margin: 0 auto; align-items: start;
 }
 .col { min-width: 0; }
 
 /* ── FORM CARD ── */
 .sf-card {
-  background: #fff;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 18px;
-  overflow: hidden;
-  position: sticky;
-  top: 20px;
+  background: #fff; border: 1.5px solid #e2e8f0; border-radius: 18px;
+  overflow: hidden; position: sticky; top: 20px;
   box-shadow: 0 4px 24px rgba(0,0,0,.06);
 }
 .sf-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 18px 20px 14px;
-  border-bottom: 1.5px solid #f1f5f9;
+  padding: 18px 20px 14px; border-bottom: 1.5px solid #f1f5f9;
   background: linear-gradient(135deg, #f8faff 0%, #f0f7ff 100%);
 }
 .sf-header-left { display:flex; align-items:center; gap:9px; font-size:15px; font-weight:800; color:#0f172a; letter-spacing:-.3px; }
@@ -1100,83 +1454,131 @@ const STYLES = `
 .sf-reset-btn:hover { border-color:#fca5a5; color:#dc2626; background:#fef2f2; }
 
 /* Steps */
-.sf-steps { display:flex; align-items:center; padding:14px 20px; border-bottom:1.5px solid #f1f5f9; overflow-x:auto; gap:0; }
+.sf-steps { display:flex; align-items:center; padding:12px 16px; border-bottom:1.5px solid #f1f5f9; overflow-x:auto; gap:0; }
 .sf-step-wrapper { display:flex; align-items:center; flex-shrink:0; }
-.sf-step {
-  display:flex; align-items:center; gap:6px; padding:6px 11px; border-radius:20px;
-  font-size:11px; font-weight:700; color:#94a3b8; background:#f1f5f9;
-  white-space:nowrap; transition:all .2s;
-}
+.sf-step { display:flex; align-items:center; gap:5px; padding:5px 9px; border-radius:20px; font-size:11px; font-weight:700; color:#94a3b8; background:#f1f5f9; white-space:nowrap; transition:all .2s; }
 .sf-step-active { background:#eff6ff; color:#2563eb; box-shadow:0 0 0 2px #bfdbfe; }
 .sf-step-done   { background:#dcfce7; color:#16a34a; cursor:pointer; }
-.sf-step-label  { font-size:11px; }
-.sf-step-line   { width:20px; height:2px; background:#e2e8f0; margin:0 4px; flex-shrink:0; }
+.sf-step-line   { width:16px; height:2px; background:#e2e8f0; margin:0 3px; flex-shrink:0; }
 .sf-line-done   { background:#16a34a; }
 
-.sf-body { padding:20px; min-height:280px; }
+/* Summary row */
+.sf-summary-row { display:flex; flex-wrap:wrap; gap:6px; padding:10px 16px; border-bottom:1px solid #f1f5f9; background:#fafbff; }
+.sum-chip { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; padding:4px 9px; border-radius:20px; }
+.sum-chip button { background:none; border:none; cursor:pointer; display:flex; align-items:center; color:inherit; opacity:.6; padding:0; margin-left:2px; }
+.sum-chip button:hover { opacity:1; }
+.sum-user  { background:#eff6ff; color:#2563eb; }
+.sum-doc   { background:#f0fdf4; color:#16a34a; }
+.sum-prod  { background:#f5f3ff; color:#7c3aed; }
+
+.sf-body { padding:18px 20px; }
 .sf-panel { display:flex; flex-direction:column; gap:14px; }
 .sf-panel-head { display:flex; align-items:center; gap:7px; font-size:14px; font-weight:700; color:#0f172a; flex-wrap:wrap; }
 .sf-panel-badge { display:inline-flex; align-items:center; gap:4px; background:#eff6ff; color:#2563eb; font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px; margin-left:6px; }
 
-.sf-chosen { display:flex; align-items:center; gap:12px; background:#f0fdf4; border:1.5px solid #86efac; border-radius:12px; padding:12px 14px; }
-.sf-chosen-avatar { width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; font-weight:800; font-size:15px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.sf-chosen-name { font-weight:700; color:#0f172a; font-size:14px; }
-.sf-chosen-sub  { font-size:12px; color:#64748b; margin-top:2px; }
-.sf-chosen-change { margin-left:auto; background:none; border:none; cursor:pointer; color:#94a3b8; display:flex; align-items:center; width:28px; height:28px; border-radius:6px; justify-content:center; transition:all .15s; }
-.sf-chosen-change:hover { background:#fee2e2; color:#dc2626; }
+.sf-docs-info { display:flex; align-items:flex-start; gap:8px; background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:10px; padding:10px 13px; font-size:12px; color:#1e40af; line-height:1.6; }
 
-/* Batch */
-.batch-list { display:flex; flex-direction:column; gap:8px; max-height:300px; overflow-y:auto; }
-.batch-item { position:relative; border:1.5px solid #e2e8f0; border-radius:12px; padding:12px 14px; cursor:pointer; background:#fafbff; transition:all .15s; display:flex; flex-direction:column; gap:6px; }
-.batch-item:hover { border-color:#93c5fd; background:#f0f7ff; }
-.batch-sel  { border-color:#2563eb; background:#eff6ff; box-shadow:0 0 0 3px #dbeafe; }
-.batch-warn { border-color:#fde68a !important; }
-.bi-top  { display:flex; justify-content:space-between; align-items:center; }
-.bi-series { display:inline-flex; align-items:center; gap:5px; font-family:monospace; font-weight:800; color:#6d28d9; font-size:13px; }
-.bi-qty-badge { display:inline-flex; align-items:center; gap:4px; background:#dcfce7; color:#16a34a; font-size:12px; font-weight:700; padding:3px 9px; border-radius:20px; }
-.bi-qr-row { display:inline-flex; align-items:center; gap:5px; font-size:11px; color:#7c3aed; background:#f5f3ff; padding:2px 8px; border-radius:5px; width:fit-content; font-family:monospace; }
-.bi-qr-row strong { font-weight:700; }
-.bi-mid  { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.bi-exp  { display:inline-flex; align-items:center; gap:4px; font-size:11px; color:#94a3b8; }
-.bi-exp-warn { color:#d97706 !important; }
-.bi-meta { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-.bi-price { display:inline-flex; align-items:center; gap:5px; font-size:13px; font-weight:700; color:#0f172a; }
-.bi-contract { display:inline-flex; align-items:center; gap:4px; font-size:11px; color:#64748b; font-family:monospace; }
-.bi-exp-label { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; color:#d97706; background:#fffbeb; padding:2px 7px; border-radius:5px; width:fit-content; }
-.bi-check { position:absolute; top:12px; right:12px; color:#2563eb; }
-
-.sf-batch-summary { display:grid; grid-template-columns:1fr 1fr; gap:10px; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:12px; padding:14px; }
-.sbs-item  { display:flex; flex-direction:column; gap:4px; }
-.sbs-label { font-size:10px; font-weight:700; text-transform:uppercase; color:#94a3b8; }
-.sbs-val   { display:inline-flex; align-items:center; gap:4px; font-size:13px; font-weight:600; color:#334155; }
-.sbs-green { color:#16a34a; }
-
-/* Fields */
 .sf-fields { display:flex; flex-direction:column; gap:14px; }
 .sf-field  { display:flex; flex-direction:column; gap:6px; }
 .sf-label  { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#475569; }
 .req { color:#ef4444; }
 .sf-input-wrap { position:relative; display:flex; align-items:center; }
 .sf-input { width:100%; border:1.5px solid #e2e8f0; border-radius:10px; padding:11px 52px 11px 13px; font-size:15px; font-weight:600; outline:none; font-family:inherit; color:#0f172a; transition:border-color .15s, box-shadow .15s; background:#fff; }
+.sf-input-mono { font-family:'JetBrains Mono','Fira Mono',monospace; font-size:14px; }
 .sf-input:focus { border-color:#2563eb; box-shadow:0 0 0 3px #dbeafe; }
 .sf-input-suffix { position:absolute; right:12px; font-size:12px; font-weight:600; color:#94a3b8; white-space:nowrap; }
 .sf-hint { display:inline-flex; align-items:center; gap:4px; font-size:11px; color:#94a3b8; }
 
-/* Counter */
-.sf-counter { text-align:center; padding:24px 0 18px; border:1.5px solid #e2e8f0; border-radius:14px; background:linear-gradient(135deg,#fafbff,#f0f7ff); }
-.sf-count-num   { font-size:68px; font-weight:900; color:#2563eb; line-height:1; letter-spacing:-2px; }
-.sf-count-label { font-size:13px; color:#94a3b8; margin-top:4px; }
-.sf-count-price { font-size:22px; font-weight:800; color:#16a34a; margin-top:10px; }
+/* ── CART ── */
+.cart-list { display:flex; flex-direction:column; gap:12px; }
+
+.cart-item-card {
+  border: 1.5px solid #e2e8f0; border-radius: 14px; overflow: hidden;
+  background: #fafbff; transition: border-color .15s;
+}
+.cart-item-card:hover { border-color: #93c5fd; }
+
+.ci-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: #f0f7ff; border-bottom: 1px solid #e2e8f0; gap: 8px;
+}
+.ci-title { display:flex; align-items:center; gap:7px; font-size:13px; font-weight:700; color:#0f172a; flex:1; min-width:0; overflow:hidden; }
+.ci-series-badge { display:inline-flex; align-items:center; gap:3px; background:#ede9fe; color:#7c3aed; font-size:10px; font-weight:700; padding:2px 7px; border-radius:5px; font-family:monospace; }
+.ci-header-right { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.ci-qty-total { font-size:12px; font-weight:700; color:#16a34a; background:#f0fdf4; padding:3px 9px; border-radius:6px; white-space:nowrap; }
+.ci-remove { background:#fee2e2; color:#dc2626; border:none; border-radius:7px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; transition:background .15s; }
+.ci-remove:hover { background:#fecaca; }
+
+.ci-tabs { display:flex; gap:2px; padding:8px 10px; border-bottom:1px solid #f1f5f9; background:#fff; }
+.ci-tab { flex:1; border:none; background:#f8fafc; border-radius:7px; padding:6px 4px; font-size:11px; font-weight:600; cursor:pointer; color:#94a3b8; transition:all .15s; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:3px; }
+.ci-tab:hover:not(:disabled) { background:#eff6ff; color:#2563eb; }
+.ci-tab-active { background:#eff6ff !important; color:#2563eb !important; box-shadow:0 0 0 1.5px #bfdbfe; }
+.ci-tab-done   { color:#16a34a; background:#f0fdf4; }
+.ci-tab:disabled { opacity:.35; cursor:not-allowed; }
+
+.ci-body { padding:12px 14px; }
+.ci-price-panel { display:flex; flex-direction:column; gap:12px; }
+
+.add-product-btn {
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  border: 2px dashed #c7d2fe; border-radius:12px; padding:13px;
+  font-size:14px; font-weight:600; color:#7c3aed; background:#fafbff;
+  cursor:pointer; transition:all .15s; font-family:inherit; width:100%;
+}
+.add-product-btn:hover { border-color:#7c3aed; background:#f5f3ff; }
+
+.cart-summary {
+  background: linear-gradient(135deg,#f0fdf4,#eff6ff);
+  border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 8px; margin-top: 4px;
+}
+.cs-row { display:flex; justify-content:space-between; align-items:center; font-size:13px; color:#64748b; }
+.cs-total { font-size:15px; font-weight:800; color:#0f172a; padding-top:8px; border-top:1px solid #e2e8f0; margin-top:2px; }
+.cs-total strong { color:#16a34a; font-size:17px; }
+
+/* ── SCAN PANEL ── */
+.scan-panel { display:flex; flex-direction:column; gap:10px; }
+.sp-counter { text-align:center; padding:20px 0 14px; border:1.5px solid #e2e8f0; border-radius:12px; background:linear-gradient(135deg,#fafbff,#f0f7ff); }
+.sp-count-num   { font-size:56px; font-weight:900; color:#2563eb; line-height:1; letter-spacing:-2px; }
+.sp-count-label { font-size:12px; color:#94a3b8; margin-top:3px; }
+.sp-count-price { font-size:18px; font-weight:800; color:#16a34a; margin-top:8px; }
+
+/* ── BATCH ── */
+.batch-list { display:flex; flex-direction:column; gap:8px; max-height:300px; overflow-y:auto; }
+.batch-item { position:relative; border:1.5px solid #e2e8f0; border-radius:12px; padding:12px 14px; cursor:pointer; background:#fafbff; transition:all .15s; display:flex; flex-direction:column; gap:6px; }
+.batch-item:hover { border-color:#93c5fd; background:#f0f7ff; }
+.batch-sel  { border-color:#2563eb; background:#eff6ff; box-shadow:0 0 0 3px #dbeafe; }
+.batch-warn { border-color:#fde68a !important; }
+.bi-top     { display:flex; justify-content:space-between; align-items:center; }
+.bi-series  { display:inline-flex; align-items:center; gap:5px; font-family:monospace; font-weight:800; color:#6d28d9; font-size:13px; }
+.bi-qty-badge { display:inline-flex; align-items:center; gap:4px; background:#dcfce7; color:#16a34a; font-size:12px; font-weight:700; padding:3px 9px; border-radius:20px; }
+.bi-qr-row  { display:inline-flex; align-items:center; gap:5px; font-size:11px; color:#7c3aed; background:#f5f3ff; padding:2px 8px; border-radius:5px; width:fit-content; font-family:monospace; }
+.bi-qr-row strong { font-weight:700; }
+.bi-mid     { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.bi-exp     { display:inline-flex; align-items:center; gap:4px; font-size:11px; color:#94a3b8; }
+.bi-exp-warn { color:#d97706 !important; }
+.bi-meta    { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.bi-price   { display:inline-flex; align-items:center; gap:5px; font-size:13px; font-weight:700; color:#0f172a; }
+.bi-contract { display:inline-flex; align-items:center; gap:4px; font-size:11px; color:#64748b; font-family:monospace; }
+.bi-exp-label { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; color:#d97706; background:#fffbeb; padding:2px 7px; border-radius:5px; width:fit-content; }
+.bi-check   { position:absolute; top:12px; right:12px; color:#2563eb; }
+
+/* Batch summary */
+.sf-batch-summary { display:grid; grid-template-columns:1fr 1fr; gap:10px; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:12px; padding:14px; }
+.sbs-item   { display:flex; flex-direction:column; gap:4px; }
+.sbs-label  { font-size:10px; font-weight:700; text-transform:uppercase; color:#94a3b8; }
+.sbs-val    { display:inline-flex; align-items:center; gap:4px; font-size:13px; font-weight:600; color:#334155; }
+.sbs-green  { color:#16a34a; }
 
 /* Mini stats */
 .sf-mini-stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
-.ms-item  { display:flex; align-items:center; gap:9px; border-radius:10px; padding:10px 12px; }
-.ms-blue   { background:#eff6ff; color:#2563eb; }
-.ms-violet { background:#f5f3ff; color:#7c3aed; }
-.ms-green  { background:#f0fdf4; color:#16a34a; }
-.ms-val    { font-size:13px; font-weight:800; line-height:1.2; }
-.ms-val-sm { font-size:10px; }
-.ms-lbl    { font-size:10px; color:#94a3b8; margin-top:2px; }
+.ms-item    { display:flex; align-items:center; gap:9px; border-radius:10px; padding:10px 12px; }
+.ms-blue    { background:#eff6ff; color:#2563eb; }
+.ms-violet  { background:#f5f3ff; color:#7c3aed; }
+.ms-green   { background:#f0fdf4; color:#16a34a; }
+.ms-val     { font-size:13px; font-weight:800; line-height:1.2; }
+.ms-val-sm  { font-size:10px; }
+.ms-lbl     { font-size:10px; color:#94a3b8; margin-top:2px; }
 
 .scan-warn-banner { display:flex; align-items:center; gap:8px; background:#fffbeb; border:1.5px solid #fde68a; border-radius:10px; padding:10px 14px; font-size:13px; font-weight:600; color:#92400e; }
 
@@ -1197,8 +1599,8 @@ const STYLES = `
 /* Manual */
 .sf-manual { display:flex; align-items:center; gap:12px; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:12px; padding:10px 14px; }
 .manual-center { flex:1; text-align:center; }
-.manual-label { display:block; font-size:11px; color:#94a3b8; font-weight:600; }
-.manual-qty   { display:block; font-size:15px; font-weight:800; color:#0f172a; }
+.manual-label  { display:block; font-size:11px; color:#94a3b8; font-weight:600; }
+.manual-qty    { display:block; font-size:15px; font-weight:800; color:#0f172a; }
 .manual-btn { width:38px; height:38px; border:none; border-radius:9px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .15s; flex-shrink:0; }
 .manual-sub { background:#fee2e2; color:#dc2626; }
 .manual-sub:hover:not(:disabled) { background:#fecaca; }
@@ -1211,7 +1613,7 @@ const STYLES = `
 .sf-log-head { display:flex; justify-content:space-between; align-items:center; font-size:11px; font-weight:700; text-transform:uppercase; color:#64748b; margin-bottom:8px; }
 .sf-log-head span { display:flex; align-items:center; gap:5px; }
 .sf-log-clear { display:flex; align-items:center; gap:4px; background:none; border:none; cursor:pointer; font-size:11px; color:#ef4444; font-weight:600; }
-.sf-log-list { display:flex; flex-direction:column; gap:4px; max-height:200px; overflow-y:auto; }
+.sf-log-list  { display:flex; flex-direction:column; gap:4px; max-height:180px; overflow-y:auto; }
 .sf-log-item  { display:flex; align-items:center; gap:7px; font-size:12px; padding:5px 8px; border-radius:7px; }
 .sf-log-box    { background:#eff6ff; }
 .sf-log-qr     { background:#f5f3ff; }
@@ -1220,7 +1622,7 @@ const STYLES = `
 .log-icon-box    { color:#2563eb; flex-shrink:0; }
 .log-icon-qr     { color:#7c3aed; flex-shrink:0; }
 .log-icon-manual { color:#16a34a; flex-shrink:0; }
-.sf-log-series { font-family:monospace; font-weight:700; color:#6d28d9; flex:1; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:140px; }
+.sf-log-series { font-family:monospace; font-weight:700; color:#6d28d9; flex:1; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:130px; }
 .sf-log-count  { font-weight:800; color:#2563eb; flex-shrink:0; }
 .sf-log-time   { color:#94a3b8; font-size:10px; flex-shrink:0; }
 .sf-log-more   { text-align:center; font-size:11px; color:#94a3b8; padding:4px; }
@@ -1243,35 +1645,24 @@ const STYLES = `
 .sf-btn-warn { display:inline-flex; align-items:center; gap:7px; background:#d97706; color:#fff; border:none; border-radius:9px; padding:9px 18px; font-size:13px; font-weight:700; cursor:pointer; transition:background .15s; font-family:inherit; }
 .sf-btn-warn:hover { background:#b45309; }
 
-/* Confirm */
-.modal-head-warn { background:#fffbeb; border-bottom:1.5px solid #fef3c7 !important; }
-.confirm-msg { font-size:14px; color:#475569; line-height:1.75; margin-bottom:20px; white-space:pre-line; }
-.confirm-actions { display:flex; gap:10px; justify-content:flex-end; }
+/* ── DETAIL MODAL ── */
+.dm-meta { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:18px; }
+.dm-meta-item { background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:11px; padding:13px 14px; }
+.dm-accent    { background:#eff6ff; border-color:#bfdbfe; grid-column:span 3; }
+.dm-label { display:flex; align-items:center; gap:5px; font-size:10px; font-weight:700; text-transform:uppercase; color:#94a3b8; margin-bottom:5px; letter-spacing:.04em; }
+.dm-val   { font-size:14px; font-weight:700; color:#0f172a; }
+.dm-accent .dm-val { color:#2563eb; font-size:18px; }
 
-/* ── DROPDOWN ── */
-.dd-wrap { position:relative; }
-.dd-trigger { display:flex; align-items:center; border:1.5px solid #e2e8f0; border-radius:11px; padding:11px 14px; background:#fff; cursor:pointer; min-height:48px; gap:8px; transition:all .15s; }
-.dd-trigger:hover { border-color:#93c5fd; }
-.dd-open { border-color:#2563eb !important; box-shadow:0 0 0 3px #dbeafe; }
-.dd-ph  { color:#94a3b8; font-size:14px; flex:1; }
-.dd-arr { margin-left:auto; color:#94a3b8; flex-shrink:0; transition:transform .2s; }
-.dd-arr-open { transform:rotate(90deg); color:#2563eb; }
-.dd-val { display:flex; align-items:center; gap:10px; flex:1; min-width:0; }
-.dd-drop { position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:400; background:#fff; border:1.5px solid #e2e8f0; border-radius:13px; box-shadow:0 16px 48px rgba(0,0,0,.14); overflow:hidden; }
-.dd-search-wrap { display:flex; align-items:center; border-bottom:1px solid #f1f5f9; padding:8px 12px; gap:8px; }
-.dd-search-icon { color:#cbd5e1; flex-shrink:0; }
-.dd-search { flex:1; border:none; padding:6px 0; font-size:14px; outline:none; font-family:inherit; color:#0f172a; background:transparent; }
-.dd-clear { background:none; border:none; cursor:pointer; color:#94a3b8; display:flex; align-items:center; }
-.dd-list  { max-height:230px; overflow-y:auto; }
-.dd-item  { padding:10px 14px; cursor:pointer; transition:background .1s; }
-.dd-item:hover { background:#f8fafc; }
-.dd-active { background:#eff6ff; }
-.dd-state { display:flex; align-items:center; justify-content:center; gap:8px; padding:24px; color:#94a3b8; font-size:13px; }
-.dd-row { display:flex; align-items:center; gap:10px; }
-.dd-avatar { width:34px; height:34px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; }
-.dd-icon-wrap { width:34px; height:34px; border-radius:8px; flex-shrink:0; background:#eff6ff; color:#2563eb; display:flex; align-items:center; justify-content:center; }
-.dd-row-main { font-weight:600; color:#0f172a; font-size:13px; }
-.dd-row-sub  { display:flex; align-items:center; gap:5px; font-size:11px; color:#64748b; margin-top:2px; flex-wrap:wrap; }
+.dm-items { display:flex; flex-direction:column; gap:10px; margin-bottom:16px; }
+.dm-item-card { border:1.5px solid #e2e8f0; border-radius:12px; overflow:hidden; }
+.dmic-top { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:#f8fafc; border-bottom:1px solid #f1f5f9; }
+.dmic-prod { display:flex; align-items:center; gap:8px; font-size:13px; color:#0f172a; }
+.dmic-right { display:flex; align-items:center; gap:10px; }
+.dmic-meta { display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding:10px 14px; }
+.dmic-log-toggle { display:flex; align-items:center; gap:5px; background:none; border:none; cursor:pointer; font-size:11px; font-weight:600; color:#7c3aed; padding:6px 14px; border-top:1px dashed #e2e8f0; width:100%; }
+.dmic-log-list { padding:8px 14px 10px; display:flex; flex-direction:column; gap:4px; max-height:200px; overflow-y:auto; }
+
+.dm-footer { display:flex; justify-content:space-between; align-items:center; padding-top:14px; border-top:1.5px solid #f1f5f9; }
 
 /* ── SALES TABLE ── */
 .st-card { background:#fff; border:1.5px solid #e2e8f0; border-radius:18px; overflow:hidden; box-shadow:0 4px 24px rgba(0,0,0,.06); }
@@ -1296,36 +1687,33 @@ const STYLES = `
 .filter-input { border:1.5px solid #e2e8f0; border-radius:8px; padding:7px 11px; font-size:13px; outline:none; font-family:inherit; color:#0f172a; transition:border-color .15s; }
 .filter-input:focus { border-color:#2563eb; }
 .filter-sep   { color:#94a3b8; font-size:13px; }
-.filter-clear { display:inline-flex; align-items:center; gap:5px; background:#fef2f2; color:#dc2626; border:none; border-radius:8px; padding:7px 12px; font-size:12px; font-weight:600; cursor:pointer; transition:background .15s; font-family:inherit; }
+.filter-clear { display:inline-flex; align-items:center; gap:5px; background:#fef2f2; color:#dc2626; border:none; border-radius:8px; padding:7px 12px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; }
 .filter-clear:hover { background:#fecaca; }
 
 .state-box { display:flex; flex-direction:column; align-items:center; gap:12px; padding:64px 24px; color:#94a3b8; font-size:14px; text-align:center; }
-.state-sm   { display:flex; align-items:center; gap:8px; padding:20px; color:#94a3b8; font-size:13px; }
+.state-sm  { display:flex; align-items:center; gap:8px; padding:20px; color:#94a3b8; font-size:13px; }
 .state-sm.warn { color:#f59e0b; }
 
 .tbl-scroll { overflow-x:auto; }
 .tbl { width:100%; border-collapse:collapse; }
 .tbl thead tr { background:#faf5ff; border-bottom:1.5px solid #e2e8f0; }
 .tbl th { padding:11px 16px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#7c3aed; text-align:left; white-space:nowrap; }
-.tbl-modal th { background:#f8fafc; color:#64748b; }
 .tbl td { padding:12px 16px; font-size:13px; color:#334155; border-bottom:1px solid #f8fafc; vertical-align:middle; }
 .tbl-row { cursor:pointer; transition:background .1s; }
 .tbl-row:hover { background:#fafbff; }
 
-.td-id       { font-weight:800; color:#7c3aed; font-size:13px; background:#f5f3ff; padding:3px 8px; border-radius:6px; display:inline-block; }
-.td-cust-cell { display:flex; align-items:center; gap:10px; }
-.td-avatar   { width:30px; height:30px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center; }
-.td-cust     { font-weight:700; color:#0f172a; font-size:13px; }
-.td-phone    { font-size:11px; color:#94a3b8; margin-top:1px; }
-.td-items    { display:flex; flex-direction:column; gap:3px; }
-.td-chip     { display:inline-flex; align-items:center; gap:5px; background:#f1f5f9; border-radius:5px; padding:2px 8px; font-size:12px; font-weight:500; width:fit-content; }
-.chip-x      { color:#2563eb; font-weight:700; font-size:11px; }
-.td-more     { font-size:11px; color:#94a3b8; }
-.td-qty-pill { background:#f1f5f9; color:#334155; font-weight:700; font-size:12px; padding:3px 10px; border-radius:20px; display:inline-block; }
-.td-total    { font-weight:800; color:#0f172a; font-size:14px; white-space:nowrap; }
-.td-date     { font-size:11px; color:#94a3b8; white-space:nowrap; }
-.td-product-name { font-weight:600; color:#0f172a; }
-.mono { font-family:'JetBrains Mono','Fira Mono',monospace; font-size:12px; }
+.td-id         { font-weight:800; color:#7c3aed; font-size:13px; background:#f5f3ff; padding:3px 8px; border-radius:6px; display:inline-block; }
+.td-cust-cell  { display:flex; align-items:center; gap:10px; }
+.td-avatar     { width:30px; height:30px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center; }
+.td-cust       { font-weight:700; color:#0f172a; font-size:13px; }
+.td-phone      { font-size:11px; color:#94a3b8; margin-top:1px; }
+.td-items      { display:flex; flex-direction:column; gap:3px; }
+.td-chip       { display:inline-flex; align-items:center; gap:5px; background:#f1f5f9; border-radius:5px; padding:2px 8px; font-size:12px; font-weight:500; width:fit-content; }
+.chip-x        { color:#2563eb; font-weight:700; font-size:11px; }
+.td-more       { font-size:11px; color:#94a3b8; }
+.td-qty-pill   { background:#f1f5f9; color:#334155; font-weight:700; font-size:12px; padding:3px 10px; border-radius:20px; display:inline-block; }
+.td-total      { font-weight:800; color:#0f172a; font-size:14px; white-space:nowrap; }
+.td-date       { font-size:11px; color:#94a3b8; white-space:nowrap; }
 
 .st-footer { display:flex; align-items:center; gap:10px; padding:12px 20px; border-top:1.5px solid #f1f5f9; flex-wrap:wrap; }
 .pag-info  { font-size:12px; color:#94a3b8; white-space:nowrap; }
@@ -1335,16 +1723,12 @@ const STYLES = `
 .pag-btn:disabled { opacity:.4; cursor:not-allowed; }
 .pag-active { background:#2563eb !important; color:#fff !important; border-color:#2563eb !important; }
 
-/* ── DETAIL MODAL ── */
-.dm-meta { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px; }
-.dm-meta-item { background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:11px; padding:13px 14px; }
-.dm-accent    { background:#eff6ff; border-color:#bfdbfe; }
-.dm-label { display:flex; align-items:center; gap:5px; font-size:10px; font-weight:700; text-transform:uppercase; color:#94a3b8; margin-bottom:5px; letter-spacing:.04em; }
-.dm-val   { font-size:14px; font-weight:700; color:#0f172a; }
-.dm-accent .dm-val { color:#2563eb; font-size:18px; }
-.dm-footer { display:flex; justify-content:space-between; align-items:center; margin-top:18px; padding-top:14px; border-top:1.5px solid #f1f5f9; }
-
-/* ── SHARED BUTTONS ── */
+/* ── SHARED ── */
+.doc-sh  { font-family:monospace; font-size:11px; font-weight:700; color:#166534; background:#f0fdf4; padding:2px 6px; border-radius:4px; display:inline-flex; align-items:center; gap:3px; }
+.doc-inv { font-family:monospace; font-size:11px; font-weight:700; color:#9a3412; background:#fff7ed; padding:2px 6px; border-radius:4px; display:inline-flex; align-items:center; gap:3px; }
+.marking-badge { display:inline-flex; align-items:center; gap:4px; background:#f5f3ff; color:#7c3aed; font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px; }
+.btn-export { display:inline-flex; align-items:center; gap:6px; background:#f0fdf4; color:#16a34a; border:1.5px solid #86efac; border-radius:9px; padding:8px 14px; font-size:13px; font-weight:600; cursor:pointer; transition:all .15s; font-family:inherit; }
+.btn-export:hover { background:#dcfce7; }
 .btn-danger  { display:inline-flex; align-items:center; gap:6px; background:#fee2e2; color:#dc2626; border:none; border-radius:9px; padding:9px 14px; font-size:13px; font-weight:600; cursor:pointer; transition:background .15s; font-family:inherit; }
 .btn-danger:hover:not(:disabled) { background:#fecaca; }
 .btn-danger:disabled { opacity:.5; cursor:not-allowed; }
@@ -1354,10 +1738,35 @@ const STYLES = `
 .btn-history:hover { background:#ede9fe; }
 
 /* ── CHIPS ── */
-.chip        { display:inline-flex; align-items:center; gap:4px; border-radius:5px; padding:2px 8px; font-size:11px; font-weight:600; margin-right:4px; }
+.chip        { display:inline-flex; align-items:center; gap:4px; border-radius:5px; padding:2px 8px; font-size:11px; font-weight:600; }
 .chip-purple { background:#ede9fe; color:#6d28d9; font-family:monospace; }
 .chip-blue   { background:#dbeafe; color:#1d4ed8; font-family:monospace; }
 .chip-gray   { background:#f1f5f9; color:#475569; }
+
+/* ── DROPDOWN ── */
+.dd-wrap { position:relative; }
+.dd-trigger { display:flex; align-items:center; border:1.5px solid #e2e8f0; border-radius:11px; padding:11px 14px; background:#fff; cursor:pointer; min-height:48px; gap:8px; transition:all .15s; }
+.dd-trigger:hover { border-color:#93c5fd; }
+.dd-open { border-color:#2563eb !important; box-shadow:0 0 0 3px #dbeafe; }
+.dd-ph   { color:#94a3b8; font-size:14px; flex:1; }
+.dd-arr  { margin-left:auto; color:#94a3b8; flex-shrink:0; transition:transform .2s; }
+.dd-arr-open { transform:rotate(90deg); color:#2563eb; }
+.dd-val  { display:flex; align-items:center; gap:10px; flex:1; min-width:0; }
+.dd-drop { position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:400; background:#fff; border:1.5px solid #e2e8f0; border-radius:13px; box-shadow:0 16px 48px rgba(0,0,0,.14); overflow:hidden; }
+.dd-search-wrap { display:flex; align-items:center; border-bottom:1px solid #f1f5f9; padding:8px 12px; gap:8px; }
+.dd-search-icon { color:#cbd5e1; flex-shrink:0; }
+.dd-search { flex:1; border:none; padding:6px 0; font-size:14px; outline:none; font-family:inherit; color:#0f172a; background:transparent; }
+.dd-clear  { background:none; border:none; cursor:pointer; color:#94a3b8; display:flex; align-items:center; }
+.dd-list   { max-height:230px; overflow-y:auto; }
+.dd-item   { padding:10px 14px; cursor:pointer; transition:background .1s; }
+.dd-item:hover { background:#f8fafc; }
+.dd-active { background:#eff6ff; }
+.dd-state  { display:flex; align-items:center; justify-content:center; gap:8px; padding:24px; color:#94a3b8; font-size:13px; }
+.dd-row    { display:flex; align-items:center; gap:10px; }
+.dd-avatar { width:34px; height:34px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; }
+.dd-icon-wrap { width:34px; height:34px; border-radius:8px; flex-shrink:0; background:#eff6ff; color:#2563eb; display:flex; align-items:center; justify-content:center; }
+.dd-row-main { font-weight:600; color:#0f172a; font-size:13px; }
+.dd-row-sub  { display:flex; align-items:center; gap:5px; font-size:11px; color:#64748b; margin-top:2px; flex-wrap:wrap; }
 
 /* ── MODAL ── */
 .overlay { position:fixed; inset:0; z-index:900; background:rgba(15,23,42,.5); display:flex; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(4px); }
@@ -1365,12 +1774,17 @@ const STYLES = `
 .modal-sm  { max-width:440px; }
 .modal-md  { max-width:480px; }
 .modal-lg  { max-width:760px; }
+.modal-xl  { max-width:860px; }
 @keyframes popIn { from{opacity:0;transform:scale(.92) translateY(12px)} to{opacity:1;transform:scale(1) translateY(0)} }
 .modal-head { display:flex; justify-content:space-between; align-items:center; padding:20px 24px 16px; border-bottom:1.5px solid #f1f5f9; flex-shrink:0; }
 .modal-title { font-size:16px; font-weight:800; color:#0f172a; letter-spacing:-.2px; }
 .modal-x { background:#f1f5f9; border:none; border-radius:8px; width:30px; height:30px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#64748b; transition:all .15s; }
 .modal-x:hover { background:#e2e8f0; color:#0f172a; }
 .modal-body { padding:20px 24px 24px; overflow-y:auto; flex:1; }
+
+.modal-head-warn { background:#fffbeb; border-bottom:1.5px solid #fef3c7 !important; }
+.confirm-msg { font-size:14px; color:#475569; line-height:1.75; margin-bottom:20px; white-space:pre-line; }
+.confirm-actions { display:flex; gap:10px; justify-content:flex-end; }
 
 /* ── TOAST ── */
 .toast-stack { position:fixed; bottom:28px; right:28px; z-index:9999; display:flex; flex-direction:column; gap:8px; align-items:flex-end; }
@@ -1387,24 +1801,27 @@ const STYLES = `
 /* ── UTILS ── */
 .spin { animation:spinA .7s linear infinite; }
 @keyframes spinA { to{transform:rotate(360deg)} }
+.mono { font-family:'JetBrains Mono','Fira Mono',monospace; }
 input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none; }
 input[type=number] { -moz-appearance:textfield; }
 
 /* ── RESPONSIVE ── */
-@media (max-width: 960px) {
+@media (max-width: 980px) {
   .page-tabs { display:flex; }
   .page-body { grid-template-columns:1fr; padding:14px; gap:14px; }
-  .col-hide { display:none !important; }
+  .col-hide        { display:none !important; }
   .col-hide-mobile { display:none !important; }
+  .sf-card { position:static; }
 }
-@media (min-width: 961px) {
+@media (min-width: 981px) {
   .col-hide, .col-hide-mobile { display:block !important; }
 }
 @media (max-width: 640px) {
-  .dm-meta { grid-template-columns:1fr; }
+  .dm-meta          { grid-template-columns:1fr 1fr; }
+  .dm-accent        { grid-column:span 2; }
   .sf-batch-summary { grid-template-columns:1fr; }
-  .sf-mini-stats { grid-template-columns:1fr 1fr; }
-  .sf-footer { flex-direction:column; align-items:stretch; }
-  .sf-footer-right { justify-content:flex-end; }
+  .sf-mini-stats    { grid-template-columns:1fr 1fr; }
+  .sf-footer        { flex-direction:column; align-items:stretch; }
+  .sf-footer-right  { justify-content:flex-end; }
 }
 `

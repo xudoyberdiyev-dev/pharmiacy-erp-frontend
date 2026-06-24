@@ -1,11 +1,13 @@
-// src/pages/Contract.jsx
+// src/pages/Contract.jsx — To'liq tuzatilgan versiya
+// DB schema: contractNumber, partyName, contractDate (status, totalAmount, notes yo'q)
+// Faktura boshqaruvi ham shu sahifada
+
 import { useState, useEffect, useRef } from "react";
 import {
   Search, X, Plus, Pencil, Trash2,
-  FileText, CheckCircle, Clock, AlertTriangle,
-  Loader2, Hash, Package, Layers,
-  Building2, Calendar, Eye, Download, Filter,
-  Tag, Banknote,
+  FileText, Loader2, Hash, Layers,
+  Building2, Calendar, Eye, Download,
+  CheckCircle, AlertTriangle, ChevronDown, ChevronUp,
 } from "lucide-react";
 import ToastStack from "../components/toast/Toast";
 import useToast from "../components/toast/useToast";
@@ -15,16 +17,7 @@ import { Pagination } from "../components/pagination/Pagination";
 import { useContracts } from "../hooks/useContracts";
 import './contract.css'
 
-// ─── HELPERS ──────────────────────────────────────────────────
-const fmt      = (d) => d ? new Date(d).toLocaleDateString("uz-UZ") : "—"
-const fmtPrice = (p) => Number(p ?? 0).toLocaleString("uz-UZ") + " so'm"
-
-const STATUS_MAP = {
-  active:  { label: "Faol",        cls: "green",  Icon: CheckCircle  },
-  pending: { label: "Kutilmoqda",  cls: "yellow", Icon: Clock        },
-  closed:  { label: "Yopilgan",    cls: "gray",   Icon: X            },
-  overdue: { label: "Kechikkan",   cls: "red",    Icon: AlertTriangle },
-}
+const fmt = (d) => d ? new Date(d).toLocaleDateString("uz-UZ") : "—"
 
 // ─── Modal ─────────────────────────────────────────────────────
 function Modal({ title, onClose, children, wide }) {
@@ -47,7 +40,7 @@ function Modal({ title, onClose, children, wide }) {
 }
 
 // ─── Field ─────────────────────────────────────────────────────
-function Field({ label, icon: Icon, required, hint, error, children }) {
+function Field({ label, icon: Icon, required, error, children }) {
   return (
     <div className="c-field">
       <label className="c-label">
@@ -56,29 +49,25 @@ function Field({ label, icon: Icon, required, hint, error, children }) {
       </label>
       {children}
       {error && <span className="c-field-err"><AlertTriangle size={11} />{error}</span>}
-      {hint && !error && <span className="c-field-hint">{hint}</span>}
     </div>
   )
 }
 
 // ─── Contract Form ─────────────────────────────────────────────
+// DB: contractNumber (required), partyName (optional), contractDate (optional)
 function ContractForm({ initial = {}, onSave, onCancel, saving }) {
   const [contractNumber, setContractNumber] = useState(initial.contractNumber || "")
   const [partyName,      setPartyName]      = useState(initial.partyName      || "")
-  const [date,           setDate]           = useState(
-    initial.date ? new Date(initial.date).toISOString().split("T")[0] : ""
+  const [contractDate,   setContractDate]   = useState(
+    initial.contractDate ? new Date(initial.contractDate).toISOString().split("T")[0] : ""
   )
-  const [totalAmount,    setTotalAmount]    = useState(initial.totalAmount    ?? "")
-  const [status,         setStatus]         = useState(initial.status         || "active")
-  const [notes,          setNotes]          = useState(initial.notes          || "")
-  const [errors,         setErrors]         = useState({})
+  const [errors, setErrors] = useState({})
   const firstRef = useRef()
   useEffect(() => { firstRef.current?.focus() }, [])
 
   const validate = () => {
     const e = {}
     if (!contractNumber.trim()) e.contractNumber = "Shartnoma raqami kiritilsin"
-    if (!partyName.trim())      e.partyName      = "Yetkazib beruvchi kiritilsin"
     return e
   }
 
@@ -88,11 +77,8 @@ function ContractForm({ initial = {}, onSave, onCancel, saving }) {
     if (Object.keys(e).length) return
     onSave({
       contractNumber: contractNumber.trim(),
-      partyName:      partyName.trim(),
-      date:           date || undefined,
-      totalAmount:    totalAmount !== "" ? Number(totalAmount) : undefined,
-      status,
-      notes:          notes.trim() || undefined,
+      partyName:      partyName.trim() || null,
+      contractDate:   contractDate || null,
     })
   }
 
@@ -106,30 +92,11 @@ function ContractForm({ initial = {}, onSave, onCancel, saving }) {
             value={contractNumber} onChange={inp(setContractNumber, "contractNumber")} placeholder="SH-2026-001" />
         </Field>
         <Field label="Sana" icon={Calendar}>
-          <input className="c-input" type="date" value={date} onChange={inp(setDate, "date")} />
+          <input className="c-input" type="date" value={contractDate} onChange={inp(setContractDate, "contractDate")} />
         </Field>
       </div>
-      <Field label="Yetkazib beruvchi (partyName)" icon={Building2} required error={errors.partyName}>
-        <input className={`c-input${errors.partyName ? " c-err" : ""}`}
-          value={partyName} onChange={inp(setPartyName, "partyName")} placeholder="Kompaniya nomi" />
-      </Field>
-      <div className="c-row2">
-        <Field label="Umumiy summa (so'm)" icon={Banknote} hint="Ixtiyoriy">
-          <input className="c-input" type="number" min="0" value={totalAmount}
-            onChange={inp(setTotalAmount, "totalAmount")} placeholder="5000000" />
-        </Field>
-        <Field label="Holat" icon={CheckCircle}>
-          <select className="c-input" value={status} onChange={e => setStatus(e.target.value)}>
-            {Object.entries(STATUS_MAP).map(([val, { label }]) =>
-              <option key={val} value={val}>{label}</option>
-            )}
-          </select>
-        </Field>
-      </div>
-      <Field label="Izoh" hint="Ixtiyoriy">
-        <textarea className="c-input" rows={2} value={notes}
-          onChange={inp(setNotes, "notes")} placeholder="Qo'shimcha ma'lumot…"
-          style={{ resize: "vertical" }} />
+      <Field label="Yetkazib beruvchi" icon={Building2}>
+        <input className="c-input" value={partyName} onChange={inp(setPartyName, "partyName")} placeholder="Kompaniya nomi" />
       </Field>
       <div className="c-form-actions">
         <button className="c-btn-ghost" onClick={onCancel} type="button">Bekor qilish</button>
@@ -143,54 +110,141 @@ function ContractForm({ initial = {}, onSave, onCancel, saving }) {
   )
 }
 
+// ─── Invoice Form ──────────────────────────────────────────────
+// DB: invoiceNumber (required), contractId (optional), invoiceDate (optional)
+function InvoiceForm({ contractId, initial = {}, onSave, onCancel, saving }) {
+  const [invoiceNumber, setInvoiceNumber] = useState(initial.invoiceNumber || "")
+  const [invoiceDate,   setInvoiceDate]   = useState(
+    initial.invoiceDate ? new Date(initial.invoiceDate).toISOString().split("T")[0] : ""
+  )
+  const [errors, setErrors] = useState({})
+  const firstRef = useRef()
+  useEffect(() => { firstRef.current?.focus() }, [])
+
+  const validate = () => {
+    const e = {}
+    if (!invoiceNumber.trim()) e.invoiceNumber = "Faktura raqami kiritilsin"
+    return e
+  }
+
+  const submit = () => {
+    const e = validate()
+    setErrors(e)
+    if (Object.keys(e).length) return
+    onSave({
+      invoiceNumber: invoiceNumber.trim(),
+      contractId:    contractId || null,
+      invoiceDate:   invoiceDate || null,
+    })
+  }
+
+  return (
+    <div className="c-form-body">
+      <Field label="Faktura raqami" icon={Hash} required error={errors.invoiceNumber}>
+        <input ref={firstRef} className={`c-input c-mono${errors.invoiceNumber ? " c-err" : ""}`}
+          value={invoiceNumber} onChange={e => { setInvoiceNumber(e.target.value); setErrors(p => ({...p, invoiceNumber: ""})) }}
+          placeholder="F-2026-0001" />
+      </Field>
+      <Field label="Faktura sanasi" icon={Calendar}>
+        <input className="c-input" type="date" value={invoiceDate}
+          onChange={e => setInvoiceDate(e.target.value)} />
+      </Field>
+      <div className="c-form-actions">
+        <button className="c-btn-ghost" onClick={onCancel} type="button">Bekor qilish</button>
+        <button className="c-btn-primary" onClick={submit} disabled={saving} type="button">
+          {saving ? <><Loader2 size={14} className="c-spin" />Saqlanmoqda…</> : <><CheckCircle size={14} />{initial.id ? "Saqlash" : "Qo'shish"}</>}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ─── Contract Detail Modal ─────────────────────────────────────
-function ContractDetailModal({ contract, onClose }) {
-  const { label, cls, Icon } = STATUS_MAP[contract.status] || STATUS_MAP.active
-  const invoices = contract.invoices ?? []
+function ContractDetailModal({ contract, invoices, onClose, onAddInvoice, onDeleteInvoice, saving }) {
+  const [expanded, setExpanded] = useState(true)
+  const [addInvoiceModal, setAddInvoiceModal] = useState(false)
 
   return (
     <Modal title={`Shartnoma: ${contract.contractNumber}`} onClose={onClose} wide>
       <div className="c-form-body">
+        {/* Asosiy ma'lumot */}
         <div className="c-detail-hdr">
-          <div className="c-detail-meta">
-            <span className="c-dh-sup"><Building2 size={14} />{contract.partyName ?? "—"}</span>
-            {contract.date && <span className="c-dh-date"><Calendar size={13} />{fmt(contract.date)}</span>}
-            <span className={`c-badge-status ${cls}`}><Icon size={10} />{label}</span>
-          </div>
-          {contract.notes && <div className="c-detail-notes">{contract.notes}</div>}
-          {contract.totalAmount > 0 && (
-            <div className="c-da-item">
-              <div className="c-da-label">Shartnoma summasi</div>
-              <div className="c-da-value">{fmtPrice(contract.totalAmount)}</div>
-            </div>
+          {contract.partyName && (
+            <div className="c-dh-sup"><Building2 size={14} />{contract.partyName}</div>
           )}
+          {contract.contractDate && (
+            <div className="c-dh-date"><Calendar size={13} />{fmt(contract.contractDate)}</div>
+          )}
+          <div className="c-detail-stats">
+            <span className="c-stat-chip"><Hash size={11} />{contract._count?.invoices ?? invoices.length} faktura</span>
+            <span className="c-stat-chip"><Layers size={11} />{contract._count?.batches ?? 0} partiya</span>
+          </div>
         </div>
 
-        <div className="c-section-lbl">Fakturalar ({invoices.length})</div>
-        {invoices.length === 0 ? (
-          <div className="c-empty-inv"><Hash size={28} strokeWidth={1.5} style={{ color: "#cbd5e1" }} /><p>Faktura yo'q</p></div>
-        ) : (
-          <div className="c-inv-list">
-            {invoices.map(inv => (
-              <div key={inv.id} className="c-inv-card">
-                <div className="c-inv-top">
-                  <span className="c-inv-num"><Hash size={11} />{inv.invoiceNumber}</span>
-                  {inv.createdAt && <span className="c-inv-date">{fmt(inv.createdAt)}</span>}
-                </div>
-                <div className="c-inv-detail">
+        {/* Fakturalar */}
+        <div className="c-section-header" onClick={() => setExpanded(e => !e)} style={{ cursor: "pointer" }}>
+          <span className="c-section-lbl">Fakturalar ({invoices.length})</span>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button className="c-btn-ghost" style={{ padding: "4px 10px", fontSize: 12 }}
+              onClick={e => { e.stopPropagation(); setAddInvoiceModal(true) }}>
+              <Plus size={12} />Faktura qo'shish
+            </button>
+            {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </div>
+        </div>
+
+        {expanded && (
+          invoices.length === 0 ? (
+            <div className="c-empty-inv">
+              <Hash size={28} strokeWidth={1.5} style={{ color: "#cbd5e1" }} />
+              <p>Faktura yo'q</p>
+              <button className="c-btn-primary" style={{ marginTop: 8 }} onClick={() => setAddInvoiceModal(true)}>
+                <Plus size={12} />Faktura qo'shish
+              </button>
+            </div>
+          ) : (
+            <div className="c-inv-list">
+              {invoices.map(inv => (
+                <div key={inv.id} className="c-inv-card">
+                  <div className="c-inv-top">
+                    <span className="c-inv-num"><Hash size={11} />{inv.invoiceNumber}</span>
+                    {(inv.invoiceDate || inv.createdAt) && (
+                      <span className="c-inv-date">{fmt(inv.invoiceDate || inv.createdAt)}</span>
+                    )}
+                    <button className="c-icon-btn c-del-btn" style={{ marginLeft: "auto" }}
+                      onClick={() => onDeleteInvoice(inv.id)}>
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
                   {inv._count?.batches !== undefined && (
-                    <span className="c-inv-qty"><Layers size={10} />{inv._count.batches} partiya</span>
+                    <div className="c-inv-detail">
+                      <span className="c-inv-qty"><Layers size={10} />{inv._count.batches} partiya</span>
+                    </div>
                   )}
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )
         )}
 
-        <div className="c-form-actions">
+        <div className="c-form-actions" style={{ marginTop: 16 }}>
           <button className="c-btn-ghost" onClick={onClose}>Yopish</button>
         </div>
       </div>
+
+      {addInvoiceModal && (
+        <Modal title="Faktura qo'shish" onClose={() => setAddInvoiceModal(false)}>
+          <InvoiceForm
+            contractId={contract.id}
+            onSave={async (data) => {
+              await onAddInvoice(data)
+              setAddInvoiceModal(false)
+            }}
+            onCancel={() => setAddInvoiceModal(false)}
+            saving={saving}
+          />
+        </Modal>
+      )}
     </Modal>
   )
 }
@@ -206,7 +260,10 @@ function DeleteModal({ contract, onConfirm, onCancel }) {
           <AlertTriangle size={18} strokeWidth={2} />
           <div>
             <strong>Bu amalni orqaga qaytarib bo'lmaydi.</strong>
-            <p style={{ marginTop: 4, fontSize: 13 }}>"{contract.contractNumber}" shartnomasi o'chiriladi.</p>
+            <p style={{ marginTop: 4, fontSize: 13 }}>
+              "{contract.contractNumber}" raqamli shartnoma o'chiriladi.
+              Agar unga bog'liq partiyalar bo'lsa, o'chirib bo'lmaydi.
+            </p>
           </div>
         </div>
         <div className="c-form-actions">
@@ -223,28 +280,37 @@ function DeleteModal({ contract, onConfirm, onCancel }) {
 // ─── MAIN PAGE ─────────────────────────────────────────────────
 export const Contract = () => {
   const {
-    contracts, total, totalPages, page, setPage,
-    search, setSearch, statusFilter, setStatusFilter,
+    contracts, invoices,
+    total, totalPages, page, setPage,
+    search, setSearch,
     loading, saving, setSaving, error,
-    handleCreate: hookCreate,
-    handleUpdate: hookUpdate,
-    handleDelete: hookDelete,
+    fetchInvoices, fetchContractDetail,
+    handleCreate, handleUpdate, handleDelete,
+    handleCreateInvoice, handleDeleteInvoice,
   } = useContracts()
 
-  const [addModal,  setAddModal]  = useState(false)
-  const [editModal, setEditModal] = useState(null)
-  const [viewModal, setViewModal] = useState(null)
-  const [delModal,  setDelModal]  = useState(null)
+  const [addModal,    setAddModal]    = useState(false)
+  const [editModal,   setEditModal]   = useState(null)
+  const [delModal,    setDelModal]    = useState(null)
+  const [viewModal,   setViewModal]   = useState(null)
+  const [viewInvoices, setViewInvoices] = useState([])
   const { toasts, add: toast, remove } = useToast()
 
-  // Stats
-  const totalActive = contracts.filter(c => c.status === "active").length
-  const totalAmount = contracts.reduce((s, c) => s + (c.totalAmount ?? 0), 0)
+  // Shartnoma tanlanganda fakturalarini yuklash
+  const openDetail = async (contract) => {
+    setViewModal(contract)
+    await fetchInvoices(contract.id)
+  }
 
-  const handleCreate = async (data) => {
+  // invoices dan useContracts state ni viewModal uchun ishlatamiz
+  useEffect(() => {
+    setViewInvoices(invoices)
+  }, [invoices])
+
+  const handleAdd = async (data) => {
     setSaving(true)
     try {
-      await hookCreate(data)
+      await handleCreate(data)
       toast("Shartnoma qo'shildi!")
       setAddModal(false)
     } catch (e) {
@@ -254,10 +320,10 @@ export const Contract = () => {
     }
   }
 
-  const handleUpdate = async (data) => {
+  const handleEdit = async (data) => {
     setSaving(true)
     try {
-      await hookUpdate(editModal.id, data)
+      await handleUpdate(editModal.id, data)
       toast("Shartnoma yangilandi")
       setEditModal(null)
     } catch (e) {
@@ -269,7 +335,7 @@ export const Contract = () => {
 
   const confirmDelete = async () => {
     try {
-      await hookDelete(delModal.id)
+      await handleDelete(delModal.id)
       toast("Shartnoma o'chirildi")
       setDelModal(null)
     } catch (e) {
@@ -278,14 +344,38 @@ export const Contract = () => {
     }
   }
 
+  const handleAddInvoice = async (data) => {
+    setSaving(true)
+    try {
+      await handleCreateInvoice(data)
+      toast("Faktura qo'shildi!")
+      await fetchInvoices(viewModal.id)
+    } catch (e) {
+      toast(e.message ?? "Xatolik", "error")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleRemoveInvoice = async (id) => {
+    try {
+      await handleDeleteInvoice(id)
+      toast("Faktura o'chirildi")
+      await fetchInvoices(viewModal.id)
+    } catch (e) {
+      toast(e.message ?? "O'chirib bo'lmadi", "error")
+    }
+  }
+
   const exportCSV = () => {
     const rows = [
-      ["Shartnoma №", "Yetkazib beruvchi", "Sana", "Holat", "Summa", "Fakturalar"],
+      ["Shartnoma №", "Yetkazib beruvchi", "Sana", "Fakturalar", "Partiyalar"],
       ...contracts.map(c => [
-        c.contractNumber, c.partyName ?? "", c.date ?? "",
-        STATUS_MAP[c.status]?.label ?? c.status,
-        c.totalAmount ?? 0,
+        c.contractNumber,
+        c.partyName ?? "",
+        c.contractDate ? fmt(c.contractDate) : "",
         c._count?.invoices ?? 0,
+        c._count?.batches  ?? 0,
       ]),
     ]
     const csv  = rows.map(r => r.map(v => `"${v ?? ""}"`).join(",")).join("\n")
@@ -312,27 +402,21 @@ export const Contract = () => {
         />
 
         <div className="c-stats">
-          <StatCard title="Jami shartnomalar" value={total}        icon={FileText}    color="teal"   />
-          <StatCard title="Faol"              value={totalActive}  icon={CheckCircle} color="green"  />
-          <StatCard title="Shartnoma summa"
-            value={(totalAmount / 1_000_000).toFixed(1) + " mln"}
-            icon={Banknote} color="violet" />
+          <StatCard title="Jami shartnomalar" value={total}                icon={FileText}  color="teal"  />
+          <StatCard title="Jami fakturalar"
+            value={contracts.reduce((s, c) => s + (c._count?.invoices ?? 0), 0)}
+            icon={Hash}    color="blue"  />
+          <StatCard title="Jami partiyalar"
+            value={contracts.reduce((s, c) => s + (c._count?.batches ?? 0), 0)}
+            icon={Layers}  color="violet"/>
         </div>
 
-        {/* Toolbar */}
         <div className="c-toolbar">
           <div className="c-search-wrap">
             <Search size={14} style={{ color: "#cbd5e1", flexShrink: 0, marginLeft: 12 }} />
             <input className="c-search" value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Shartnoma №, yetkazib beruvchi…" />
             {search && <button className="c-clear" onClick={() => setSearch("")}><X size={13} /></button>}
-          </div>
-          <div className="c-filter-row">
-            <Filter size={12} style={{ color: "#94a3b8" }} />
-            {[["all","Barchasi"],["active","Faol"],["pending","Kutilmoqda"],["closed","Yopilgan"],["overdue","Kechikkan"]].map(([val, lbl]) => (
-              <button key={val} className={`c-pill${statusFilter === val ? " c-pill-on" : ""}`}
-                onClick={() => setStatusFilter(val)}>{lbl}</button>
-            ))}
           </div>
         </div>
 
@@ -351,9 +435,9 @@ export const Contract = () => {
               <div className="c-empty">
                 <FileText size={44} strokeWidth={0.8} style={{ color: "#e2e8f0" }} />
                 <div style={{ fontSize: 15, fontWeight: 600, color: "#64748b" }}>
-                  {search || statusFilter !== "all" ? "Hech narsa topilmadi" : "Shartnoma yo'q"}
+                  {search ? "Hech narsa topilmadi" : "Shartnoma yo'q"}
                 </div>
-                {!(search || statusFilter !== "all") && (
+                {!search && (
                   <button className="c-btn-primary" onClick={() => setAddModal(true)}>
                     <Plus size={14} />Shartnoma qo'shish
                   </button>
@@ -368,48 +452,45 @@ export const Contract = () => {
                         <th>Shartnoma №</th>
                         <th>Yetkazib beruvchi</th>
                         <th>Sana</th>
-                        <th>Holat</th>
                         <th style={{ textAlign: "center" }}>Fakturalar</th>
                         <th style={{ textAlign: "center" }}>Partiyalar</th>
-                        <th style={{ textAlign: "right" }}>Summa</th>
                         <th />
                       </tr>
                     </thead>
                     <tbody>
-                      {contracts.map(c => {
-                        const { label, cls, Icon } = STATUS_MAP[c.status] || STATUS_MAP.active
-                        return (
-                          <tr key={c.id}>
-                            <td>
-                              <span className="c-contract-num">{c.contractNumber}</span>
-                            </td>
-                            <td>
-                              <div className="c-supplier">
-                                <Building2 size={13} style={{ color: "#94a3b8", flexShrink: 0 }} />
-                                {c.partyName ?? "—"}
-                              </div>
-                            </td>
-                            <td className="c-mono c-date">{fmt(c.date)}</td>
-                            <td><span className={`c-badge-status ${cls}`}><Icon size={10} />{label}</span></td>
-                            <td style={{ textAlign: "center" }}>
-                              <span className="c-count-chip"><Hash size={11} />{c._count?.invoices ?? 0}</span>
-                            </td>
-                            <td style={{ textAlign: "center" }}>
-                              <span className="c-count-chip"><Layers size={11} />{c._count?.batches ?? 0}</span>
-                            </td>
-                            <td style={{ textAlign: "right" }} className="c-mono c-price">
-                              {c.totalAmount ? fmtPrice(c.totalAmount) : "—"}
-                            </td>
-                            <td>
-                              <div className="c-row-actions">
-                                <button className="c-icon-btn c-view-btn" onClick={() => setViewModal(c)}><Eye size={13} /></button>
-                                <button className="c-icon-btn c-edit-btn" onClick={() => setEditModal(c)}><Pencil size={13} /></button>
-                                <button className="c-icon-btn c-del-btn"  onClick={() => setDelModal(c)}><Trash2 size={13} /></button>
-                              </div>
-                            </td>
-                          </tr>
-                        )
-                      })}
+                      {contracts.map(c => (
+                        <tr key={c.id}>
+                          <td>
+                            <span className="c-contract-num">{c.contractNumber}</span>
+                          </td>
+                          <td>
+                            <div className="c-supplier">
+                              <Building2 size={13} style={{ color: "#94a3b8", flexShrink: 0 }} />
+                              {c.partyName ?? "—"}
+                            </div>
+                          </td>
+                          <td className="c-mono c-date">{fmt(c.contractDate)}</td>
+                          <td style={{ textAlign: "center" }}>
+                            <span className="c-count-chip"><Hash size={11} />{c._count?.invoices ?? 0}</span>
+                          </td>
+                          <td style={{ textAlign: "center" }}>
+                            <span className="c-count-chip"><Layers size={11} />{c._count?.batches ?? 0}</span>
+                          </td>
+                          <td>
+                            <div className="c-row-actions">
+                              <button className="c-icon-btn c-view-btn" onClick={() => openDetail(c)}>
+                                <Eye size={13} />
+                              </button>
+                              <button className="c-icon-btn c-edit-btn" onClick={() => setEditModal(c)}>
+                                <Pencil size={13} />
+                              </button>
+                              <button className="c-icon-btn c-del-btn" onClick={() => setDelModal(c)}>
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -423,17 +504,41 @@ export const Contract = () => {
         )}
       </div>
 
-      {addModal  && <Modal title="Yangi shartnoma" onClose={() => setAddModal(false)}>
-        <ContractForm onSave={handleCreate} onCancel={() => setAddModal(false)} saving={saving} />
-      </Modal>}
+      {addModal && (
+        <Modal title="Yangi shartnoma" onClose={() => setAddModal(false)}>
+          <ContractForm onSave={handleAdd} onCancel={() => setAddModal(false)} saving={saving} />
+        </Modal>
+      )}
 
-      {editModal && <Modal title="Shartnomani tahrirlash" onClose={() => setEditModal(null)}>
-        <ContractForm initial={editModal} onSave={handleUpdate} onCancel={() => setEditModal(null)} saving={saving} />
-      </Modal>}
+      {editModal && (
+        <Modal title="Shartnomani tahrirlash" onClose={() => setEditModal(null)}>
+          <ContractForm initial={editModal} onSave={handleEdit} onCancel={() => setEditModal(null)} saving={saving} />
+        </Modal>
+      )}
 
-      {viewModal && <ContractDetailModal contract={viewModal} onClose={() => setViewModal(null)} />}
+      {viewModal && (
+        <ContractDetailModal
+          contract={viewModal}
+          invoices={viewInvoices}
+          onClose={() => { setViewModal(null); setViewInvoices([]) }}
+          onAddInvoice={handleAddInvoice}
+          onDeleteInvoice={handleRemoveInvoice}
+          saving={saving}
+        />
+      )}
 
-      {delModal  && <DeleteModal contract={delModal} onConfirm={confirmDelete} onCancel={() => setDelModal(null)} />}
+      {delModal && (
+        <DeleteModal contract={delModal} onConfirm={confirmDelete} onCancel={() => setDelModal(null)} />
+      )}
     </>
   )
 }
+
+// Eye import fix
+// const Eye = ({ size, ...props }) => (
+//   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24"
+//     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+//     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+//     <circle cx="12" cy="12" r="3"/>
+//   </svg>
+// )

@@ -5,15 +5,15 @@ import * as batchApi from '../api/batchApi'
 const PAGE_SIZE = 20
 
 export function useContracts() {
-  const [contracts,    setContracts]    = useState([])
-  const [total,        setTotal]        = useState(0)
-  const [totalPages,   setTotalPages]   = useState(1)
-  const [page,         setPage]         = useState(1)
-  const [search,       setSearch]       = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [loading,      setLoading]      = useState(false)
-  const [saving,       setSaving]       = useState(false)
-  const [error,        setError]        = useState(null)
+  const [contracts,  setContracts]  = useState([])
+  const [invoices,   setInvoices]   = useState([])
+  const [total,      setTotal]      = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [page,       setPage]       = useState(1)
+  const [search,     setSearch]     = useState('')
+  const [loading,    setLoading]    = useState(false)
+  const [saving,     setSaving]     = useState(false)
+  const [error,      setError]      = useState(null)
 
   const searchTimer = useRef()
 
@@ -32,6 +32,23 @@ export function useContracts() {
     }
   }, [])
 
+  // Fakturalarni contractId bo'yicha yuklash
+  const fetchInvoices = useCallback(async (contractId) => {
+    if (!contractId) { setInvoices([]); return }
+    try {
+      const result = await batchApi.getInvoices({ contractId: Number(contractId), limit: 100, page: 1 })
+      setInvoices(result.items ?? [])
+    } catch { setInvoices([]) }
+  }, [])
+
+  // Shartnoma detali (fakturalar bilan)
+  const fetchContractDetail = useCallback(async (id) => {
+    try {
+      const result = await batchApi.getContractById(id)
+      return result
+    } catch { return null }
+  }, [])
+
   // Qidiruv debounce
   useEffect(() => {
     clearTimeout(searchTimer.current)
@@ -42,15 +59,9 @@ export function useContracts() {
     return () => clearTimeout(searchTimer.current)
   }, [search]) // eslint-disable-line
 
-  // Sahifa
   useEffect(() => {
     fetchContracts({ page, limit: PAGE_SIZE })
   }, [page]) // eslint-disable-line
-
-  // Client-side status filter
-  const filtered = statusFilter === 'all'
-    ? contracts
-    : contracts.filter(c => c.status === statusFilter)
 
   const handleCreate = async (data) => {
     const contract = await batchApi.createContract(data)
@@ -76,20 +87,45 @@ export function useContracts() {
     setTotal(t => t - 1)
   }
 
+  // Invoice CRUD
+  const handleCreateInvoice = async (data) => {
+    const invoice = await batchApi.createInvoice(data)
+    setInvoices(prev => [invoice, ...prev])
+    // Shartnomalar ro'yxatini ham yangilash (_count.invoices uchun)
+    await fetchContracts({ page, limit: PAGE_SIZE })
+    return invoice
+  }
+
+  const handleUpdateInvoice = async (id, data) => {
+    const updated = await batchApi.updateInvoice(id, data)
+    setInvoices(prev => prev.map(i => i.id === id ? { ...i, ...updated } : i))
+    return updated
+  }
+
+  const handleDeleteInvoice = async (id) => {
+    await batchApi.deleteInvoice(id)
+    setInvoices(prev => prev.filter(i => i.id !== id))
+    await fetchContracts({ page, limit: PAGE_SIZE })
+  }
+
   return {
-    contracts: filtered,
-    allContracts: contracts,
-    total: filtered.length,
+    contracts,
+    invoices,
+    total,
     totalPages,
-    page,         setPage,
-    search,       setSearch,
-    statusFilter, setStatusFilter,
+    page,    setPage,
+    search,  setSearch,
     loading,
-    saving,       setSaving,
+    saving,  setSaving,
     error,
     refetch: () => fetchContracts({ page, limit: PAGE_SIZE }),
+    fetchInvoices,
+    fetchContractDetail,
     handleCreate,
     handleUpdate,
     handleDelete,
+    handleCreateInvoice,
+    handleUpdateInvoice,
+    handleDeleteInvoice,
   }
 }

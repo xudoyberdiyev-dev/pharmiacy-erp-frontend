@@ -18,6 +18,7 @@ import { StatCard } from "../../components/StatCard";
 import BarcodeSearch from "../../components/barcodeSearch/BarcodeSearch";
 import SearchInput from "../../components/searchInput/SearchInput";
 import { useProducts } from "../../hooks/useProducts";
+import * as batchApi from "../../api/batchApi";
 import './product.css'
 
 // ─── HELPERS ─────────────────────────────────────────────────
@@ -170,18 +171,24 @@ function ProductForm({ initial = {}, onSave, onCancel, saving }) {
 }
 
 // ─── Batch Form ───────────────────────────────────────────────
-function BatchForm({ productId, productName, initial = {}, onSave, onCancel, saving }) {
-  const [series, setSeries]     = useState(initial.series || "");
-  const [boxSeries, setBox]     = useState(initial.boxSeries || "");
-  const [mg, setMg]             = useState(initial.mg || "");
-  const [qty, setQty]           = useState(initial.quantity ?? initial.remainingQty ?? "");
-  const [price, setPrice]       = useState(initial.price ?? "");
-  const [expiry, setExpiry]     = useState(initial.expiry ? new Date(initial.expiry).toISOString().split("T")[0] : "");
-  const [contract, setContract] = useState(initial.contractNumber || "");
-  const [invoice, setInvoice]   = useState(initial.invoiceNumber || "");
-  const [errors, setErrors]     = useState({});
+// FIX: contractId/invoiceId (integer) yuboriladi, string emas
+function BatchForm({ productId, productName, initial = {}, onSave, onCancel, saving, contracts = [], invoices = [], onContractChange }) {
+  const [series,     setSeries]     = useState(initial.series     || "");
+  const [boxSeries,  setBox]        = useState(initial.boxSeries  || "");
+  const [mg,         setMg]         = useState(initial.mg         || "");
+  const [qty,        setQty]        = useState(initial.quantity   ?? initial.remainingQty ?? "");
+  const [price,      setPrice]      = useState(initial.price      ?? "");
+  const [expiry,     setExpiry]     = useState(initial.expiry ? new Date(initial.expiry).toISOString().split("T")[0] : "");
+  const [contractId, setContractId] = useState(initial.contractId ?? initial.contract?.id ?? "");
+  const [invoiceId,  setInvoiceId]  = useState(initial.invoiceId  ?? initial.invoice?.id  ?? "");
+  const [errors,     setErrors]     = useState({});
   const firstRef = useRef();
   useEffect(() => { firstRef.current?.focus(); }, []);
+
+  useEffect(() => {
+    if (contractId && onContractChange) onContractChange(contractId);
+    setInvoiceId("");
+  }, [contractId]); // eslint-disable-line
 
   const validate = () => {
     const e = {};
@@ -200,16 +207,15 @@ function BatchForm({ productId, productName, initial = {}, onSave, onCancel, sav
     setErrors(e);
     if (Object.keys(e).length) return;
     onSave({
-      productId: Number(productId),
-      series: series.trim(),
-      boxSeries: boxSeries.trim() || null,
-      mg: mg.trim(),
-      quantity: Number(qty),
-      remainingQty: Number(qty),
-      price: Number(price),
+      productId:  Number(productId),
+      series:     series.trim(),
+      boxSeries:  boxSeries.trim() || null,
+      mg:         mg.trim(),
+      quantity:   Number(qty),
+      price:      Number(price),
       expiry,
-      contractNumber: contract.trim(),
-      invoiceNumber: invoice.trim(),
+      ...(contractId ? { contractId: Number(contractId) } : {}),
+      ...(invoiceId  ? { invoiceId:  Number(invoiceId)  } : {}),
     });
   };
 
@@ -219,13 +225,24 @@ function BatchForm({ productId, productName, initial = {}, onSave, onCancel, sav
     <div className="p-form-body">
       {productName && <div className="p-product-chip"><Package size={11} />{productName}</div>}
 
-      <div className="p-section-label">Hujjatlar</div>
+      <div className="p-section-label">Hujjatlar (ixtiyoriy)</div>
       <div className="p-form-row2">
-        <Field label="Shartnoma raqami" icon={Tag}>
-          <input className="p-input p-mono" value={contract} onChange={inp(setContract, "contract")} placeholder="SH-2026-001" />
+        <Field label="Shartnoma" icon={Tag}>
+          <select className="p-input" value={contractId} onChange={e => setContractId(e.target.value)}>
+            <option value="">— Tanlang —</option>
+            {contracts.map(c => (
+              <option key={c.id} value={c.id}>{c.contractNumber}{c.partyName ? ` · ${c.partyName}` : ""}</option>
+            ))}
+          </select>
         </Field>
-        <Field label="Faktura raqami" icon={Tag}>
-          <input className="p-input p-mono" value={invoice} onChange={inp(setInvoice, "invoice")} placeholder="F-2026-0001" />
+        <Field label="Faktura" hint={!contractId ? "Avval shartnoma tanlang" : ""}>
+          <select className="p-input" value={invoiceId}
+            onChange={e => setInvoiceId(e.target.value)} disabled={!contractId}>
+            <option value="">— Tanlang —</option>
+            {invoices.map(i => (
+              <option key={i.id} value={i.id}>{i.invoiceNumber}</option>
+            ))}
+          </select>
         </Field>
       </div>
 
@@ -274,8 +291,23 @@ function BatchForm({ productId, productName, initial = {}, onSave, onCancel, sav
 
 // ─── Add Product Wizard (2-step) ──────────────────────────────
 function AddProductWizard({ onCreateProduct, onCreateBatch, onCancel, saving, setSaving, toast }) {
-  const [step, setStep] = useState(1);
-  const [prod, setProd] = useState(null);
+  const [step,      setStep]      = useState(1);
+  const [prod,      setProd]      = useState(null);
+  const [contracts, setContracts] = useState([]);
+  const [invoices,  setInvoices]  = useState([]);
+
+  useEffect(() => {
+    batchApi.getContracts({ limit: 100, page: 1 })
+      .then(r => setContracts(r.items ?? []))
+      .catch(() => {});
+  }, []);
+
+  const fetchInvoices = async (contractId) => {
+    try {
+      const r = await batchApi.getInvoices({ contractId: Number(contractId), limit: 100, page: 1 });
+      setInvoices(r.items ?? []);
+    } catch { setInvoices([]); }
+  };
 
   const handleProduct = async (data) => {
     setSaving(true);
@@ -322,7 +354,7 @@ function AddProductWizard({ onCreateProduct, onCreateBatch, onCancel, saving, se
       {step === 1
         ? <ProductForm onSave={handleProduct} onCancel={onCancel} saving={saving} />
         : <>
-            <BatchForm productId={prod.id} productName={prod.name} onSave={handleBatch} onCancel={skipBatch} saving={saving} />
+            <BatchForm productId={prod.id} productName={prod.name} onSave={handleBatch} onCancel={skipBatch} saving={saving} contracts={contracts} invoices={invoices} onContractChange={fetchInvoices} />
             <div style={{ textAlign: "center", padding: "0 24px 18px" }}>
               <button className="p-link-btn" onClick={skipBatch}>Hozircha partiyasiz saqlash →</button>
             </div>
@@ -658,6 +690,22 @@ export const Product = () => {
     handleAddBarcode, handleSetPrimaryBarcode, handleDeleteBarcode,
   } = useProducts();
 
+  const [contracts, setContracts] = useState([]);
+  const [invoices,  setInvoices]  = useState([]);
+
+  useEffect(() => {
+    batchApi.getContracts({ limit: 100, page: 1 })
+      .then(r => setContracts(r.items ?? []))
+      .catch(() => {});
+  }, []);
+
+  const fetchInvoices = async (contractId) => {
+    try {
+      const r = await batchApi.getInvoices({ contractId: Number(contractId), limit: 100, page: 1 });
+      setInvoices(r.items ?? []);
+    } catch { setInvoices([]); }
+  };
+
   const [addModal,     setAddModal]     = useState(false);
   const [editProduct,  setEditProduct]  = useState(null);
   const [addBatch,     setAddBatch]     = useState(null);
@@ -863,7 +911,8 @@ const totalQtyAll = (allProducts ?? []).reduce(
       {editBatch && (
         <Modal title="Partiyani tahrirlash" onClose={() => setEditBatch(null)} xl>
           <BatchForm productId={editBatch.productId} initial={editBatch}
-            onSave={handleBatchUpdate} onCancel={() => setEditBatch(null)} saving={saving} />
+            onSave={handleBatchUpdate} onCancel={() => setEditBatch(null)} saving={saving}
+            contracts={contracts} invoices={invoices} onContractChange={fetchInvoices} />
         </Modal>
       )}
 

@@ -273,21 +273,28 @@ function QrModal({ emp, onClose, onRegenerated }) {
 
   // QR ni backenddan yuklab olish
   const loadQr = useCallback(async (id) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await employeesApi.getQr(id);
-      // res = { employee, qr }
-      setQrData(res.qr);
-      setEmpData(res.employee || emp);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  setLoading(true);
+  setError(null);
 
-  useEffect(() => { loadQr(emp.id); }, [emp.id]);
+  try {
+    const res = await employeesApi.getQr(id);
+
+    console.log("QR RES:", res);
+
+    setQrData(res.qr);
+    setEmpData(res.employee || emp);
+
+  } catch (e) {
+    console.error("QR ERROR", e);
+    setError(e.message);
+  } finally {
+    setLoading(false);
+  }
+}, [emp]);
+
+useEffect(() => {
+  loadQr(emp.id);
+}, [emp.id, loadQr]);
 
   const handleRegenerate = async () => {
     if (!window.confirm("Eski QR token o'chadi. Davom etasizmi?")) return;
@@ -322,10 +329,6 @@ function QrModal({ emp, onClose, onRegenerated }) {
     }
   };
   
-  
-
-  
-
   const token = qrData?.token || empData?.qrToken || "";
 
   return (
@@ -366,12 +369,16 @@ function QrModal({ emp, onClose, onRegenerated }) {
             <div dangerouslySetInnerHTML={{__html: qrData.svg}}/>
           ) : qrData?.base64 ? (
             <img
-              src={qrData.base64}
-              alt="QR"
-              style={{ width: 168, height: 168 }}
-            />
+  src={`data:image/png;base64,${qrData.base64}`}
+  alt="QR"
+  style={{ width: 168, height: 168 }}
+/>
           ) : qrData?.url ? (
-            <img src={qrData.url} alt="QR kod" style={{width:168, height:168}}/>
+           <img
+  src={`data:image/png;base64,${qrData.base64}`}
+  alt="QR"
+  style={{ width: 168, height: 168 }}
+/>
           ) : null}
         </div>
 

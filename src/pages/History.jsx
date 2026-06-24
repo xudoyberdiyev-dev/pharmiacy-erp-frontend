@@ -1,35 +1,43 @@
-import { useState } from "react";
+// src/pages/History.jsx — Real API bilan kirim (batch) + chiqim (sales)
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   History as HistoryIcon, Search, X, Filter,
   ArrowDownCircle, ArrowUpCircle, FileText,
   Package, Hash, Tag, Calendar, User,
-  ChevronRight, Eye, Download, CheckCircle,
-  Clock, AlertTriangle, Layers, Banknote, FileCode,
+  Eye, Download, CheckCircle, AlertTriangle,
+  Layers, Banknote, FileCode, Loader2, RefreshCw,
 } from "lucide-react";
+import axios from "axios";
 
-// ─── Mock data ────────────────────────────────────────────
-const HISTORY = [
-  { id: 1,  type: "receipt",  date: "2026-06-18", product: "Paracetamol 500mg", barcode: "4780123456789", ikpu: "10006001001000000", series: "478001167783021", boxSeries: "MK-2026-001", quantity: 240, price: 12000, totalAmount: 2880000, contractNumber: "SH-2026-045", invoiceNumber: "F-2026-0892", operator: "Aliyev A.", note: "" },
-  { id: 2,  type: "receipt",  date: "2026-06-18", product: "Paracetamol 500mg", barcode: "4780123456789", ikpu: "10006001001000000", series: "478001167783022", boxSeries: "MK-2026-002", quantity: 18,  price: 12500, totalAmount: 225000,  contractNumber: "SH-2026-045", invoiceNumber: "F-2026-0910", operator: "Aliyev A.", note: "" },
-  { id: 3,  type: "receipt",  date: "2026-06-10", product: "Amoxicillin 250mg", barcode: "4780198765432", ikpu: "10006001002000000", series: "478019988771",    boxSeries: null,           quantity: 80,  price: 24000, totalAmount: 1920000, contractNumber: "SH-2026-031", invoiceNumber: "F-2026-0411", operator: "Karimov B.", note: "" },
-  { id: 4,  type: "issue",    date: "2026-06-15", product: "Amoxicillin 250mg", barcode: "4780198765432", ikpu: "10006001002000000", series: "478019988771",    boxSeries: null,           quantity: 15,  price: 24000, totalAmount: 360000,  contractNumber: "", invoiceNumber: "", operator: "Rahimov C.", note: "Muassasa: 1-son klinika" },
-  { id: 5,  type: "receipt",  date: "2025-11-05", product: "Vitamin C 1000mg",  barcode: "4780111222333", ikpu: "10006001003000000", series: "478011199001",    boxSeries: "MK-2025-450", quantity: 5,   price: 18000, totalAmount: 90000,   contractNumber: "SH-2025-188", invoiceNumber: "F-2025-2201", operator: "Aliyev A.", note: "" },
-  { id: 6,  type: "writeoff", date: "2026-06-12", product: "Ibuprofen 200mg",   barcode: "4780044556677", ikpu: "",                 series: "478004455xx1",    boxSeries: null,           quantity: 12,  price: 8500,  totalAmount: 102000,  contractNumber: "", invoiceNumber: "", operator: "Karimov B.", note: "Muddati o'tgan — hisobdan chiqarildi" },
-  { id: 7,  type: "issue",    date: "2026-06-08", product: "Paracetamol 500mg", barcode: "4780123456789", ikpu: "10006001001000000", series: "478001167783021", boxSeries: "MK-2026-001", quantity: 30,  price: 12000, totalAmount: 360000,  contractNumber: "", invoiceNumber: "", operator: "Rahimov C.", note: "Dispanser" },
-  { id: 8,  type: "adjust",   date: "2026-06-01", product: "Aspirin 100mg",     barcode: "4780044112233", ikpu: "10006001004000000", series: "478004422001",    boxSeries: null,           quantity: 5,   price: 4500,  totalAmount: 22500,   contractNumber: "", invoiceNumber: "", operator: "Aliyev A.", note: "Inventarizatsiya farqi" },
-];
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+
+const api = axios.create({ baseURL: BASE_URL });
+api.interceptors.request.use(cfg => {
+  const t = localStorage.getItem("token");
+  if (t) cfg.headers.Authorization = `Bearer ${t}`;
+  return cfg;
+});
+api.interceptors.response.use(
+  r => r.data?.data ?? r.data,
+  e => Promise.reject(new Error(e.response?.data?.message || "Xatolik"))
+);
+
+const fmt      = (d) => d ? new Date(d).toLocaleDateString("uz-UZ") : "—";
+const fmtDT    = (d) => d ? new Date(d).toLocaleString("uz-UZ") : "—";
+const fmtPrice = (p) => Number(p ?? 0).toLocaleString("uz-UZ") + " so'm";
 
 const TYPE_CFG = {
-  receipt:  { label: "Kiraim",         cls: "green",  Icon: ArrowDownCircle, bg: "bg-green"  },
-  issue:    { label: "Chiqim",         cls: "blue",   Icon: ArrowUpCircle,  bg: "bg-blue"   },
-  writeoff: { label: "Hisobdan chiqim", cls: "red",   Icon: X,              bg: "bg-red"    },
-  adjust:   { label: "Tuzatish",       cls: "yellow", Icon: FileText,       bg: "bg-yellow" },
+  receipt: { label: "Kirim",           cls: "green", Icon: ArrowDownCircle, bg: "bg-green"  },
+  issue:   { label: "Chiqim (sotuv)",  cls: "blue",  Icon: ArrowUpCircle,   bg: "bg-blue"   },
 };
 
-const formatDate  = (d) => new Date(d).toLocaleDateString("uz-UZ");
-const formatPrice = (p) => Number(p).toLocaleString("uz-UZ") + " so'm";
-
+// ─── Modal ─────────────────────────────────────────────────────
 function Modal({ title, onClose, children }) {
+  useEffect(() => {
+    const fn = e => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", fn);
+    return () => document.removeEventListener("keydown", fn);
+  }, [onClose]);
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box" onClick={e => e.stopPropagation()}>
@@ -43,32 +51,21 @@ function Modal({ title, onClose, children }) {
   );
 }
 
-function DetailModal({ entry, onClose }) {
-  const cfg = TYPE_CFG[entry.type] || TYPE_CFG.receipt;
+// ─── Kirim detail (Batch) ──────────────────────────────────────
+function ReceiptDetail({ entry, onClose }) {
   return (
-    <Modal title="Operatsiya tafsilotlari" onClose={onClose}>
+    <Modal title="Kirim tafsilotlari" onClose={onClose}>
       <div className="form-body">
-        <div className={`type-badge-large ${cfg.bg}`}>
-          <cfg.Icon size={16} strokeWidth={2} />
-          {cfg.label}
-          <span className="date-inline">{formatDate(entry.date)}</span>
-        </div>
-
+        <div className="type-badge-large bg-green"><ArrowDownCircle size={16} />Kirim<span className="date-inline">{fmtDT(entry.createdAt)}</span></div>
         <div className="detail-grid">
-          <div className="dg-item">
+          <div className="dg-item dg-full">
             <div className="dg-label"><Package size={11} />Mahsulot</div>
-            <div className="dg-val">{entry.product}</div>
+            <div className="dg-val">{entry.product?.name ?? "—"}</div>
           </div>
-          {entry.barcode && (
-            <div className="dg-item">
-              <div className="dg-label"><Hash size={11} />Barcode</div>
-              <div className="dg-val mono">{entry.barcode}</div>
-            </div>
-          )}
-          {entry.ikpu && (
+          {entry.product?.ikpuCode && (
             <div className="dg-item">
               <div className="dg-label"><FileCode size={11} />IKPU</div>
-              <div className="dg-val mono">{entry.ikpu}</div>
+              <div className="dg-val mono">{entry.product.ikpuCode}</div>
             </div>
           )}
           <div className="dg-item">
@@ -82,80 +79,202 @@ function DetailModal({ entry, onClose }) {
             </div>
           )}
           <div className="dg-item">
-            <div className="dg-label"><Layers size={11} />Miqdor</div>
-            <div className="dg-val"><span className="qty-pill">{entry.quantity} dona</span></div>
+            <div className="dg-label"><Layers size={11} />Miqdor / Qoldiq</div>
+            <div className="dg-val"><span className="qty-pill">{entry.quantity} / {entry.remainingQty} {entry.product?.unit ?? "dona"}</span></div>
           </div>
           <div className="dg-item">
-            <div className="dg-label"><Banknote size={11} />Birlik narx</div>
-            <div className="dg-val">{formatPrice(entry.price)}</div>
+            <div className="dg-label"><Banknote size={11} />Narx</div>
+            <div className="dg-val">{fmtPrice(entry.price)}</div>
           </div>
           <div className="dg-item dg-full">
             <div className="dg-label"><Banknote size={11} />Jami summa</div>
-            <div className="dg-val dg-total">{formatPrice(entry.totalAmount)}</div>
+            <div className="dg-val dg-total">{fmtPrice(Number(entry.price) * entry.quantity)}</div>
           </div>
-          {entry.contractNumber && (
+          {entry.contract?.contractNumber && (
             <div className="dg-item">
               <div className="dg-label"><FileText size={11} />Shartnoma</div>
-              <div className="dg-val mono">{entry.contractNumber}</div>
+              <div className="dg-val mono">{entry.contract.contractNumber}{entry.contract.partyName ? ` · ${entry.contract.partyName}` : ""}</div>
             </div>
           )}
-          {entry.invoiceNumber && (
+          {entry.invoice?.invoiceNumber && (
             <div className="dg-item">
               <div className="dg-label"><Hash size={11} />Faktura</div>
-              <div className="dg-val mono">{entry.invoiceNumber}</div>
+              <div className="dg-val mono">{entry.invoice.invoiceNumber}</div>
+            </div>
+          )}
+          {entry.expiry && (
+            <div className="dg-item">
+              <div className="dg-label"><Calendar size={11} />Yaroqlilik muddati</div>
+              <div className="dg-val">{fmt(entry.expiry)}</div>
             </div>
           )}
           <div className="dg-item">
-            <div className="dg-label"><User size={11} />Operator</div>
-            <div className="dg-val">{entry.operator}</div>
+            <div className="dg-label"><Tag size={11} />Dozaj</div>
+            <div className="dg-val">{entry.mg}</div>
           </div>
-          {entry.note && (
-            <div className="dg-item dg-full">
-              <div className="dg-label">Izoh</div>
-              <div className="dg-val note-val">{entry.note}</div>
-            </div>
-          )}
         </div>
       </div>
     </Modal>
   );
 }
 
-export const History = () => {
-  const [search,    setSearch]    = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [viewEntry, setViewEntry] = useState(null);
+// ─── Chiqim detail (Sale) ──────────────────────────────────────
+function IssueDetail({ entry, onClose }) {
+  return (
+    <Modal title="Chiqim tafsilotlari" onClose={onClose}>
+      <div className="form-body">
+        <div className="type-badge-large bg-blue"><ArrowUpCircle size={16} />Chiqim (Sotuv)<span className="date-inline">{fmtDT(entry.createdAt)}</span></div>
+        <div className="detail-grid">
+          {entry.customer && (
+            <div className="dg-item dg-full">
+              <div className="dg-label"><User size={11} />Mijoz</div>
+              <div className="dg-val">{entry.customer.name}{entry.customer.phone ? ` · ${entry.customer.phone}` : ""}</div>
+            </div>
+          )}
+          <div className="dg-item dg-full">
+            <div className="dg-label"><Banknote size={11} />Jami summa</div>
+            <div className="dg-val dg-total">{fmtPrice(entry.totalPrice)}</div>
+          </div>
+          <div className="dg-item dg-full">
+            <div className="dg-label"><Package size={11} />Sotilgan mahsulotlar ({entry.items?.length ?? 0} ta)</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
+              {(entry.items ?? []).map((it, i) => (
+                <div key={i} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 12px" }}>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>{it.product?.name ?? "—"}</div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
+                    <span className="qty-pill">{it.quantity} {it.product?.unit ?? "dona"}</span>
+                    <span style={{ fontSize: 12, color: "#64748b" }}>{fmtPrice(it.price)} / dona</span>
+                    <span style={{ fontSize: 12, fontWeight: 700 }}>{fmtPrice(it.total)}</span>
+                  </div>
+                  {it.batch && (
+                    <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+                      <span className="badge-series"><Tag size={9} />{it.batch.series}</span>
+                      {it.batch.contract?.contractNumber && (
+                        <span className="doc-sh"><FileText size={9} />{it.batch.contract.contractNumber}</span>
+                      )}
+                      {it.batch.invoice?.invoiceNumber && (
+                        <span className="doc-inv"><Hash size={9} />{it.batch.invoice.invoiceNumber}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
-  const filtered = HISTORY.filter(h => {
-    const q = search.toLowerCase();
-    const matchSearch =
-      (h.product        || "").toLowerCase().includes(q) ||
-      (h.series         || "").includes(search) ||
-      (h.barcode        || "").includes(search) ||
-      (h.ikpu           || "").includes(search) ||
-      (h.contractNumber || "").toLowerCase().includes(q) ||
-      (h.invoiceNumber  || "").toLowerCase().includes(q) ||
-      (h.operator       || "").toLowerCase().includes(q);
-    const matchType = typeFilter === "all" || h.type === typeFilter;
-    return matchSearch && matchType;
+// ─── MAIN ──────────────────────────────────────────────────────
+export const History = () => {
+  const [items,       setItems]       = useState([]);
+  const [loading,     setLoading]     = useState(false);
+  const [error,       setError]       = useState(null);
+  const [typeFilter,  setTypeFilter]  = useState("all");
+  const [search,      setSearch]      = useState("");
+  const [detail,      setDetail]      = useState(null);
+  const [page,        setPage]        = useState(1);
+  const [totalPages,  setTotalPages]  = useState(1);
+  const [dateFrom,    setDateFrom]    = useState("");
+  const [dateTo,      setDateTo]      = useState("");
+  const searchTimer = useRef();
+  const LIMIT = 20;
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [batchRes, saleRes] = await Promise.all([
+        api.get("/batches", { params: { limit: 200, page: 1 } }),
+        api.get("/sales",   { params: { limit: 200, page: 1, ...(dateFrom ? { dateFrom } : {}), ...(dateTo ? { dateTo } : {}) } }),
+      ]);
+
+      const batches = (batchRes.items ?? batchRes ?? []).map(b => ({
+        _id:       `r_${b.id}`,
+        type:      "receipt",
+        createdAt: b.createdAt,
+        product:   b.product,
+        series:    b.series,
+        boxSeries: b.boxSeries,
+        mg:        b.mg,
+        quantity:  b.quantity,
+        remainingQty: b.remainingQty,
+        price:     b.price,
+        expiry:    b.expiry,
+        contract:  b.contract,
+        invoice:   b.invoice,
+        // raw for detail modal
+        ...b,
+      }));
+
+      const sales = (saleRes.items ?? saleRes ?? []).map(s => ({
+        _id:       `i_${s.id}`,
+        type:      "issue",
+        createdAt: s.createdAt,
+        customer:  s.customer,
+        totalPrice: s.totalPrice,
+        items:     s.items,
+        // contract/invoice shown per item
+        contract:  s.items?.[0]?.batch?.contract ?? null,
+        invoice:   s.items?.[0]?.batch?.invoice  ?? null,
+        // raw
+        ...s,
+      }));
+
+      const all = [...batches, ...sales].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setItems(all);
+      setTotalPages(Math.ceil(all.length / LIMIT));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [dateFrom, dateTo]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // Debounced search
+  useEffect(() => {
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => setPage(1), 300);
+    return () => clearTimeout(searchTimer.current);
+  }, [search]);
+
+  const filtered = items.filter(it => {
+    if (typeFilter !== "all" && it.type !== typeFilter) return false;
+    if (!search) return true;
+    const s = search.toLowerCase();
+    return (
+      (it.product?.name ?? it.customer?.name ?? "").toLowerCase().includes(s) ||
+      (it.series ?? "").toLowerCase().includes(s) ||
+      (it.contract?.contractNumber ?? "").toLowerCase().includes(s) ||
+      (it.invoice?.invoiceNumber ?? "").toLowerCase().includes(s) ||
+      (it.customer?.phone ?? "").includes(s)
+    );
   });
 
-  const totalReceipt  = HISTORY.filter(h => h.type === "receipt").reduce((s,h)  => s + h.totalAmount, 0);
-  const totalIssue    = HISTORY.filter(h => h.type === "issue").reduce((s,h)    => s + h.totalAmount, 0);
-  const totalWriteoff = HISTORY.filter(h => h.type === "writeoff").reduce((s,h) => s + h.totalAmount, 0);
+  const paginated = filtered.slice((page - 1) * LIMIT, page * LIMIT);
+  const totalReceipts = items.filter(i => i.type === "receipt").reduce((s, i) => s + (i.quantity ?? 0), 0);
+  const totalIssues   = items.filter(i => i.type === "issue").length;
+  const totalRevenue  = items.filter(i => i.type === "issue").reduce((s, i) => s + (i.totalPrice ?? 0), 0);
 
   const exportCSV = () => {
     const rows = [
-      ["Sana","Tur","Mahsulot","Barcode","IKPU","Seriya","QR Seriya","Miqdor","Narx","Jami","Shartnoma","Faktura","Operator","Izoh"],
-      ...filtered.map(h => [
-        h.date, TYPE_CFG[h.type]?.label || h.type, h.product,
-        h.barcode ? `'${h.barcode}` : "", h.ikpu ? `'${h.ikpu}` : "",
-        `'${h.series}`, h.boxSeries ? `'${h.boxSeries}` : "",
-        h.quantity, h.price, h.totalAmount,
-        h.contractNumber || "", h.invoiceNumber || "", h.operator, h.note,
+      ["Tur", "Sana", "Mahsulot / Mijoz", "Seriya", "Miqdor", "Narx", "Shartnoma", "Faktura"],
+      ...filtered.map(it => [
+        TYPE_CFG[it.type]?.label ?? it.type,
+        fmtDT(it.createdAt),
+        it.type === "receipt" ? (it.product?.name ?? "") : (it.customer?.name ?? ""),
+        it.series ?? "",
+        it.type === "receipt" ? it.quantity : "",
+        it.type === "receipt" ? it.price : it.totalPrice,
+        it.contract?.contractNumber ?? "",
+        it.invoice?.invoiceNumber ?? "",
       ]),
     ];
-    const csv  = rows.map(r => r.map(v => `"${v}"`).join(",")).join("\n");
+    const csv  = rows.map(r => r.map(v => `"${v ?? ""}"`).join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a"); a.href = url; a.download = "tarix.csv"; a.click();
@@ -163,262 +282,266 @@ export const History = () => {
   };
 
   return (
-    <>
-      <style>{STYLES}</style>
-
-      <div className="page">
-        <div className="page-header">
-          <div className="header-text">
-            <h1><HistoryIcon size={24} className="h1-icon" />Operatsiyalar tarixi</h1>
-            <p className="subtitle">Barcha kiraim, chiqim va tuzatish operatsiyalari</p>
-          </div>
-          <button className="btn-secondary" onClick={exportCSV}><Download size={15} />Excel/CSV</button>
-        </div>
-
-        {/* Summary */}
-        <div className="summary-row">
-          <div className="sum-card green">
-            <ArrowDownCircle size={18} />
-            <div>
-              <div className="sum-value">{formatPrice(totalReceipt)}</div>
-              <div className="sum-label">Jami kiraim</div>
-            </div>
-          </div>
-          <div className="sum-card blue">
-            <ArrowUpCircle size={18} />
-            <div>
-              <div className="sum-value">{formatPrice(totalIssue)}</div>
-              <div className="sum-label">Jami chiqim</div>
-            </div>
-          </div>
-          <div className="sum-card red">
-            <X size={18} />
-            <div>
-              <div className="sum-value">{formatPrice(totalWriteoff)}</div>
-              <div className="sum-label">Hisobdan chiqim</div>
-            </div>
-          </div>
-          <div className="sum-card neutral">
-            <HistoryIcon size={18} />
-            <div>
-              <div className="sum-value">{HISTORY.length}</div>
-              <div className="sum-label">Jami operatsiyalar</div>
-            </div>
+    <div className="page">
+      {/* Header */}
+      <div className="page-header">
+        <div className="ph-left">
+          <div className="ph-icon"><HistoryIcon size={20} /></div>
+          <div>
+            <h1 className="ph-title">Operatsiyalar tarixi</h1>
+            <p className="ph-sub">Kirim va chiqim operatsiyalari — shartnoma, faktura bo'yicha</p>
           </div>
         </div>
-
-        {/* Toolbar */}
-        <div className="toolbar">
-          <div className="search-wrap">
-            <Search size={15} className="search-icon" strokeWidth={2} />
-            <input className="search-input" value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Mahsulot, seriya, barcode, shartnoma, operator…" />
-            {search && <button className="clear-btn" onClick={() => setSearch("")}><X size={14} /></button>}
-          </div>
-          <div className="filter-tabs">
-            {[["all","Barchasi"],["receipt","Kiraim"],["issue","Chiqim"],["writeoff","Hisobdan"],["adjust","Tuzatish"]].map(([v,l]) => (
-              <button key={v} className={`filter-tab ${typeFilter === v ? `active at-${v}` : ""}`} onClick={() => setTypeFilter(v)}>{l}</button>
-            ))}
-          </div>
-        </div>
-
-        {/* Table */}
-        <div className="table-card">
-          {filtered.length === 0 ? (
-            <div className="state-box">
-              <HistoryIcon size={40} strokeWidth={1} style={{ color: "#cbd5e1" }} />
-              <p>Mos operatsiya topilmadi</p>
-            </div>
-          ) : (
-            <div className="table-scroll">
-              <table className="main-table">
-                <thead>
-                  <tr>
-                    <th>Sana</th>
-                    <th>Tur</th>
-                    <th>Mahsulot</th>
-                    <th>Seriya / QR</th>
-                    <th>Shartnoma / Faktura</th>
-                    <th className="center">Miqdor</th>
-                    <th>Jami summa</th>
-                    <th>Operator</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map(h => {
-                    const cfg = TYPE_CFG[h.type] || TYPE_CFG.receipt;
-                    return (
-                      <tr key={h.id} className={`tr-${h.type}`}>
-                        <td className="date-col">{formatDate(h.date)}</td>
-                        <td>
-                          <span className={`type-pill type-${h.type}`}>
-                            <cfg.Icon size={11} strokeWidth={2.5} />
-                            {cfg.label}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="product-col">
-                            <div className="prod-name">{h.product}</div>
-                            <div className="prod-meta">
-                              {h.barcode && <span className="pi-badge bc"><Hash size={9} />{h.barcode}</span>}
-                              {h.ikpu    && <span className="pi-badge ikpu"><FileCode size={9} />{h.ikpu}</span>}
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="series-cell">
-                            <span className="badge-series"><Tag size={10} />{h.series}</span>
-                            {h.boxSeries && <span className="badge-box"><Tag size={9} />{h.boxSeries}</span>}
-                          </div>
-                        </td>
-                        <td>
-                          <div className="doc-cell">
-                            {h.contractNumber && <span className="doc-sh">{h.contractNumber}</span>}
-                            {h.invoiceNumber  && <span className="doc-inv">{h.invoiceNumber}</span>}
-                            {!h.contractNumber && !h.invoiceNumber && <span className="na">—</span>}
-                          </div>
-                        </td>
-                        <td className="center">
-                          <span className={`qty-pill ${h.type === "receipt" ? "qty-green" : h.type === "writeoff" ? "qty-red" : "qty-blue"}`}>
-                            {h.type === "receipt" ? "+" : h.type === "issue" || h.type === "writeoff" ? "-" : "±"}{h.quantity}
-                          </span>
-                        </td>
-                        <td className="price-col mono">{formatPrice(h.totalAmount)}</td>
-                        <td>
-                          <div className="operator-cell">
-                            <span className="op-avatar">{h.operator.charAt(0)}</span>
-                            {h.operator}
-                          </div>
-                        </td>
-                        <td>
-                          <button className="icon-btn view" onClick={() => setViewEntry(h)} title="Ko'rish">
-                            <Eye size={14} strokeWidth={2} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn-ghost" onClick={loadData}><RefreshCw size={14} />Yangilash</button>
+          <button className="btn-ghost" onClick={exportCSV}><Download size={14} />CSV</button>
         </div>
       </div>
 
-      {viewEntry && <DetailModal entry={viewEntry} onClose={() => setViewEntry(null)} />}
-    </>
+      {/* Stats */}
+      <div className="summary-row">
+        <div className="sum-card green">
+          <ArrowDownCircle size={18} />
+          <div><div className="sum-value">{totalReceipts.toLocaleString("uz-UZ")}</div><div className="sum-label">Kirim (dona)</div></div>
+        </div>
+        <div className="sum-card blue">
+          <ArrowUpCircle size={18} />
+          <div><div className="sum-value">{totalIssues}</div><div className="sum-label">Chiqim (sotuv)</div></div>
+        </div>
+        <div className="sum-card neutral">
+          <Banknote size={18} />
+          <div><div className="sum-value">{(totalRevenue / 1_000_000).toFixed(1)} mln</div><div className="sum-label">Sotuv summasi</div></div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="toolbar">
+        <div className="search-wrap">
+          <Search size={14} className="search-icon" />
+          <input className="search-input" value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Mahsulot, mijoz, seriya, shartnoma, faktura…" />
+          {search && <button className="clear-btn" onClick={() => setSearch("")}><X size={13} /></button>}
+        </div>
+        <input type="date" className="date-input" value={dateFrom}
+          onChange={e => { setDateFrom(e.target.value); setPage(1); }}
+          title="Dan" style={{ padding: "9px 12px", border: "1.5px solid #e2e8f0", borderRadius: 10, fontSize: 13, background: "#fff" }} />
+        <input type="date" className="date-input" value={dateTo}
+          onChange={e => { setDateTo(e.target.value); setPage(1); }}
+          title="Gacha" style={{ padding: "9px 12px", border: "1.5px solid #e2e8f0", borderRadius: 10, fontSize: 13, background: "#fff" }} />
+        <div className="filter-tabs">
+          {[["all","Barchasi"],["receipt","Kirim"],["issue","Chiqim"]].map(([val, lbl]) => (
+            <button key={val} className={`filter-tab at-${val}${typeFilter === val ? " active" : ""}`}
+              onClick={() => { setTypeFilter(val); setPage(1); }}>{lbl}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Table */}
+      {loading && (
+        <div className="state-box"><Loader2 size={28} style={{ animation: "spin 1s linear infinite", color: "#4f46e5" }} /><span>Yuklanmoqda…</span></div>
+      )}
+      {error && !loading && (
+        <div className="state-box" style={{ color: "#dc2626" }}><AlertTriangle size={24} /><span>{error}</span></div>
+      )}
+      {!loading && !error && (
+        <div className="table-card">
+          {paginated.length === 0 ? (
+            <div className="state-box"><HistoryIcon size={40} strokeWidth={0.8} style={{ color: "#e2e8f0" }} /><span>Hech narsa topilmadi</span></div>
+          ) : (
+            <>
+              <div className="table-scroll">
+                <table className="main-table">
+                  <thead>
+                    <tr>
+                      <th>Tur</th>
+                      <th>Sana</th>
+                      <th>Mahsulot / Mijoz</th>
+                      <th>Seriya</th>
+                      <th>Shartnoma / Faktura</th>
+                      <th className="center">Miqdor</th>
+                      <th>Summa</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginated.map(it => {
+                      const cfg = TYPE_CFG[it.type] || TYPE_CFG.receipt;
+                      return (
+                        <tr key={it._id} className={`tr-${it.type}`}>
+                          <td>
+                            <span className={`type-pill type-${it.type}`}>
+                              <cfg.Icon size={11} />{cfg.label}
+                            </span>
+                          </td>
+                          <td className="date-col">{fmtDT(it.createdAt)}</td>
+                          <td>
+                            {it.type === "receipt" ? (
+                              <div className="product-col">
+                                <div className="prod-name">{it.product?.name ?? "—"}</div>
+                                <div className="prod-meta">
+                                  {it.product?.ikpuCode && <span className="pi-badge ikpu"><FileCode size={9} />{it.product.ikpuCode}</span>}
+                                  {it.mg && <span className="pi-badge bc">{it.mg}</span>}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="product-col">
+                                <div className="prod-name"><User size={11} /> {it.customer?.name ?? "Noma'lum"}</div>
+                                {it.customer?.phone && <span className="pi-badge bc">{it.customer.phone}</span>}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            {it.series ? (
+                              <div className="series-cell">
+                                <span className="badge-series"><Tag size={9} />{it.series}</span>
+                                {it.boxSeries && <span className="badge-box">{it.boxSeries}</span>}
+                              </div>
+                            ) : (
+                              <span className="na">—</span>
+                            )}
+                          </td>
+                          <td>
+                            {(it.contract?.contractNumber || it.invoice?.invoiceNumber) ? (
+                              <div className="doc-cell">
+                                {it.contract?.contractNumber && <span className="doc-sh"><FileText size={9} />{it.contract.contractNumber}</span>}
+                                {it.invoice?.invoiceNumber  && <span className="doc-inv"><Hash size={9} />{it.invoice.invoiceNumber}</span>}
+                              </div>
+                            ) : <span className="na">—</span>}
+                          </td>
+                          <td className="center">
+                            <span className={`qty-pill qty-${it.type === "receipt" ? "green" : "blue"}`}>
+                              {it.type === "receipt" ? it.quantity : (it.items?.reduce((s, i) => s + i.quantity, 0) ?? "—")}
+                            </span>
+                          </td>
+                          <td className="price-col">
+                            {it.type === "receipt"
+                              ? fmtPrice(Number(it.price) * it.quantity)
+                              : fmtPrice(it.totalPrice)}
+                          </td>
+                          <td>
+                            <button className="icon-btn view" onClick={() => setDetail(it)}>
+                              <Eye size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {/* Pagination */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px", borderTop: "1px solid #f1f5f9" }}>
+                <span style={{ fontSize: 13, color: "#64748b" }}>{filtered.length} ta operatsiya</span>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).filter(p => Math.abs(p - page) <= 2).map(p => (
+                    <button key={p} onClick={() => setPage(p)}
+                      style={{ width: 32, height: 32, border: p === page ? "2px solid #4f46e5" : "1.5px solid #e2e8f0",
+                        borderRadius: 8, background: p === page ? "#eef2ff" : "#fff", color: p === page ? "#4f46e5" : "#64748b",
+                        fontWeight: p === page ? 700 : 400, cursor: "pointer", fontSize: 13 }}>{p}</button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Detail modal */}
+      {detail && detail.type === "receipt" && <ReceiptDetail entry={detail} onClose={() => setDetail(null)} />}
+      {detail && detail.type === "issue"   && <IssueDetail   entry={detail} onClose={() => setDetail(null)} />}
+
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .page { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
+        .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+        .ph-left { display: flex; align-items: center; gap: 16px; }
+        .ph-icon { width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg, #4f46e5, #7c3aed); display: flex; align-items: center; justify-content: center; color: #fff; }
+        .ph-title { font-size: 22px; font-weight: 800; color: #0f172a; margin: 0; }
+        .ph-sub { font-size: 13px; color: #64748b; margin: 2px 0 0; }
+        .btn-ghost { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border: 1.5px solid #e2e8f0; background: #fff; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; color: #334155; transition: all 0.15s; }
+        .btn-ghost:hover { background: #f8fafc; border-color: #cbd5e1; }
+        .summary-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+        .sum-card { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 18px 20px; display: flex; align-items: center; gap: 16px; }
+        .sum-card.green  { border-left: 4px solid #16a34a; } .sum-card.green svg { color: #16a34a; }
+        .sum-card.blue   { border-left: 4px solid #2563eb; } .sum-card.blue svg { color: #2563eb; }
+        .sum-card.neutral{ border-left: 4px solid #94a3b8; } .sum-card.neutral svg { color: #94a3b8; }
+        .sum-value { font-size: 20px; font-weight: 800; color: #0f172a; }
+        .sum-label { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+        .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+        .search-wrap { position: relative; display: flex; align-items: center; background: #fff; border: 1.5px solid #e2e8f0; border-radius: 11px; flex: 1; min-width: 240px; }
+        .search-wrap:focus-within { border-color: #4f46e5; box-shadow: 0 0 0 3px #eef2ff; }
+        .search-icon { margin-left: 14px; color: #cbd5e1; flex-shrink: 0; }
+        .search-input { flex: 1; border: none; outline: none; padding: 11px 12px; font-size: 14px; background: transparent; color: #0f172a; }
+        .search-input::placeholder { color: #cbd5e1; }
+        .clear-btn { background: none; border: none; cursor: pointer; color: #94a3b8; padding: 0 14px; display: flex; align-items: center; }
+        .filter-tabs { display: flex; gap: 4px; background: #f1f5f9; border-radius: 10px; padding: 4px; }
+        .filter-tab { border: none; background: none; padding: 7px 14px; border-radius: 7px; font-size: 13px; font-weight: 500; cursor: pointer; color: #64748b; transition: all 0.15s; }
+        .filter-tab.active { background: #fff; font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .filter-tab.active.at-all     { color: #4f46e5; }
+        .filter-tab.active.at-receipt { color: #16a34a; }
+        .filter-tab.active.at-issue   { color: #2563eb; }
+        .table-card { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 16px; overflow: hidden; }
+        .table-scroll { overflow-x: auto; }
+        .state-box { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 72px 24px; color: #94a3b8; }
+        .main-table { width: 100%; border-collapse: collapse; min-width: 860px; }
+        .main-table thead tr { background: #f8fafc; border-bottom: 1.5px solid #e2e8f0; }
+        .main-table th { padding: 12px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; text-align: left; white-space: nowrap; }
+        .main-table th.center { text-align: center; }
+        .main-table td.center { text-align: center; }
+        .main-table tbody tr { border-bottom: 1px solid #f1f5f9; transition: background 0.1s; }
+        .main-table tbody tr:last-child { border-bottom: none; }
+        .main-table tbody tr:hover { background: #f8fafc; }
+        .main-table td { padding: 12px 16px; font-size: 13px; color: #334155; vertical-align: middle; }
+        .tr-receipt { border-left: 3px solid #86efac; }
+        .tr-issue   { border-left: 3px solid #93c5fd; }
+        .date-col { color: #64748b; font-size: 12px; white-space: nowrap; }
+        .type-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+        .type-receipt { background: #dcfce7; color: #16a34a; }
+        .type-issue   { background: #dbeafe; color: #1d4ed8; }
+        .product-col { display: flex; flex-direction: column; gap: 4px; }
+        .prod-name { font-weight: 700; color: #0f172a; font-size: 13px; display: flex; align-items: center; gap: 4px; }
+        .prod-meta { display: flex; gap: 4px; flex-wrap: wrap; }
+        .pi-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-weight: 600; }
+        .pi-badge.bc   { background: #eff6ff; color: #1d4ed8; }
+        .pi-badge.ikpu { background: #f5f3ff; color: #6d28d9; }
+        .series-cell { display: flex; flex-direction: column; gap: 3px; }
+        .badge-series { display: inline-flex; align-items: center; gap: 3px; background: #ede9fe; color: #6d28d9; font-family: monospace; font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 700; width: fit-content; }
+        .badge-box    { display: inline-flex; align-items: center; gap: 3px; background: #eff6ff; color: #2563eb; font-family: monospace; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; width: fit-content; }
+        .doc-cell { display: flex; flex-direction: column; gap: 3px; }
+        .doc-sh  { font-family: monospace; font-size: 11px; font-weight: 700; color: #166534; background: #f0fdf4; padding: 2px 6px; border-radius: 4px; width: fit-content; display: inline-flex; align-items: center; gap: 3px; }
+        .doc-inv { font-family: monospace; font-size: 11px; font-weight: 700; color: #9a3412; background: #fff7ed; padding: 2px 6px; border-radius: 4px; width: fit-content; display: inline-flex; align-items: center; gap: 3px; }
+        .na { color: #cbd5e1; }
+        .qty-pill { display: inline-block; font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 20px; font-family: monospace; }
+        .qty-green { background: #dcfce7; color: #16a34a; }
+        .qty-blue  { background: #dbeafe; color: #1d4ed8; }
+        .price-col { font-weight: 700; color: #0f172a; white-space: nowrap; }
+        .icon-btn { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 8px; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; color: #64748b; }
+        .icon-btn.view:hover { background: #eef2ff; border-color: #4f46e5; color: #4f46e5; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.55); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); padding: 16px; }
+        .modal-box { background: #fff; border-radius: 20px; width: 100%; max-width: 560px; box-shadow: 0 32px 80px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 22px 24px 0; position: sticky; top: 0; background: #fff; z-index: 1; }
+        .modal-header h2 { font-size: 17px; font-weight: 800; color: #0f172a; }
+        .modal-close { background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #64748b; }
+        .form-body { padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 14px; }
+        .type-badge-large { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 10px; font-size: 14px; font-weight: 700; align-self: flex-start; }
+        .bg-green { background: #dcfce7; color: #16a34a; }
+        .bg-blue  { background: #dbeafe; color: #1d4ed8; }
+        .date-inline { font-size: 12px; font-weight: 400; opacity: 0.7; margin-left: 4px; }
+        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .dg-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 9px; padding: 10px 12px; }
+        .dg-full { grid-column: 1 / -1; }
+        .dg-label { display: flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+        .dg-val { font-size: 14px; font-weight: 600; color: #0f172a; }
+        .dg-total { font-size: 18px; font-weight: 800; color: #0f172a; }
+        .mono { font-family: monospace; }
+        @media (max-width: 768px) {
+          .page { padding: 16px; }
+          .summary-row { grid-template-columns: 1fr; }
+          .toolbar { flex-direction: column; align-items: stretch; }
+          .detail-grid { grid-template-columns: 1fr; }
+        }
+      `}</style>
+    </div>
   );
 };
-
-const STYLES = `
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  .page { padding: 32px 28px; font-family: 'Inter', system-ui, sans-serif; color: #0f172a; background: #f6f8fc; min-height: 100vh; }
-  .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; gap: 16px; flex-wrap: wrap; }
-  .header-text h1 { font-size: 24px; font-weight: 800; display: flex; align-items: center; gap: 10px; letter-spacing: -0.4px; }
-  .h1-icon { color: #4f46e5; }
-  .subtitle { color: #94a3b8; font-size: 13px; margin-top: 4px; }
-  .btn-secondary { display: inline-flex; align-items: center; gap: 6px; background: #fff; color: #475569; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 10px 18px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.15s; }
-  .btn-secondary:hover { background: #f8fafc; }
-  .summary-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px; }
-  .sum-card { display: flex; align-items: center; gap: 12px; background: #fff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 16px 18px; }
-  .sum-card.green  { border-left: 4px solid #16a34a; }
-  .sum-card.green svg { color: #16a34a; }
-  .sum-card.blue   { border-left: 4px solid #2563eb; }
-  .sum-card.blue svg { color: #2563eb; }
-  .sum-card.red    { border-left: 4px solid #dc2626; }
-  .sum-card.red svg { color: #dc2626; }
-  .sum-card.neutral { border-left: 4px solid #94a3b8; }
-  .sum-card.neutral svg { color: #94a3b8; }
-  .sum-value { font-size: 16px; font-weight: 800; color: #0f172a; }
-  .sum-label { font-size: 12px; color: #94a3b8; margin-top: 2px; }
-  .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
-  .search-wrap { position: relative; display: flex; align-items: center; background: #fff; border: 1.5px solid #e2e8f0; border-radius: 11px; flex: 1; min-width: 240px; transition: border-color 0.15s, box-shadow 0.15s; }
-  .search-wrap:focus-within { border-color: #4f46e5; box-shadow: 0 0 0 3px #eef2ff; }
-  .search-icon { margin-left: 14px; color: #cbd5e1; flex-shrink: 0; }
-  .search-input { flex: 1; border: none; outline: none; padding: 11px 12px; font-size: 14px; background: transparent; color: #0f172a; }
-  .search-input::placeholder { color: #cbd5e1; }
-  .clear-btn { background: none; border: none; cursor: pointer; color: #94a3b8; padding: 0 14px; display: flex; align-items: center; }
-  .filter-tabs { display: flex; gap: 4px; background: #f1f5f9; border-radius: 10px; padding: 4px; overflow-x: auto; }
-  .filter-tab { border: none; background: none; padding: 7px 14px; border-radius: 7px; font-size: 13px; font-weight: 500; cursor: pointer; color: #64748b; transition: all 0.15s; white-space: nowrap; }
-  .filter-tab.active { background: #fff; font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-  .filter-tab.active.at-all      { color: #4f46e5; }
-  .filter-tab.active.at-receipt  { color: #16a34a; }
-  .filter-tab.active.at-issue    { color: #2563eb; }
-  .filter-tab.active.at-writeoff { color: #dc2626; }
-  .filter-tab.active.at-adjust   { color: #b45309; }
-  .table-card { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 16px; overflow: hidden; }
-  .table-scroll { overflow-x: auto; }
-  .state-box { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 72px 24px; color: #94a3b8; }
-  .main-table { width: 100%; border-collapse: collapse; min-width: 860px; }
-  .main-table thead tr { background: #f8fafc; border-bottom: 1.5px solid #e2e8f0; }
-  .main-table th { padding: 12px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; text-align: left; white-space: nowrap; }
-  .main-table th.center { text-align: center; }
-  .main-table td.center { text-align: center; }
-  .main-table tbody tr { border-bottom: 1px solid #f1f5f9; transition: background 0.1s; }
-  .main-table tbody tr:last-child { border-bottom: none; }
-  .main-table tbody tr:hover { background: #f8fafc; }
-  .main-table td { padding: 12px 16px; font-size: 13px; color: #334155; vertical-align: middle; }
-  .tr-receipt  { border-left: 3px solid #86efac; }
-  .tr-issue    { border-left: 3px solid #93c5fd; }
-  .tr-writeoff { border-left: 3px solid #fca5a5; }
-  .tr-adjust   { border-left: 3px solid #fde68a; }
-  .date-col { color: #64748b; font-size: 12px; white-space: nowrap; }
-  .type-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
-  .type-receipt  { background: #dcfce7; color: #16a34a; }
-  .type-issue    { background: #dbeafe; color: #1d4ed8; }
-  .type-writeoff { background: #fee2e2; color: #dc2626; }
-  .type-adjust   { background: #fef9c3; color: #b45309; }
-  .product-col { display: flex; flex-direction: column; gap: 4px; }
-  .prod-name { font-weight: 700; color: #0f172a; font-size: 13px; }
-  .prod-meta { display: flex; gap: 4px; flex-wrap: wrap; }
-  .pi-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-weight: 600; }
-  .pi-badge.bc   { background: #eff6ff; color: #1d4ed8; }
-  .pi-badge.ikpu { background: #f5f3ff; color: #6d28d9; }
-  .series-cell { display: flex; flex-direction: column; gap: 3px; }
-  .badge-series { display: inline-flex; align-items: center; gap: 3px; background: #ede9fe; color: #6d28d9; font-family: monospace; font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 700; width: fit-content; }
-  .badge-box    { display: inline-flex; align-items: center; gap: 3px; background: #eff6ff; color: #2563eb; font-family: monospace; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; width: fit-content; }
-  .doc-cell { display: flex; flex-direction: column; gap: 3px; }
-  .doc-sh  { font-family: monospace; font-size: 11px; font-weight: 700; color: #166534; background: #f0fdf4; padding: 2px 6px; border-radius: 4px; width: fit-content; }
-  .doc-inv { font-family: monospace; font-size: 11px; font-weight: 700; color: #9a3412; background: #fff7ed; padding: 2px 6px; border-radius: 4px; width: fit-content; }
-  .na { color: #cbd5e1; }
-  .qty-pill { display: inline-block; font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 20px; font-family: monospace; }
-  .qty-green { background: #dcfce7; color: #16a34a; }
-  .qty-blue  { background: #dbeafe; color: #1d4ed8; }
-  .qty-red   { background: #fee2e2; color: #dc2626; }
-  .price-col { font-weight: 700; color: #0f172a; white-space: nowrap; }
-  .operator-cell { display: flex; align-items: center; gap: 7px; font-size: 13px; color: #334155; }
-  .op-avatar { width: 26px; height: 26px; border-radius: 50%; background: #4f46e5; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; flex-shrink: 0; }
-  .icon-btn { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 8px; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; color: #64748b; }
-  .icon-btn.view:hover { background: #eef2ff; border-color: #4f46e5; color: #4f46e5; }
-  /* modal */
-  .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.55); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); padding: 16px; }
-  .modal-box { background: #fff; border-radius: 20px; width: 100%; max-width: 560px; box-shadow: 0 32px 80px rgba(0,0,0,0.2); animation: popIn 0.18s ease; max-height: 90vh; overflow-y: auto; }
-  @keyframes popIn { from { opacity: 0; transform: scale(0.94) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-  .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 22px 24px 0; position: sticky; top: 0; background: #fff; z-index: 1; }
-  .modal-header h2 { font-size: 17px; font-weight: 800; color: #0f172a; }
-  .modal-close { background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #64748b; }
-  .modal-close:hover { background: #e2e8f0; }
-  .form-body { padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 14px; }
-  .type-badge-large { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 10px; font-size: 14px; font-weight: 700; align-self: flex-start; }
-  .bg-green  { background: #dcfce7; color: #16a34a; }
-  .bg-blue   { background: #dbeafe; color: #1d4ed8; }
-  .bg-red    { background: #fee2e2; color: #dc2626; }
-  .bg-yellow { background: #fef9c3; color: #b45309; }
-  .date-inline { font-size: 12px; font-weight: 400; opacity: 0.7; margin-left: 4px; }
-  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .dg-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 9px; padding: 10px 12px; }
-  .dg-full { grid-column: 1 / -1; }
-  .dg-label { display: flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
-  .dg-val { font-size: 14px; font-weight: 600; color: #0f172a; }
-  .dg-total { font-size: 18px; font-weight: 800; color: #0f172a; }
-  .note-val { font-size: 13px; font-weight: 400; color: #475569; font-style: italic; }
-  .qty-pill { display: inline-block; font-size: 13px; font-weight: 700; padding: 2px 10px; border-radius: 20px; background: #f1f5f9; color: #334155; }
-  @media (max-width: 640px) {
-    .page { padding: 20px 14px; }
-    .summary-row { grid-template-columns: 1fr 1fr; }
-    .toolbar { flex-direction: column; }
-    .detail-grid { grid-template-columns: 1fr; }
-    .filter-tabs { overflow-x: auto; }
-  }
-`;

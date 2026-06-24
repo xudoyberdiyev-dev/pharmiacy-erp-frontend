@@ -1,18 +1,23 @@
-import { apiFetch } from "./axios";
+// src/api/customerApi.js
+import api from './axios'
 
 export const customersApi = {
-  getAll: (search) =>
-    apiFetch.get("/customers", {
-      params: search ? { search } : {},
-    }),
+  // GET /customers?search=&page=&limit=
+  getAll: (params = {}) =>
+    api.get('/customers', { params }),
 
-  getOne: (id) => apiFetch.get(`/customers/${id}`),
+  // GET /customers/:id
+  getOne: (id) => api.get(`/customers/${id}`),
 
-  getHistory: (id) => apiFetch.get(`/customers/${id}/history`),
+  // POST /customers
+  create: (body) => api.post('/customers', body),
 
-  create: (body) => apiFetch.post("/customers", body),
+  // PATCH /customers/:id
+  update: (id, body) => api.patch(`/customers/${id}`, body),
 
-  update: (id, body) => apiFetch.put(`/customers/${id}`, body),
+  // DELETE /customers/:id
+  remove: (id) => api.delete(`/customers/${id}`),
+}
 
-  remove: (id) => apiFetch.delete(`/customers/${id}`),
-};
+// backward compat export
+export const customerApi = customersApi
