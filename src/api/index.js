@@ -49,6 +49,7 @@ export const pickerAPI = {
   getAvailable: () => api.get('/picker/orders/available'),
   getMine: () => api.get('/picker/orders/mine'),
   getLate: (params) => api.get('/picker/orders/late', { params }),
+  getHistory: (params) => api.get('/picker/orders/late', { params }),
   getEtirozli: () => api.get('/picker/orders/etirozli'),
   getOrder: (id) => api.get(`/picker/orders/${id}`),
   accept: (id) => api.patch(`/picker/orders/${id}/accept`),
@@ -68,6 +69,16 @@ export const markerAPI = {
   }),
   completeNoFile: (id) => api.patch(`/marker/orders/${id}/complete`),
   raiseEtirov: (id, data) => api.post(`/marker/orders/${id}/etirov`, data),
+  getHistory: (params) => api.get('/marker/orders/history', { params }),
+};
+
+// ===== CHECKER =====
+export const checkerAPI = {
+  getAvailable: () => api.get('/checker/orders/available'),
+  getMine:      () => api.get('/checker/orders/mine'),
+  getHistory:   (params) => api.get('/checker/orders/history', { params }),
+  accept:       (id) => api.patch(`/checker/orders/${id}/accept`),
+  complete:     (id, data) => api.patch(`/checker/orders/${id}/complete`, data),
 };
 
 // ===== USERS =====

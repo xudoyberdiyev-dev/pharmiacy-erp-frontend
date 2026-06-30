@@ -27,7 +27,11 @@ import MarkerLayout from './components/layout/MarkerLayout';
 import MarkerAvailablePage from './pages/marker/MarkerAvailablePage';
 import MarkerMinePage from './pages/marker/MarkerMinePage';
 import MarkerEtirozliPage from './pages/marker/MarkerEtirozliPage';
-import CheckerPanel from './pages/checker/CheckerPanel';
+import MarkerHistoryPage from './pages/marker/MarkerHistoryPage';
+import CheckerLayout from './components/layout/CheckerLayout';
+import CheckerAvailablePage from './pages/checker/CheckerAvailablePage';
+import CheckerMinePage from './pages/checker/CheckerMinePage';
+import CheckerHistoryPage from './pages/checker/CheckerHistoryPage';
 import DriverPanel from './pages/driver/DriverPanel';
 import AccountantPanel from './pages/accountant/AccountantPanel';
 import SuperAdminStats from './pages/superadmin/SuperAdminStats';
@@ -110,9 +114,13 @@ function AppRoutes() {
       <Route path="/marker" element={<ProtectedRoute roles={['MARKER']}><MarkerLayout /></ProtectedRoute>}>
         <Route index element={<MarkerAvailablePage />} />
         <Route path="mine" element={<MarkerMinePage />} />
+        <Route path="history" element={<MarkerHistoryPage />} />
       </Route>
-      <Route path="/checker" element={<ProtectedRoute roles={['CHECKER']}><MainLayout /></ProtectedRoute>}>
-        <Route index element={<CheckerPanel />} />
+      {/* CHECKER */}
+      <Route path="/checker" element={<ProtectedRoute roles={['CHECKER']}><CheckerLayout /></ProtectedRoute>}>
+        <Route index element={<CheckerAvailablePage />} />
+        <Route path="mine" element={<CheckerMinePage />} />
+        <Route path="history" element={<CheckerHistoryPage />} />
       </Route>
       <Route path="/driver" element={<ProtectedRoute roles={['DRIVER']}><MainLayout /></ProtectedRoute>}>
         <Route index element={<DriverPanel />} />

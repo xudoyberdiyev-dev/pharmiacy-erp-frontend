@@ -37,6 +37,7 @@ const STATUS_CFG = {
   PICKING:    { label: 'Yig\'ilmoqda', color: '#2563EB', bg: '#EFF6FF', dot: '#3B82F6' },
   MARKING:    { label: 'Markalash',    color: '#7C3AED', bg: '#F5F3FF', dot: '#8B5CF6' },
   CHECKING:   { label: 'Tekshiruv',   color: '#D97706', bg: '#FFFBEB', dot: '#F59E0B' },
+  LOADING:    { label: 'Yuklanmoqda', color: '#0369A1', bg: '#F0F9FF', dot: '#0EA5E9' },
   IN_TRANSIT: { label: 'Yo\'lda',     color: '#EA580C', bg: '#FFF7ED', dot: '#F97316' },
   DELIVERED:  { label: 'Yetkazildi',  color: '#16A34A', bg: '#F0FDF4', dot: '#22C55E' },
 };
@@ -119,7 +120,7 @@ export default function OperatorDashboard() {
   const now         = new Date();
 
   const lateOrders = allOrders.filter(o => {
-    if (['DELIVERED', 'CANCELLED'].includes(o.status)) return false;
+    if (['DELIVERED', 'CANCELLED', 'LOADING', 'IN_TRANSIT'].includes(o.status)) return false;
     const d = ['NEW','PICKING'].includes(o.status) ? o.pickingDeadline
       : o.status === 'MARKING' ? o.markingDeadline : o.checkingDeadline;
     return d && new Date(d) < now;
@@ -201,9 +202,30 @@ export default function OperatorDashboard() {
           </button>
         </div>
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-          {Object.keys(STATUS_CFG).map(s => (
+          {['NEW','PICKING','MARKING','CHECKING'].map(s => (
             <StatusCard key={s} status={s} count={byStatus[s] || 0} onClick={() => navigate(`/operator/orders?status=${s}`)} />
           ))}
+          {/* LOADING + Yuklanmoqda combined card */}
+          <button
+            onClick={() => navigate('/operator/orders?status=LOADING')}
+            className="col-span-1 flex flex-col items-center gap-2 p-4 rounded-2xl bg-white border border-gray-100 hover:border-sky-200 hover:shadow-md transition-all duration-200 group"
+          >
+            <div className="relative w-14 h-14">
+              <svg viewBox="0 0 56 56" className="w-14 h-14 -rotate-90">
+                <circle cx="28" cy="28" r="22" fill="none" stroke="#F3F4F6" strokeWidth="5" />
+                <circle cx="28" cy="28" r="22" fill="none" stroke="#0EA5E9" strokeWidth="5"
+                  strokeDasharray={`${Math.min((byStatus.LOADING || 0) * 10, 138)} 138`}
+                  strokeLinecap="round" className="transition-all duration-700" />
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-lg font-black text-sky-600">{byStatus.LOADING || 0}</span>
+            </div>
+            <span className="text-[10px] font-semibold text-gray-500 text-center leading-tight group-hover:text-gray-700">
+              Yuklanmoqda<br />
+              <span className="text-gray-400">Hujjat tayyorlanmoqda</span>
+            </span>
+          </button>
+          <StatusCard status="IN_TRANSIT" count={byStatus.IN_TRANSIT || 0} onClick={() => navigate('/operator/orders?status=IN_TRANSIT')} />
+          <StatusCard status="DELIVERED"  count={byStatus.DELIVERED  || 0} onClick={() => navigate('/operator/orders?status=DELIVERED')}  />
         </div>
       </div>
 

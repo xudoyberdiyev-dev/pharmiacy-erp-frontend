@@ -6,8 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 
-const STATUSES = ['', 'NEW', 'PICKING', 'MARKING', 'CHECKING', 'IN_TRANSIT', 'DELIVERED'];
-const STATUS_LABELS = { '': 'Barchasi', NEW: 'Yangi', PICKING: 'Picking', MARKING: 'Marking', CHECKING: 'Cheking', IN_TRANSIT: "Yo'lda", DELIVERED: 'Yetkazildi' };
+const STATUSES = ['', 'NEW', 'PICKING', 'MARKING', 'CHECKING', 'LOADING', 'IN_TRANSIT', 'DELIVERED'];
+const STATUS_LABELS = { '': 'Barchasi', NEW: 'Yangi', PICKING: 'Picking', MARKING: 'Marking', CHECKING: 'Cheking', LOADING: 'Yuklanmoqda', IN_TRANSIT: "Yo'lda", DELIVERED: 'Yetkazildi' };
 
 export default function OrdersPage() {
   const navigate = useNavigate();

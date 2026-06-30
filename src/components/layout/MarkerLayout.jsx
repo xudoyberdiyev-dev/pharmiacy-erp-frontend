@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { markerAPI } from '../../api';
-import { Package, Zap, Activity, ChevronDown, LogOut } from 'lucide-react';
+import { Package, Zap, Clock, Activity, ChevronDown, LogOut } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 function Badge({ count, color = 'gray' }) {
@@ -45,8 +45,9 @@ export default function MarkerLayout() {
     select: r => r.data.data || [],
   });
   const NAV = [
-    { to: '/marker',      end: true,  label: 'Mavjud orderlar',   icon: Package, badge: available?.length || 0, badgeColor: 'purple' },
-    { to: '/marker/mine', end: false, label: 'Mening orderlarim', icon: Zap,     badge: mine?.length || 0,      badgeColor: 'green'  },
+    { to: '/marker',          end: true,  label: 'Mavjud orderlar',   icon: Package, badge: available?.length || 0, badgeColor: 'purple' },
+    { to: '/marker/mine',     end: false, label: 'Mening orderlarim', icon: Zap,     badge: mine?.length || 0,      badgeColor: 'green'  },
+    { to: '/marker/history',  end: false, label: 'Tarix',             icon: Clock,   badge: 0,                     badgeColor: 'purple' },
   ];
 
   const initials = user?.fullName?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || '?';

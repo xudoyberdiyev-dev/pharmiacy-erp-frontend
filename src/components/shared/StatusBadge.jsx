@@ -3,6 +3,7 @@ const STATUS_MAP = {
   PICKING:    { label: 'Picking',      cls: 'badge-picking' },
   MARKING:    { label: 'Marking',      cls: 'badge-marking' },
   CHECKING:   { label: 'Cheking',      cls: 'badge-checking' },
+  LOADING:    { label: 'Yuklanmoqda',   cls: 'badge-loading' },
   IN_TRANSIT: { label: "Yo'lda",       cls: 'badge-in_transit' },
   DELIVERED:  { label: 'Yetkazildi',   cls: 'badge-delivered' },
   CANCELLED:  { label: 'Bekor',        cls: 'badge-new' },

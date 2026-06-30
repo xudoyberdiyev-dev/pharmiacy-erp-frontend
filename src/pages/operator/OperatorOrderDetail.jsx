@@ -12,13 +12,14 @@ import {
 } from 'lucide-react';
 
 const STATUS_CFG = {
-  NEW:        { label: 'Yangi',         color: '#6B7280', bg: '#F3F4F6', dot: '#9CA3AF', border: '#E5E7EB' },
-  PICKING:    { label: 'Yig\'ilmoqda',  color: '#2563EB', bg: '#EFF6FF', dot: '#3B82F6', border: '#BFDBFE' },
-  MARKING:    { label: 'Markalash',     color: '#7C3AED', bg: '#F5F3FF', dot: '#8B5CF6', border: '#DDD6FE' },
-  CHECKING:   { label: 'Tekshiruv',    color: '#D97706', bg: '#FFFBEB', dot: '#F59E0B', border: '#FDE68A' },
-  IN_TRANSIT: { label: 'Yo\'lda',      color: '#EA580C', bg: '#FFF7ED', dot: '#F97316', border: '#FED7AA' },
-  DELIVERED:  { label: 'Yetkazildi',   color: '#16A34A', bg: '#F0FDF4', dot: '#22C55E', border: '#BBF7D0' },
-  CANCELLED:  { label: 'Bekor',        color: '#DC2626', bg: '#FEF2F2', dot: '#F87171', border: '#FECACA' },
+  NEW:        { label: 'Yangi',                color: '#6B7280', bg: '#F3F4F6', dot: '#9CA3AF', border: '#E5E7EB' },
+  PICKING:    { label: 'Yig\'ilmoqda',         color: '#2563EB', bg: '#EFF6FF', dot: '#3B82F6', border: '#BFDBFE' },
+  MARKING:    { label: 'Markalash',             color: '#7C3AED', bg: '#F5F3FF', dot: '#8B5CF6', border: '#DDD6FE' },
+  CHECKING:   { label: 'Tekshiruv',            color: '#D97706', bg: '#FFFBEB', dot: '#F59E0B', border: '#FDE68A' },
+  LOADING:    { label: 'Yuklanmoqda / Hujjat', color: '#0369A1', bg: '#F0F9FF', dot: '#0EA5E9', border: '#BAE6FD' },
+  IN_TRANSIT: { label: 'Yo\'lda',              color: '#EA580C', bg: '#FFF7ED', dot: '#F97316', border: '#FED7AA' },
+  DELIVERED:  { label: 'Yetkazildi',           color: '#16A34A', bg: '#F0FDF4', dot: '#22C55E', border: '#BBF7D0' },
+  CANCELLED:  { label: 'Bekor',                color: '#DC2626', bg: '#FEF2F2', dot: '#F87171', border: '#FECACA' },
 };
 
 function StatusBadge({ status, large }) {
