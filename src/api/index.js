@@ -93,7 +93,12 @@ export const userAPI = {
 
 // ===== VEHICLES =====
 export const vehicleAPI = {
-  getAll: () => api.get('/vehicles'),
+  getAll:       (params) => api.get('/vehicles', { params }),
+  getOne:       (id)     => api.get(`/vehicles/${id}`),
+  create:       (data)   => api.post('/vehicles', data),
+  update:       (id, data) => api.put(`/vehicles/${id}`, data),
+  toggleActive: (id)     => api.patch(`/vehicles/${id}/toggle`),
+  remove:       (id)     => api.delete(`/vehicles/${id}`),
 };
 
 // ===== STATS =====

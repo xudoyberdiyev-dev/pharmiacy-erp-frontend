@@ -13,6 +13,7 @@ import CreateOrderPage from './pages/admin/CreateOrderPage';
 import OrderDetailPage from './pages/admin/OrderDetailPage';
 import DocumentPanel from './pages/admin/DocumentPanel';
 import UsersPage from './pages/admin/UsersPage';
+import VehiclesPage from './pages/admin/VehiclesPage';
 import OperatorDashboard from './pages/operator/OperatorDashboard';
 import OperatorOrdersPage from './pages/operator/OperatorOrdersPage';
 import OperatorCreateOrder from './pages/operator/OperatorCreateOrder';
@@ -89,6 +90,7 @@ function AppRoutes() {
         <Route path="orders" element={<OrdersPage />} />
         <Route path="orders/new" element={<CreateOrderPage />} />
         <Route path="orders/:id" element={<OrderDetailPage />} />
+        <Route path="vehicles" element={<VehiclesPage />} />
         <Route path="document" element={<DocumentPanel />} />
         <Route path="users" element={<UsersPage />} />
       </Route>

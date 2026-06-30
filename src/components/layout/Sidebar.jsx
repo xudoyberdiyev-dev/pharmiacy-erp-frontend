@@ -7,11 +7,12 @@ import {
 
 const ROLE_MENUS = {
   ADMIN: [
-    { to: '/admin', icon: LayoutDashboard, label: 'Bosh sahifa' },
-    { to: '/admin/clients', icon: Users, label: 'Klientlar' },
-    { to: '/admin/orders', icon: Package, label: 'Orderlar' },
-    { to: '/admin/document', icon: FileText, label: 'Document' },
-    { to: '/admin/users', icon: Users, label: 'Xodimlar' },
+    { to: '/admin',          icon: LayoutDashboard, label: 'Bosh sahifa' },
+    { to: '/admin/clients',  icon: Users,            label: 'Klientlar'   },
+    { to: '/admin/orders',   icon: Package,          label: 'Orderlar'    },
+    { to: '/admin/vehicles', icon: Truck,            label: 'Mashinalar'  },
+    { to: '/admin/document', icon: FileText,         label: 'Document'    },
+    { to: '/admin/users',    icon: Users,            label: 'Xodimlar'    },
   ],
   OPERATOR: [
     { to: '/operator', icon: LayoutDashboard, label: 'Bosh sahifa' },
