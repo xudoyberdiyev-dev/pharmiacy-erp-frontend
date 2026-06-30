@@ -23,7 +23,10 @@ import PickerAvailablePage from './pages/picker/PickerAvailablePage';
 import PickerMinePage from './pages/picker/PickerMinePage';
 import PickerLatePage from './pages/picker/PickerLatePage';
 import PickerEtirozliPage from './pages/picker/PickerEtirozliPage';
-import MarkerPanel from './pages/marker/MarkerPanel';
+import MarkerLayout from './components/layout/MarkerLayout';
+import MarkerAvailablePage from './pages/marker/MarkerAvailablePage';
+import MarkerMinePage from './pages/marker/MarkerMinePage';
+import MarkerEtirozliPage from './pages/marker/MarkerEtirozliPage';
 import CheckerPanel from './pages/checker/CheckerPanel';
 import DriverPanel from './pages/driver/DriverPanel';
 import AccountantPanel from './pages/accountant/AccountantPanel';
@@ -103,8 +106,10 @@ function AppRoutes() {
         <Route path="late" element={<PickerLatePage />} />
         <Route path="etirozli" element={<PickerEtirozliPage />} />
       </Route>
-      <Route path="/marker" element={<ProtectedRoute roles={['MARKER']}><MainLayout /></ProtectedRoute>}>
-        <Route index element={<MarkerPanel />} />
+      {/* MARKER */}
+      <Route path="/marker" element={<ProtectedRoute roles={['MARKER']}><MarkerLayout /></ProtectedRoute>}>
+        <Route index element={<MarkerAvailablePage />} />
+        <Route path="mine" element={<MarkerMinePage />} />
       </Route>
       <Route path="/checker" element={<ProtectedRoute roles={['CHECKER']}><MainLayout /></ProtectedRoute>}>
         <Route index element={<CheckerPanel />} />

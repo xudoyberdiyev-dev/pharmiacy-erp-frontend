@@ -53,6 +53,21 @@ export const pickerAPI = {
   getOrder: (id) => api.get(`/picker/orders/${id}`),
   accept: (id) => api.patch(`/picker/orders/${id}/accept`),
   complete: (id) => api.patch(`/picker/orders/${id}/complete`),
+  acceptEtirov: (etirovId) => api.patch(`/picker/etirozlar/${etirovId}/accept`),
+  rejectEtirov: (etirovId, data) => api.patch(`/picker/etirozlar/${etirovId}/reject`, data),
+};
+
+// ===== MARKER =====
+export const markerAPI = {
+  getAvailable: () => api.get('/marker/orders/available'),
+  getMine: () => api.get('/marker/orders/mine'),
+  getEtirozli: () => api.get('/marker/orders/etirozli'),
+  accept: (id) => api.patch(`/marker/orders/${id}/accept`),
+  complete: (id, formData) => api.patch(`/marker/orders/${id}/complete`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  completeNoFile: (id) => api.patch(`/marker/orders/${id}/complete`),
+  raiseEtirov: (id, data) => api.post(`/marker/orders/${id}/etirov`, data),
 };
 
 // ===== USERS =====
