@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 import MainLayout from './components/layout/MainLayout';
+import OperatorLayout from './components/layout/OperatorLayout';
 import LoginPage from './pages/auth/LoginPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import ClientsPage from './pages/admin/ClientsPage';
@@ -12,7 +13,11 @@ import CreateOrderPage from './pages/admin/CreateOrderPage';
 import OrderDetailPage from './pages/admin/OrderDetailPage';
 import DocumentPanel from './pages/admin/DocumentPanel';
 import UsersPage from './pages/admin/UsersPage';
-import OperatorPanel from './pages/operator/OperatorPanel';
+import OperatorDashboard from './pages/operator/OperatorDashboard';
+import OperatorOrdersPage from './pages/operator/OperatorOrdersPage';
+import OperatorCreateOrder from './pages/operator/OperatorCreateOrder';
+import OperatorOrderDetail from './pages/operator/OperatorOrderDetail';
+import OperatorProfile from './pages/operator/OperatorProfile';
 import PickerPanel from './pages/picker/PickerPanel';
 import MarkerPanel from './pages/marker/MarkerPanel';
 import CheckerPanel from './pages/checker/CheckerPanel';
@@ -78,12 +83,13 @@ function AppRoutes() {
       </Route>
 
       {/* OPERATOR */}
-      <Route path="/operator" element={<ProtectedRoute roles={['OPERATOR']}><MainLayout /></ProtectedRoute>}>
-        <Route index element={<OperatorPanel />} />
-        <Route path="orders" element={<OrdersPage />} />
-        <Route path="orders/new" element={<CreateOrderPage />} />
-        <Route path="orders/:id" element={<OrderDetailPage />} />
+      <Route path="/operator" element={<ProtectedRoute roles={['OPERATOR']}><OperatorLayout /></ProtectedRoute>}>
+        <Route index element={<OperatorDashboard />} />
+        <Route path="orders" element={<OperatorOrdersPage />} />
+        <Route path="orders/new" element={<OperatorCreateOrder />} />
+        <Route path="orders/:id" element={<OperatorOrderDetail />} />
         <Route path="clients" element={<ClientsPage />} />
+        <Route path="profile" element={<OperatorProfile />} />
       </Route>
 
       {/* WORKER PANELS */}
