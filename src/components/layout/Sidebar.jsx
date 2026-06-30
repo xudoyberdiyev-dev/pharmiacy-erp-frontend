@@ -13,6 +13,12 @@ const ROLE_MENUS = {
     { to: '/admin/document', icon: FileText, label: 'Document' },
     { to: '/admin/users', icon: Users, label: 'Xodimlar' },
   ],
+  OPERATOR: [
+    { to: '/operator', icon: LayoutDashboard, label: 'Bosh sahifa' },
+    { to: '/operator/clients', icon: Users, label: 'Klientlar' },
+    { to: '/operator/orders', icon: Package, label: 'Orderlar' },
+    { to: '/operator/orders/new', icon: ClipboardList, label: 'Yangi order' },
+  ],
   PICKER: [
     { to: '/picker', icon: ClipboardList, label: 'Picking panel' },
   ],
@@ -37,6 +43,7 @@ const ROLE_MENUS = {
 
 const ROLE_LABELS = {
   ADMIN: 'Admin',
+  OPERATOR: 'Operator',
   PICKER: 'Picker',
   MARKER: 'Marker',
   CHECKER: 'Checker',

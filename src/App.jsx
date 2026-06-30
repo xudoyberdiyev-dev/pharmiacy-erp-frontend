@@ -12,6 +12,7 @@ import CreateOrderPage from './pages/admin/CreateOrderPage';
 import OrderDetailPage from './pages/admin/OrderDetailPage';
 import DocumentPanel from './pages/admin/DocumentPanel';
 import UsersPage from './pages/admin/UsersPage';
+import OperatorPanel from './pages/operator/OperatorPanel';
 import PickerPanel from './pages/picker/PickerPanel';
 import MarkerPanel from './pages/marker/MarkerPanel';
 import CheckerPanel from './pages/checker/CheckerPanel';
@@ -52,8 +53,10 @@ function ProtectedRoute({ children, roles }) {
 }
 
 const ROOT_REDIRECTS = {
-  ADMIN: '/admin', PICKER: '/picker', MARKER: '/marker',
-  CHECKER: '/checker', DRIVER: '/driver', ACCOUNTANT: '/accountant', SUPER_ADMIN: '/superadmin',
+  ADMIN: '/admin', SUPER_ADMIN: '/admin',
+  OPERATOR: '/operator',
+  PICKER: '/picker', MARKER: '/marker',
+  CHECKER: '/checker', DRIVER: '/driver', ACCOUNTANT: '/accountant',
 };
 
 function AppRoutes() {
@@ -72,6 +75,15 @@ function AppRoutes() {
         <Route path="orders/:id" element={<OrderDetailPage />} />
         <Route path="document" element={<DocumentPanel />} />
         <Route path="users" element={<UsersPage />} />
+      </Route>
+
+      {/* OPERATOR */}
+      <Route path="/operator" element={<ProtectedRoute roles={['OPERATOR']}><MainLayout /></ProtectedRoute>}>
+        <Route index element={<OperatorPanel />} />
+        <Route path="orders" element={<OrdersPage />} />
+        <Route path="orders/new" element={<CreateOrderPage />} />
+        <Route path="orders/:id" element={<OrderDetailPage />} />
+        <Route path="clients" element={<ClientsPage />} />
       </Route>
 
       {/* WORKER PANELS */}

@@ -11,6 +11,7 @@ import {
 
 const ROLE_REDIRECTS = {
   ADMIN: '/admin', SUPER_ADMIN: '/admin',
+  OPERATOR: '/operator',
   PICKER: '/picker', MARKER: '/marker',
   CHECKER: '/checker', DRIVER: '/driver', ACCOUNTANT: '/accountant',
 };
@@ -462,7 +463,7 @@ export default function LoginPage() {
             QR skaner bilan: Picker · Marker · Checker
           </p>
           <p className="text-xs" style={{ color: 'rgba(148,187,255,0.22)' }}>
-            Parol bilan: Admin · Haydovchi · Bugalter · Super Admin
+            Parol bilan: Admin · Operator · Haydovchi · Bugalter
           </p>
         </div>
       </div>

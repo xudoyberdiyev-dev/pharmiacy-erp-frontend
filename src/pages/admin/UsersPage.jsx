@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { Plus, UserCheck, UserX, RefreshCw, X, QrCode } from 'lucide-react';
 
 const ROLES = [
+  { value: 'OPERATOR', label: 'Operator' },
   { value: 'PICKER', label: 'Picker' },
   { value: 'MARKER', label: 'Marker' },
   { value: 'CHECKER', label: 'Checker' },
@@ -14,6 +15,7 @@ const ROLES = [
 ];
 
 const ROLE_COLORS = {
+  OPERATOR: 'bg-cyan-100 text-cyan-700',
   PICKER: 'bg-blue-100 text-blue-700',
   MARKER: 'bg-purple-100 text-purple-700',
   CHECKER: 'bg-amber-100 text-amber-700',
