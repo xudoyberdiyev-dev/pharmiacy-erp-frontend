@@ -23,6 +23,10 @@ export const orderAPI = {
   create: (formData) => api.post('/orders', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+  update: (id, formData) => api.put(`/orders/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  cancel: (id, reason) => api.patch(`/orders/${id}/cancel`, { reason }),
   startPicking: (id) => api.patch(`/orders/${id}/start-picking`),
   completePicking: (id) => api.patch(`/orders/${id}/complete-picking`),
   completeMarking: (id, formData) => api.patch(`/orders/${id}/complete-marking`, formData, {
@@ -37,6 +41,18 @@ export const orderAPI = {
   adminConfirm: (id) => api.patch(`/orders/${id}/admin-confirm`),
   accountantConfirm: (id, step) => api.patch(`/orders/${id}/accountant-confirm`, { step }),
   updateLocation: (data) => api.post('/orders/location', data),
+};
+
+// ===== PICKER =====
+export const pickerAPI = {
+  getStats: () => api.get('/picker/stats'),
+  getAvailable: () => api.get('/picker/orders/available'),
+  getMine: () => api.get('/picker/orders/mine'),
+  getLate: (params) => api.get('/picker/orders/late', { params }),
+  getEtirozli: () => api.get('/picker/orders/etirozli'),
+  getOrder: (id) => api.get(`/picker/orders/${id}`),
+  accept: (id) => api.patch(`/picker/orders/${id}/accept`),
+  complete: (id) => api.patch(`/picker/orders/${id}/complete`),
 };
 
 // ===== USERS =====
