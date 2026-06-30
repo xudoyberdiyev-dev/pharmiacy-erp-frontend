@@ -1,68 +1,119 @@
-import { Route, Routes, Navigate } from "react-router-dom";
-import MainLayout from "./layout/MainLayout";
-import { Dashboard } from "./pages/Dashboard";
-import { AuthProvider } from "./layout/AuthProvider";
-import AdminLogin from "./pages/AdminLogin";
-import EmployeeLogin from "./pages/EmployeeLogin";
-import ProtectedRoute from "./layout/ProtectedRoute";
-import { Batch } from "./pages/Batch";
-import { Contract } from "./pages/Contract";
-import { Markirovka } from "./pages/Marcerofka";
-import { History } from "./pages/History";
-import { Excelimport } from "./pages/Excelimport";
-import { Customer } from "./pages/Customer";
-import { Employee } from "./pages/Emplouees";
-import { Product } from "./pages/product/Product";
-import  Sales  from "./pages/Sales";
-function App() {
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'react-hot-toast';
+import { AuthProvider, useAuth } from './context/AuthContext';
+
+import MainLayout from './components/layout/MainLayout';
+import LoginPage from './pages/auth/LoginPage';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import ClientsPage from './pages/admin/ClientsPage';
+import OrdersPage from './pages/admin/OrdersPage';
+import CreateOrderPage from './pages/admin/CreateOrderPage';
+import OrderDetailPage from './pages/admin/OrderDetailPage';
+import DocumentPanel from './pages/admin/DocumentPanel';
+import UsersPage from './pages/admin/UsersPage';
+import PickerPanel from './pages/picker/PickerPanel';
+import MarkerPanel from './pages/marker/MarkerPanel';
+import CheckerPanel from './pages/checker/CheckerPanel';
+import DriverPanel from './pages/driver/DriverPanel';
+import AccountantPanel from './pages/accountant/AccountantPanel';
+import SuperAdminStats from './pages/superadmin/SuperAdminStats';
+import SuperAdminMonitoring from './pages/superadmin/SuperAdminMonitoring';
+import SuperAdminActivity from './pages/superadmin/SuperAdminActivity';
+
+const qc = new QueryClient({
+  defaultOptions: { queries: { retry: 1, staleTime: 30000 } }
+});
+
+function ProtectedRoute({ children, roles }) {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-gray-400 text-sm">Yuklanmoqda...</div>
+    </div>
+  );
+
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
+
+  if (roles && !roles.includes(user.role)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Ruxsat yo'q</h2>
+          <p className="text-gray-500 text-sm">Bu sahifaga kirishga vakolatingiz yo'q</p>
+        </div>
+      </div>
+    );
+  }
+
+  return children;
+}
+
+const ROOT_REDIRECTS = {
+  ADMIN: '/admin', PICKER: '/picker', MARKER: '/marker',
+  CHECKER: '/checker', DRIVER: '/driver', ACCOUNTANT: '/accountant', SUPER_ADMIN: '/superadmin',
+};
+
+function AppRoutes() {
+  const { user } = useAuth();
   return (
-    <AuthProvider>
-      <Routes>
-        {/* Public auth routes */}
-        <Route path="/admin-login" element={<AdminLogin />} />
-        <Route path="/employee-login" element={<EmployeeLogin />} />
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/" element={user ? <Navigate to={ROOT_REDIRECTS[user.role] || '/login'} replace /> : <Navigate to="/login" replace />} />
 
-        {/* Umumiy panel — admin ham, xodim ham shu yerga kiradi */}
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute allowedRoles={["admin", "employee"]}>
-              <MainLayout />
-            </ProtectedRoute>
-          }
-        
-        >
-          <Route index element={<Dashboard />} />
-          <Route path="products" element={<Product/>} />
-          <Route path="batches" element={<Batch />} />
-          <Route path="customers" element={<Customer />} />
-          <Route path="sales" element={<Sales />} />
-          <Route
-            path="employees"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <Employee />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="contract" element={<Contract />} />
-          <Route path="marking" element={<Markirovka />} />
-          <Route
-            path="history"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <History />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="import" element={<Excelimport />} />
-        </Route>
+      {/* ADMIN */}
+      <Route path="/admin" element={<ProtectedRoute roles={['ADMIN', 'SUPER_ADMIN']}><MainLayout /></ProtectedRoute>}>
+        <Route index element={<AdminDashboard />} />
+        <Route path="clients" element={<ClientsPage />} />
+        <Route path="orders" element={<OrdersPage />} />
+        <Route path="orders/new" element={<CreateOrderPage />} />
+        <Route path="orders/:id" element={<OrderDetailPage />} />
+        <Route path="document" element={<DocumentPanel />} />
+        <Route path="users" element={<UsersPage />} />
+      </Route>
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </AuthProvider>
+      {/* WORKER PANELS */}
+      <Route path="/picker" element={<ProtectedRoute roles={['PICKER']}><MainLayout /></ProtectedRoute>}>
+        <Route index element={<PickerPanel />} />
+      </Route>
+      <Route path="/marker" element={<ProtectedRoute roles={['MARKER']}><MainLayout /></ProtectedRoute>}>
+        <Route index element={<MarkerPanel />} />
+      </Route>
+      <Route path="/checker" element={<ProtectedRoute roles={['CHECKER']}><MainLayout /></ProtectedRoute>}>
+        <Route index element={<CheckerPanel />} />
+      </Route>
+      <Route path="/driver" element={<ProtectedRoute roles={['DRIVER']}><MainLayout /></ProtectedRoute>}>
+        <Route index element={<DriverPanel />} />
+      </Route>
+
+      {/* ACCOUNTANT */}
+      <Route path="/accountant" element={<ProtectedRoute roles={['ACCOUNTANT']}><MainLayout /></ProtectedRoute>}>
+        <Route index element={<AccountantPanel />} />
+      </Route>
+
+      {/* SUPER ADMIN */}
+      <Route path="/superadmin" element={<ProtectedRoute roles={['SUPER_ADMIN']}><MainLayout /></ProtectedRoute>}>
+        <Route index element={<SuperAdminStats />} />
+        <Route path="monitoring" element={<SuperAdminMonitoring />} />
+        <Route path="activity" element={<SuperAdminActivity />} />
+      </Route>
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <QueryClientProvider client={qc}>
+      <BrowserRouter>
+        <AuthProvider>
+          <AppRoutes />
+          <Toaster position="top-right" toastOptions={{ duration: 3000, style: { borderRadius: '12px', fontSize: '14px' } }} />
+        </AuthProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
+  );
+}

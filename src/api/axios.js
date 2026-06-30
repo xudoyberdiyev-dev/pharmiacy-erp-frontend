@@ -1,57 +1,27 @@
-import axios from "axios";
-
-const BASE_URL = "http://localhost:3000/api/v1";
-
+import axios from 'axios';
 
 const api = axios.create({
-  baseURL: BASE_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  timeout: 15000,
 });
 
-// Har bir request oldidan token qo'shadi
+// Request — tokenni qo'shish
 api.interceptors.request.use((config) => {
-  if (config.auth === false) {
-    return config;
-  }
-
-  const token = localStorage.getItem("token");
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
+  const token = localStorage.getItem('erp_token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
-// Response xatolarini ushlaydi
+
+// Response — 401 bo'lsa logout
 api.interceptors.response.use(
-  (response) => {
-    if (response.data?.success === false) {
-      return Promise.reject(
-        new Error(response.data.message || "Xatolik yuz berdi")
-      );
-    }
-
-    return response.data?.data ?? response.data;
-  },
+  (res) => res,
   (error) => {
-    if (!error.response) {
-      return Promise.reject(
-        new Error(
-          "Serverga ulanib bo'lmadi. Internetni yoki backendni tekshiring."
-        )
-      );
+    if (error.response?.status === 401) {
+      localStorage.removeItem('erp_token');
+      localStorage.removeItem('erp_user');
+      window.location.href = '/login';
     }
-
-    const err = new Error(
-      error.response.data?.message ||
-        `Xatolik yuz berdi (${error.response.status})`
-    );
-
-    err.status = error.response.status;
-
-    return Promise.reject(err);
+    return Promise.reject(error);
   }
 );
 
