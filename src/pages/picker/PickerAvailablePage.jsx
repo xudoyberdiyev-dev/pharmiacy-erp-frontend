@@ -1,66 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { pickerAPI } from '../../api';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import {
-  Package, FileSpreadsheet, Clock, Check, Building2,
-  Hash, RefreshCw, ChevronRight, AlertTriangle, Zap
+  Package, FileSpreadsheet, Clock, Check,
+  RefreshCw, AlertTriangle, Zap
 } from 'lucide-react';
 
-// ── urgency from deadline ──────────────────────────────────────────────────
-function getUrgency(deadline) {
-  if (!deadline) return 'normal';
-  const rem = new Date(deadline) - new Date();
-  if (rem <= 0)            return 'overdue';
-  if (rem < 10 * 60000)   return 'critical';
-  if (rem < 30 * 60000)   return 'warning';
-  return 'normal';
+function getUrgency(urgency) {
+  return urgency || 'normal';
 }
 
 const URGENCY_STYLE = {
-  normal:   { card: 'border-gray-100',         badge: null,                                  glow: '' },
-  warning:  { card: 'border-amber-300',         badge: 'bg-amber-50 text-amber-700 border-amber-300', glow: 'shadow-amber-100' },
-  critical: { card: 'border-red-400 animate-pulse-border', badge: 'bg-red-50 text-red-600 border-red-300', glow: 'shadow-red-100' },
-  overdue:  { card: 'border-red-500',           badge: 'bg-red-600 text-white border-red-600', glow: 'shadow-red-200' },
+  normal:   { card: 'border-gray-100',  badge: null,                                           glow: '' },
+  warning:  { card: 'border-amber-300', badge: 'bg-amber-50 text-amber-700 border-amber-300',  glow: 'shadow-amber-100' },
+  critical: { card: 'border-red-400',   badge: 'bg-red-50 text-red-600 border-red-300',        glow: 'shadow-red-100' },
+  overdue:  { card: 'border-red-500',   badge: 'bg-red-600 text-white border-red-600',         glow: 'shadow-red-200' },
+  done:     { card: 'border-gray-100',  badge: null,                                           glow: '' },
 };
-
-// ── Remaining time display ────────────────────────────────────────────────
-function RemainingTime({ deadline }) {
-  const [rem, setRem] = useState(calcRem(deadline));
-  useEffect(() => {
-    const t = setInterval(() => setRem(calcRem(deadline)), 1000);
-    return () => clearInterval(t);
-  }, [deadline]);
-
-  if (!deadline) return <span className="text-gray-400 text-xs">—</span>;
-  const { overdue, h, m, s } = rem;
-  return (
-    <span className={`font-mono text-sm font-black ${
-      overdue ? 'text-red-600' : rem.total < 10 * 60 ? 'text-red-500' : rem.total < 30 * 60 ? 'text-amber-500' : 'text-teal-600'
-    }`}>
-      {overdue ? '+' : ''}{h > 0 ? `${h}:` : ''}{String(m).padStart(2,'0')}:{String(s).padStart(2,'0')}
-    </span>
-  );
-}
-
-function calcRem(deadline) {
-  const diff = new Date(deadline) - new Date();
-  const abs  = Math.abs(diff);
-  const total = Math.floor(abs / 1000);
-  return {
-    overdue: diff < 0,
-    total,
-    h: Math.floor(abs / 3600000),
-    m: Math.floor((abs % 3600000) / 60000),
-    s: Math.floor((abs % 60000) / 1000),
-  };
-}
 
 // ── Order card ───────────────────────────────────────────────────────────
 function OrderCard({ order, onAccepted }) {
-  const urgency = getUrgency(order.pickingDeadline);
-  const style   = URGENCY_STYLE[urgency];
+  const urgency = getUrgency(order.urgency);
+  const style   = URGENCY_STYLE[urgency] || URGENCY_STYLE.normal;
   const dur     = order.pickingDuration;
   const h       = Math.floor(dur / 60), m = dur % 60;
 
@@ -84,7 +47,7 @@ function OrderCard({ order, onAccepted }) {
             <p className="font-mono text-base font-black text-gray-900 tracking-tight">#{order.orderNumber?.slice(-8)}</p>
             <p className="text-xs text-gray-400 font-medium mt-0.5">{format(new Date(order.createdAt), 'dd.MM.yyyy HH:mm')}</p>
           </div>
-          {urgency !== 'normal' && (
+          {urgency !== 'normal' && style.badge && (
             <span className={`text-[10px] font-black px-2 py-1 rounded-lg border ${style.badge}`}>
               {urgency === 'overdue' ? 'MUDDATI O\'TDI' : urgency === 'critical' ? 'SHOSHILINCH' : 'TEZKOR'}
             </span>
@@ -116,23 +79,18 @@ function OrderCard({ order, onAccepted }) {
           ))}
         </div>
 
-        {/* Time info */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <div className="w-6 h-6 rounded-md bg-blue-50 flex items-center justify-center">
-              <Clock size={12} className="text-blue-500" />
-            </div>
-            <div>
-              <p className="text-[10px] text-gray-400 font-medium">Berilgan vaqt</p>
-              <p className="text-xs font-black text-gray-800">
-                {h > 0 ? `${h}h ` : ''}{m > 0 ? `${m} daq` : `${h} soat`}
-              </p>
-            </div>
+        {/* Berilgan vaqt — faqat, live countdown yo'q */}
+        <div className="flex items-center gap-1.5 p-2.5 bg-teal-50 rounded-xl">
+          <div className="w-6 h-6 rounded-md bg-teal-100 flex items-center justify-center shrink-0">
+            <Clock size={12} className="text-teal-600" />
           </div>
-          <div className="text-right">
-            <p className="text-[10px] text-gray-400 font-medium">Qolgan vaqt</p>
-            <RemainingTime deadline={order.pickingDeadline} />
+          <div>
+            <p className="text-[10px] text-gray-400 font-medium">Berilgan vaqt</p>
+            <p className="text-sm font-black text-teal-700">
+              {h > 0 ? `${h} soat ` : ''}{m > 0 ? `${m} daqiqa` : ''}
+            </p>
           </div>
+          <p className="ml-auto text-[11px] text-gray-400 font-medium">Qabul qilgandan boshlanadi</p>
         </div>
       </div>
 
@@ -184,9 +142,10 @@ export default function PickerAvailablePage() {
     qc.invalidateQueries(['picker-available']);
   };
 
-  // urgency counts
+  // urgency counts (server-side urgency field)
   const urgencyCounts = visible.reduce((acc, o) => {
-    acc[getUrgency(o.pickingDeadline)] = (acc[getUrgency(o.pickingDeadline)] || 0) + 1;
+    const u = o.urgency || 'normal';
+    acc[u] = (acc[u] || 0) + 1;
     return acc;
   }, {});
 
