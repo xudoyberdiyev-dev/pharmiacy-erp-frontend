@@ -18,7 +18,11 @@ import OperatorOrdersPage from './pages/operator/OperatorOrdersPage';
 import OperatorCreateOrder from './pages/operator/OperatorCreateOrder';
 import OperatorOrderDetail from './pages/operator/OperatorOrderDetail';
 import OperatorProfile from './pages/operator/OperatorProfile';
-import PickerPanel from './pages/picker/PickerPanel';
+import PickerLayout from './components/layout/PickerLayout';
+import PickerAvailablePage from './pages/picker/PickerAvailablePage';
+import PickerMinePage from './pages/picker/PickerMinePage';
+import PickerLatePage from './pages/picker/PickerLatePage';
+import PickerEtirozliPage from './pages/picker/PickerEtirozliPage';
 import MarkerPanel from './pages/marker/MarkerPanel';
 import CheckerPanel from './pages/checker/CheckerPanel';
 import DriverPanel from './pages/driver/DriverPanel';
@@ -92,9 +96,12 @@ function AppRoutes() {
         <Route path="profile" element={<OperatorProfile />} />
       </Route>
 
-      {/* WORKER PANELS */}
-      <Route path="/picker" element={<ProtectedRoute roles={['PICKER']}><MainLayout /></ProtectedRoute>}>
-        <Route index element={<PickerPanel />} />
+      {/* PICKER */}
+      <Route path="/picker" element={<ProtectedRoute roles={['PICKER']}><PickerLayout /></ProtectedRoute>}>
+        <Route index element={<PickerAvailablePage />} />
+        <Route path="mine" element={<PickerMinePage />} />
+        <Route path="late" element={<PickerLatePage />} />
+        <Route path="etirozli" element={<PickerEtirozliPage />} />
       </Route>
       <Route path="/marker" element={<ProtectedRoute roles={['MARKER']}><MainLayout /></ProtectedRoute>}>
         <Route index element={<MarkerPanel />} />
