@@ -1,73 +1,150 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { documentAPI } from '../../api';
-import { Truck, User2, FileCheck2 } from 'lucide-react';
 import { format } from 'date-fns';
+import {
+  Truck, Search, X, RefreshCw, Building2, User2,
+  FileCheck2, Clock, MapPin
+} from 'lucide-react';
+
+function EmptyState() {
+  return (
+    <div className="py-20 text-center">
+      <div className="w-16 h-16 mx-auto bg-orange-50 rounded-2xl flex items-center justify-center mb-4">
+        <Truck size={28} className="text-orange-200" />
+      </div>
+      <p className="text-gray-400 text-sm font-medium">Safarga tayyorlangan order yo'q</p>
+      <p className="text-gray-300 text-xs mt-1">"Hujjatlashtirilgan" bo'limidan safarga chiqaring</p>
+    </div>
+  );
+}
+
+function OrderRow({ o }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow p-4 flex items-center gap-4">
+      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center shrink-0">
+        <Building2 size={16} className="text-orange-600" />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-mono text-sm font-black text-gray-900">{o.invoiceNumber}</span>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+            <FileCheck2 size={10} /> № {o.dispatchDocument?.documentNumber ?? '—'}
+          </span>
+        </div>
+        <p className="text-sm text-gray-500 truncate mt-0.5">{o.client?.orgName}</p>
+        {o.client?.address && (
+          <p className="text-[11px] text-gray-400 truncate flex items-center gap-1 mt-0.5">
+            <MapPin size={10} /> {o.client.address}
+          </p>
+        )}
+      </div>
+
+      <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-sky-50 rounded-xl border border-sky-100 shrink-0">
+        <User2 size={13} className="text-sky-600" />
+        <div className="min-w-0">
+          <p className="text-[9px] text-sky-400 font-bold uppercase tracking-wider">Haydovchi</p>
+          <p className="text-xs font-bold text-sky-800 truncate max-w-[120px]">{o.driver?.fullName}</p>
+        </div>
+      </div>
+
+      <div className="hidden md:flex items-center gap-2 px-3 py-2 bg-violet-50 rounded-xl border border-violet-100 shrink-0">
+        <Truck size={13} className="text-violet-600" />
+        <div className="min-w-0">
+          <p className="text-[9px] text-violet-400 font-bold uppercase tracking-wider">Mashina</p>
+          <p className="text-xs font-bold text-violet-800 truncate max-w-[130px]">{o.vehicle?.model} · {o.vehicle?.plateNumber}</p>
+        </div>
+      </div>
+
+      <div className="hidden lg:flex items-center gap-1.5 text-gray-400 shrink-0">
+        <Clock size={12} />
+        <span className="text-xs font-medium whitespace-nowrap">
+          {o.dispatchedAt ? format(new Date(o.dispatchedAt), 'dd.MM HH:mm') : '—'}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 export default function DocumentReadyPage() {
-  const { data: ordersData, isLoading } = useQuery({
+  const qc = useQueryClient();
+  const [search, setSearch] = useState('');
+
+  const { data: orders = [], isLoading, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ['document', 'ready'],
     queryFn: () => documentAPI.getReady(),
-    select: r => r.data.data,
+    select: r => r.data.data || [],
     refetchInterval: 15000,
   });
 
-  const orders = ordersData || [];
+  const filtered = orders.filter(o => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return o.invoiceNumber?.toLowerCase().includes(q)
+      || o.client?.orgName?.toLowerCase().includes(q)
+      || o.driver?.fullName?.toLowerCase().includes(q)
+      || o.vehicle?.plateNumber?.toLowerCase().includes(q);
+  });
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Safarga tayyor orderlar</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Haydovchi va mashinaga biriktirilgan, yo'lda</p>
+    <div className="space-y-5 pb-8">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-orange-100 flex items-center justify-center">
+              <Truck size={16} className="text-orange-600" />
+            </div>
+            Safarga tayyor orderlar
+          </h1>
+          <p className="text-sm text-gray-400 mt-0.5 ml-10 font-medium">
+            {filtered.length} ta order yo'lda · {dataUpdatedAt ? format(new Date(dataUpdatedAt), 'HH:mm:ss') : '—'}
+          </p>
+        </div>
+        <button
+          onClick={() => qc.invalidateQueries(['document', 'ready'])}
+          className={`w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:text-orange-600 hover:border-orange-300 transition-colors ${isFetching ? 'animate-spin text-orange-500' : ''}`}
+        >
+          <RefreshCw size={15} />
+        </button>
       </div>
 
-      <div className="card p-0 overflow-hidden">
-        {isLoading ? (
-          <div className="text-center py-12 text-gray-400">Yuklanmoqda...</div>
-        ) : orders.length === 0 ? (
-          <div className="text-center py-14 text-gray-400">
-            <Truck size={40} className="mx-auto mb-3 opacity-30" />
-            <p>Safarga tayyorlangan order yo'q</p>
-          </div>
-        ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="text-left text-xs text-gray-500 uppercase tracking-wide bg-gray-50">
-                <th className="px-4 py-3">Faktura</th>
-                <th className="px-4 py-3">Tashkilot nomi</th>
-                <th className="px-4 py-3">Hujjat №</th>
-                <th className="px-4 py-3">Haydovchi</th>
-                <th className="px-4 py-3">Mashina</th>
-                <th className="px-4 py-3">Chiqqan vaqti</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {orders.map(o => (
-                <tr key={o.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 text-sm font-mono font-medium">{o.invoiceNumber}</td>
-                  <td className="px-4 py-3 text-sm">{o.client?.orgName}</td>
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                      <FileCheck2 size={11} /> № {o.dispatchDocument?.documentNumber ?? '—'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    <div className="flex items-center gap-1.5">
-                      <User2 size={13} className="text-gray-400" />
-                      {o.driver?.fullName}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
-                    {o.vehicle?.model} · {o.vehicle?.plateNumber}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {o.dispatchedAt ? format(new Date(o.dispatchedAt), 'dd.MM.yyyy HH:mm') : '—'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+      {/* Search */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+        <div className="relative">
+          <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Faktura, tashkilot, haydovchi yoki mashina raqami..."
+            className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-transparent rounded-xl text-sm
+              focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white focus:border-orange-100
+              transition-all placeholder:text-gray-400"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors">
+              <X size={12} className="text-gray-500" />
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* List */}
+      {isLoading ? (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-20 flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-gray-400">Yuklanmoqda...</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+          <EmptyState />
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          {filtered.map(o => <OrderRow key={o.id} o={o} />)}
+        </div>
+      )}
     </div>
   );
 }

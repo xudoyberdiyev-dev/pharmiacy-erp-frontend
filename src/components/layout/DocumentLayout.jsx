@@ -1,13 +1,14 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
-  FileSpreadsheet, Truck, LogOut, ChevronDown, Activity
+  FileSpreadsheet, FileCheck2, Truck, LogOut, ChevronDown, Activity
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 const NAV_LINKS = [
-  { to: '/document',       label: 'Chekingdan o\'tganlar', icon: FileSpreadsheet, end: true },
-  { to: '/document/ready', label: 'Safarga tayyor',        icon: Truck },
+  { to: '/document',             label: 'Chekingdan o\'tganlar',    icon: FileSpreadsheet, end: true },
+  { to: '/document/documented',  label: 'Hujjatlashtirilgan',       icon: FileCheck2 },
+  { to: '/document/ready',       label: 'Safarga tayyor',           icon: Truck },
 ];
 
 export default function DocumentLayout() {

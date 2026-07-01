@@ -1,40 +1,48 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { documentAPI, userAPI, vehicleAPI } from '../../api';
+import { documentAPI } from '../../api';
 import toast from 'react-hot-toast';
-import { FileSpreadsheet, Truck, CheckSquare, Square, FileCheck2, AlertTriangle } from 'lucide-react';
+import { format } from 'date-fns';
+import {
+  FileSpreadsheet, Search, X, CheckSquare, Square,
+  RefreshCw, Building2, Sparkles
+} from 'lucide-react';
+
+function EmptyState() {
+  return (
+    <div className="py-20 text-center">
+      <div className="w-16 h-16 mx-auto bg-indigo-50 rounded-2xl flex items-center justify-center mb-4">
+        <FileSpreadsheet size={28} className="text-indigo-200" />
+      </div>
+      <p className="text-gray-400 text-sm font-medium">Hujjatlashtirish uchun order yo'q</p>
+      <p className="text-gray-300 text-xs mt-1">Checkingdan o'tgan orderlar shu yerda ko'rinadi</p>
+    </div>
+  );
+}
 
 export default function DocumentPendingPage() {
   const qc = useQueryClient();
   const [selected, setSelected] = useState([]);
-  const [driverId, setDriverId] = useState('');
-  const [vehicleId, setVehicleId] = useState('');
+  const [search, setSearch] = useState('');
 
-  const { data: ordersData, isLoading } = useQuery({
+  const { data: orders = [], isLoading, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ['document', 'pending'],
     queryFn: () => documentAPI.getPending(),
-    select: r => r.data.data,
+    select: r => (r.data.data || []).filter(o => !o.dispatchDocumentId),
     refetchInterval: 15000,
   });
 
-  const { data: drivers } = useQuery({
-    queryKey: ['users', 'DRIVER'],
-    queryFn: () => userAPI.getAll({ role: 'DRIVER', isActive: true }),
-    select: r => r.data.data,
+  const filtered = orders.filter(o => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return o.invoiceNumber?.toLowerCase().includes(q)
+      || o.contractNumber?.toLowerCase().includes(q)
+      || o.lotNumber?.toLowerCase().includes(q)
+      || o.client?.orgName?.toLowerCase().includes(q);
   });
 
-  const { data: vehicles } = useQuery({
-    queryKey: ['vehicles', 'active'],
-    queryFn: () => vehicleAPI.getAll({ isActive: true }),
-    select: r => r.data.data,
-  });
-
-  const orders = ordersData || [];
   const selectedOrders = orders.filter(o => selected.includes(o.id));
-  const hasSelection = selectedOrders.length > 0;
-  const allDocumented = hasSelection && selectedOrders.every(o => o.dispatchDocumentId);
-  const allUndocumented = hasSelection && selectedOrders.every(o => !o.dispatchDocumentId);
-  const mixed = hasSelection && !allDocumented && !allUndocumented;
+  const totalSelectedAmount = selectedOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
 
   const exportMutation = useMutation({
     mutationFn: () => documentAPI.exportExcel(selected),
@@ -50,8 +58,9 @@ export default function DocumentPendingPage() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-      toast.success('Hujjat yaratildi va yuklab olindi');
-      qc.invalidateQueries(['document', 'pending']);
+      toast.success('Hujjat yaratildi! "Hujjatlashtirilgan" bo\'limidan safarga tayyorlang', { duration: 4500 });
+      setSelected([]);
+      qc.invalidateQueries(['document']);
     },
     onError: async (e) => {
       const msg = e.response?.data instanceof Blob
@@ -61,159 +70,150 @@ export default function DocumentPendingPage() {
     },
   });
 
-  const assignMutation = useMutation({
-    mutationFn: () => documentAPI.assignTrip({ orderIds: selected, driverId, vehicleId }),
-    onSuccess: (res) => {
-      toast.success(res.data.message);
-      setSelected([]);
-      setDriverId('');
-      setVehicleId('');
-      qc.invalidateQueries(['document']);
-    },
-    onError: (e) => toast.error(e.response?.data?.message || 'Xato yuz berdi'),
-  });
-
-  const toggleSelect = (id) => {
-    setSelected(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
-  };
-
-  const toggleAll = () => {
-    setSelected(prev => prev.length === orders.length ? [] : orders.map(o => o.id));
-  };
-
-  const totalSelectedAmount = selectedOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+  const toggle = (id) => setSelected(p => p.includes(id) ? p.filter(i => i !== id) : [...p, id]);
+  const toggleAll = () => setSelected(p => p.length === filtered.length ? [] : filtered.map(o => o.id));
+  const allSelected = filtered.length > 0 && selected.length === filtered.length;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Chekingdan o'tgan orderlar</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Hujjatlashtirish va safarga tayyorlash</p>
+    <div className="space-y-5 pb-8">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center">
+              <FileSpreadsheet size={16} className="text-indigo-600" />
+            </div>
+            Chekingdan o'tgan orderlar
+          </h1>
+          <p className="text-sm text-gray-400 mt-0.5 ml-10 font-medium">
+            {filtered.length} ta order · {dataUpdatedAt ? format(new Date(dataUpdatedAt), 'HH:mm:ss') : '—'}
+          </p>
+        </div>
+        <button
+          onClick={() => qc.invalidateQueries(['document', 'pending'])}
+          className={`w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:text-indigo-600 hover:border-indigo-300 transition-colors ${isFetching ? 'animate-spin text-indigo-500' : ''}`}
+        >
+          <RefreshCw size={15} />
+        </button>
       </div>
 
-      <div className="card p-0 overflow-hidden">
+      {/* Search */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+        <div className="relative">
+          <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Faktura, shartnoma, lot yoki tashkilot nomi..."
+            className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-transparent rounded-xl text-sm
+              focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:border-indigo-100
+              transition-all placeholder:text-gray-400"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors">
+              <X size={12} className="text-gray-500" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {isLoading ? (
-          <div className="text-center py-12 text-gray-400">Yuklanmoqda...</div>
-        ) : orders.length === 0 ? (
-          <div className="text-center py-14 text-gray-400">
-            <FileSpreadsheet size={40} className="mx-auto mb-3 opacity-30" />
-            <p>Hujjatlashtirish uchun order yo'q</p>
+          <div className="py-20 flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-gray-400">Yuklanmoqda...</p>
           </div>
+        ) : filtered.length === 0 ? (
+          <EmptyState />
         ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="text-left text-xs text-gray-500 uppercase tracking-wide bg-gray-50">
-                <th className="px-4 py-3 w-10">
-                  <button onClick={toggleAll} className="text-gray-500 hover:text-indigo-600">
-                    {selected.length === orders.length && orders.length > 0
-                      ? <CheckSquare size={17} className="text-indigo-600" />
-                      : <Square size={17} />}
-                  </button>
-                </th>
-                <th className="px-3 py-3">№</th>
-                <th className="px-4 py-3">Faktura</th>
-                <th className="px-4 py-3">Shartnoma</th>
-                <th className="px-4 py-3">Lot</th>
-                <th className="px-4 py-3">Tashkilot nomi</th>
-                <th className="px-4 py-3 text-right">Summa</th>
-                <th className="px-4 py-3">Holat</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {orders.map((o, i) => (
-                <tr
-                  key={o.id}
-                  onClick={() => toggleSelect(o.id)}
-                  className={`cursor-pointer transition-colors ${selected.includes(o.id) ? 'bg-indigo-50/60' : 'hover:bg-gray-50'}`}
-                >
-                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                    <button onClick={() => toggleSelect(o.id)} className="text-gray-500 hover:text-indigo-600">
-                      {selected.includes(o.id)
-                        ? <CheckSquare size={17} className="text-indigo-600" />
-                        : <Square size={17} />}
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50/80 border-b border-gray-100">
+                  <th className="px-5 py-3.5 w-10">
+                    <button onClick={toggleAll} className="text-gray-400 hover:text-indigo-600 transition-colors">
+                      {allSelected ? <CheckSquare size={17} className="text-indigo-600" /> : <Square size={17} />}
                     </button>
-                  </td>
-                  <td className="px-3 py-3 text-sm text-gray-400">{i + 1}</td>
-                  <td className="px-4 py-3 text-sm font-mono font-medium">{o.invoiceNumber}</td>
-                  <td className="px-4 py-3 text-sm font-mono text-gray-600">{o.contractNumber}</td>
-                  <td className="px-4 py-3 text-sm font-mono text-gray-600">{o.lotNumber}</td>
-                  <td className="px-4 py-3 text-sm">{o.client?.orgName}</td>
-                  <td className="px-4 py-3 text-sm font-semibold text-right">{o.totalAmount?.toLocaleString()} so'm</td>
-                  <td className="px-4 py-3">
-                    {o.dispatchDocumentId ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                        <FileCheck2 size={11} /> Hujjat № {o.dispatchDocument?.documentNumber}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-gray-400">Hujjatlashtirilmagan</span>
-                    )}
-                  </td>
+                  </th>
+                  {['FAKTURA', 'SHARTNOMA', 'LOT', 'TASHKILOT', 'SUMMA'].map(h => (
+                    <th key={h} className="text-left text-[11px] font-black text-gray-400 uppercase tracking-widest px-5 py-3.5">{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map(o => {
+                  const isSel = selected.includes(o.id);
+                  return (
+                    <tr
+                      key={o.id}
+                      onClick={() => toggle(o.id)}
+                      className={`border-b border-gray-50 cursor-pointer transition-colors ${isSel ? 'bg-indigo-50/60 hover:bg-indigo-50' : 'hover:bg-gray-50/70'}`}
+                    >
+                      <td className="px-5 py-3.5" onClick={e => e.stopPropagation()}>
+                        <button onClick={() => toggle(o.id)} className="text-gray-400 hover:text-indigo-600 transition-colors">
+                          {isSel ? <CheckSquare size={17} className="text-indigo-600" /> : <Square size={17} />}
+                        </button>
+                      </td>
+                      <td className="px-5 py-3.5 text-sm font-mono font-bold text-gray-900">{o.invoiceNumber}</td>
+                      <td className="px-5 py-3.5 text-sm font-mono text-gray-500">{o.contractNumber}</td>
+                      <td className="px-5 py-3.5 text-sm font-mono text-gray-500">{o.lotNumber}</td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center shrink-0">
+                            <Building2 size={12} className="text-indigo-600" />
+                          </div>
+                          <span className="text-sm font-semibold text-gray-800 truncate max-w-[180px]">{o.client?.orgName}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <p className="text-sm font-black text-gray-900 whitespace-nowrap">{o.totalAmount?.toLocaleString()}</p>
+                        <p className="text-[11px] text-gray-400">so'm</p>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
-      {mixed && (
-        <div className="card flex items-center gap-3 border-amber-200 bg-amber-50 text-amber-800">
-          <AlertTriangle size={18} className="shrink-0" />
-          <p className="text-sm">Hujjatlashtirilgan va hujjatlashtirilmagan orderlarni birga tanlamang.</p>
-        </div>
-      )}
-
-      {allUndocumented && (
-        <div className="card flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-gray-800">{selected.length} ta order tanlandi</p>
-            <p className="text-xs text-gray-500 mt-0.5">Jami summa: {totalSelectedAmount.toLocaleString()} so'm</p>
-          </div>
-          <button
-            onClick={() => exportMutation.mutate()}
-            disabled={exportMutation.isPending}
-            className="btn-primary flex items-center gap-2 disabled:opacity-60"
-          >
-            <FileSpreadsheet size={17} />
-            {exportMutation.isPending ? 'Yuklanmoqda...' : "Excel'ga yuklash"}
-          </button>
-        </div>
-      )}
-
-      {allDocumented && (
-        <div className="card space-y-4">
-          <div className="flex items-center gap-2">
-            <FileCheck2 size={18} className="text-green-600" />
-            <h2 className="font-semibold text-gray-800">
-              {selected.length} ta order hujjatlashtirilgan — safarga tayyorlash
-            </h2>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">Haydovchi *</label>
-              <select className="input" value={driverId} onChange={e => setDriverId(e.target.value)}>
-                <option value="">— Haydovchi tanlang —</option>
-                {(drivers || []).map(d => (
-                  <option key={d.id} value={d.id}>{d.fullName} · {d.phone}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="label">Mashina *</label>
-              <select className="input" value={vehicleId} onChange={e => setVehicleId(e.target.value)}>
-                <option value="">— Mashina tanlang —</option>
-                {(vehicles || []).map(v => (
-                  <option key={v.id} value={v.id}>{v.model} · {v.plateNumber}</option>
-                ))}
-              </select>
+      {/* Sticky selection bar */}
+      {selected.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
+          <div className="max-w-screen-xl mx-auto px-5 pb-5">
+            <div className="pointer-events-auto bg-gray-900 rounded-2xl shadow-2xl shadow-gray-900/30 px-5 py-4 flex items-center justify-between gap-4 animate-in slide-in-from-bottom-4 fade-in duration-200">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                  <Sparkles size={16} className="text-indigo-300" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">{selected.length} ta order tanlandi</p>
+                  <p className="text-xs text-gray-400">Jami: {totalSelectedAmount.toLocaleString()} so'm</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setSelected([])}
+                  className="px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-300 hover:bg-white/10 transition-colors"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  onClick={() => exportMutation.mutate()}
+                  disabled={exportMutation.isPending}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white
+                    bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700
+                    shadow-lg shadow-indigo-500/30 transition-all disabled:opacity-60"
+                >
+                  {exportMutation.isPending
+                    ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Yaratilmoqda...</>
+                    : <><FileSpreadsheet size={15} /> Hujjat yaratish</>}
+                </button>
+              </div>
             </div>
           </div>
-          <button
-            onClick={() => assignMutation.mutate()}
-            disabled={!driverId || !vehicleId || assignMutation.isPending}
-            className="btn-primary w-full flex items-center justify-center gap-2"
-          >
-            <Truck size={18} />
-            {assignMutation.isPending ? 'Biriktirilmoqda...' : `${selected.length} ta orderni safarga chiqarish`}
-          </button>
         </div>
       )}
     </div>

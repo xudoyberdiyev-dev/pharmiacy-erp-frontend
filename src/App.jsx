@@ -34,6 +34,7 @@ import CheckerMinePage from './pages/checker/CheckerMinePage';
 import CheckerHistoryPage from './pages/checker/CheckerHistoryPage';
 import DocumentLayout from './components/layout/DocumentLayout';
 import DocumentPendingPage from './pages/document/DocumentPendingPage';
+import DocumentDocumentedPage from './pages/document/DocumentDocumentedPage';
 import DocumentReadyPage from './pages/document/DocumentReadyPage';
 import DriverPanel from './pages/driver/DriverPanel';
 import AccountantPanel from './pages/accountant/AccountantPanel';
@@ -129,6 +130,7 @@ function AppRoutes() {
       {/* DOCUMENT */}
       <Route path="/document" element={<ProtectedRoute roles={['DOCUMENT']}><DocumentLayout /></ProtectedRoute>}>
         <Route index element={<DocumentPendingPage />} />
+        <Route path="documented" element={<DocumentDocumentedPage />} />
         <Route path="ready" element={<DocumentReadyPage />} />
       </Route>
 
