@@ -32,6 +32,9 @@ import CheckerLayout from './components/layout/CheckerLayout';
 import CheckerAvailablePage from './pages/checker/CheckerAvailablePage';
 import CheckerMinePage from './pages/checker/CheckerMinePage';
 import CheckerHistoryPage from './pages/checker/CheckerHistoryPage';
+import DocumentLayout from './components/layout/DocumentLayout';
+import DocumentPendingPage from './pages/document/DocumentPendingPage';
+import DocumentReadyPage from './pages/document/DocumentReadyPage';
 import DriverPanel from './pages/driver/DriverPanel';
 import AccountantPanel from './pages/accountant/AccountantPanel';
 import SuperAdminStats from './pages/superadmin/SuperAdminStats';
@@ -73,6 +76,7 @@ const ROOT_REDIRECTS = {
   OPERATOR: '/operator',
   PICKER: '/picker', MARKER: '/marker',
   CHECKER: '/checker', DRIVER: '/driver', ACCOUNTANT: '/accountant',
+  DOCUMENT: '/document',
 };
 
 function AppRoutes() {
@@ -122,6 +126,12 @@ function AppRoutes() {
         <Route path="mine" element={<CheckerMinePage />} />
         <Route path="history" element={<CheckerHistoryPage />} />
       </Route>
+      {/* DOCUMENT */}
+      <Route path="/document" element={<ProtectedRoute roles={['DOCUMENT']}><DocumentLayout /></ProtectedRoute>}>
+        <Route index element={<DocumentPendingPage />} />
+        <Route path="ready" element={<DocumentReadyPage />} />
+      </Route>
+
       <Route path="/driver" element={<ProtectedRoute roles={['DRIVER']}><MainLayout /></ProtectedRoute>}>
         <Route index element={<DriverPanel />} />
       </Route>

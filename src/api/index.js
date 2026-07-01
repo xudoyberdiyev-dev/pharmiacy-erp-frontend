@@ -81,6 +81,14 @@ export const checkerAPI = {
   complete:     (id, data) => api.patch(`/checker/orders/${id}/complete`, data),
 };
 
+// ===== DOCUMENT =====
+export const documentAPI = {
+  getPending:  () => api.get('/document/orders/pending'),
+  getReady:    () => api.get('/document/orders/ready'),
+  exportExcel: (orderIds) => api.post('/document/export', { orderIds }, { responseType: 'blob' }),
+  assignTrip:  (data) => api.post('/document/assign-trip', data),
+};
+
 // ===== USERS =====
 export const userAPI = {
   getAll: (params) => api.get('/users', { params }),

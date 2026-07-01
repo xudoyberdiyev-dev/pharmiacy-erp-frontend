@@ -11,6 +11,7 @@ const ROLES = [
   { value: 'CHECKER', label: 'Checker' },
   { value: 'DRIVER', label: 'Haydovchi' },
   { value: 'ACCOUNTANT', label: 'Bugalter' },
+  { value: 'DOCUMENT', label: 'Hujjatchi' },
   { value: 'ADMIN', label: 'Admin' },
 ];
 
@@ -21,6 +22,7 @@ const ROLE_COLORS = {
   CHECKER: 'bg-amber-100 text-amber-700',
   DRIVER: 'bg-orange-100 text-orange-700',
   ACCOUNTANT: 'bg-green-100 text-green-700',
+  DOCUMENT: 'bg-indigo-100 text-indigo-700',
   ADMIN: 'bg-gray-100 text-gray-700',
   SUPER_ADMIN: 'bg-red-100 text-red-700',
 };

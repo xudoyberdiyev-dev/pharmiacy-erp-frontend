@@ -14,6 +14,7 @@ const ROLE_REDIRECTS = {
   OPERATOR: '/operator',
   PICKER: '/picker', MARKER: '/marker',
   CHECKER: '/checker', DRIVER: '/driver', ACCOUNTANT: '/accountant',
+  DOCUMENT: '/document',
 };
 
 // ─── Parol bilan kirish ────────────────────────────────────────────────────
@@ -463,7 +464,7 @@ export default function LoginPage() {
             QR skaner bilan: Picker · Marker · Checker
           </p>
           <p className="text-xs" style={{ color: 'rgba(148,187,255,0.22)' }}>
-            Parol bilan: Admin · Operator · Haydovchi · Bugalter
+            Parol bilan: Admin · Operator · Haydovchi · Bugalter · Hujjatchi
           </p>
         </div>
       </div>
