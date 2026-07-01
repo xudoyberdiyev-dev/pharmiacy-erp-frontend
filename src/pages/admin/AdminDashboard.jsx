@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { orderAPI, clientAPI } from '../../api';
 import StatusBadge from '../../components/shared/StatusBadge';
-import { Package, Users, Clock, CheckCircle, AlertCircle, Plus } from 'lucide-react';
+import { Package, Users, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 
@@ -35,7 +35,7 @@ export default function AdminDashboard() {
 
   const orders = ordersRes?.data?.data || [];
   const totalOrders = ordersRes?.data?.total || 0;
-  const totalClients = clientsRes?.data?.total || 0;
+  const totalClients = clientsRes?.data?.pagination?.total || 0;
 
   const newOrders = orders.filter(o => o.status === 'NEW').length;
   const delivered = orders.filter(o => o.status === 'DELIVERED').length;
@@ -48,10 +48,6 @@ export default function AdminDashboard() {
           <h1 className="text-2xl font-bold text-gray-900">Bosh sahifa</h1>
           <p className="text-gray-500 text-sm">{format(new Date(), 'dd.MM.yyyy')}</p>
         </div>
-        <button onClick={() => navigate('/admin/orders/new')} className="btn-primary flex items-center gap-2">
-          <Plus size={18} />
-          Yangi order
-        </button>
       </div>
 
       {/* Stat cards */}

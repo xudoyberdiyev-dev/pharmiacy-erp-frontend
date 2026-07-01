@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderAPI } from '../../api';
+import { FILE_BASE_URL } from '../../api/axios';
 import StatusBadge from '../../components/shared/StatusBadge';
 import toast from 'react-hot-toast';
 import { ArrowLeft, CheckCircle, Clock, User, Truck, Package, FileText, MapPin } from 'lucide-react';
@@ -138,19 +139,19 @@ export default function OrderDetailPage() {
         <Section title="Fayllar" icon={Package}>
           <div className="flex flex-wrap gap-3">
             {o.productsExcelUrl && (
-              <a href={`http://localhost:5000${o.productsExcelUrl}`} target="_blank" rel="noreferrer"
+              <a href={`${FILE_BASE_URL}${o.productsExcelUrl}`} target="_blank" rel="noreferrer"
                 className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm hover:bg-blue-100 transition-colors">
                 📥 Mahsulotlar Excel
               </a>
             )}
             {o.markedExcelUrl && (
-              <a href={`http://localhost:5000${o.markedExcelUrl}`} target="_blank" rel="noreferrer"
+              <a href={`${FILE_BASE_URL}${o.markedExcelUrl}`} target="_blank" rel="noreferrer"
                 className="flex items-center gap-2 px-4 py-2 bg-purple-50 text-purple-700 rounded-lg text-sm hover:bg-purple-100 transition-colors">
                 📋 Marked Excel
               </a>
             )}
             {o.deliveryPhotoUrl && (
-              <a href={`http://localhost:5000${o.deliveryPhotoUrl}`} target="_blank" rel="noreferrer"
+              <a href={`${FILE_BASE_URL}${o.deliveryPhotoUrl}`} target="_blank" rel="noreferrer"
                 className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg text-sm hover:bg-green-100 transition-colors">
                 📸 Yetkazib berish rasmi
               </a>

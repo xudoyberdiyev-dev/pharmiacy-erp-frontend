@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderAPI, userAPI } from '../../api';
+import { FILE_BASE_URL } from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -291,7 +292,7 @@ export default function OperatorOrderDetail() {
                 <h2 className="font-bold text-gray-800 text-sm">Bosqich muddatlari</h2>
               </div>
               {order.productsExcelUrl && !editing && (
-                <a href={`http://localhost:5000${order.productsExcelUrl}`} target="_blank" rel="noreferrer"
+                <a href={`${FILE_BASE_URL}${order.productsExcelUrl}`} target="_blank" rel="noreferrer"
                   className="flex items-center gap-1.5 text-xs text-blue-500 font-semibold hover:text-blue-700 transition-colors">
                   <FileSpreadsheet size={13} /> Excel ko'rish
                 </a>

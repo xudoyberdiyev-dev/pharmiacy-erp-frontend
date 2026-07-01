@@ -35,7 +35,7 @@ function useCountUp(target, duration = 900) {
 const STATUS_CFG = {
   NEW:        { label: 'Yangi',        color: '#6B7280', bg: '#F3F4F6', dot: '#9CA3AF' },
   PICKING:    { label: 'Yig\'ilmoqda', color: '#2563EB', bg: '#EFF6FF', dot: '#3B82F6' },
-  MARKING:    { label: 'Markalash',    color: '#7C3AED', bg: '#F5F3FF', dot: '#8B5CF6' },
+  MARKING:    { label: 'Markirovkalash',    color: '#7C3AED', bg: '#F5F3FF', dot: '#8B5CF6' },
   CHECKING:   { label: 'Tekshiruv',   color: '#D97706', bg: '#FFFBEB', dot: '#F59E0B' },
   LOADING:    { label: 'Yuklanmoqda', color: '#0369A1', bg: '#F0F9FF', dot: '#0EA5E9' },
   IN_TRANSIT: { label: 'Yo\'lda',     color: '#EA580C', bg: '#FFF7ED', dot: '#F97316' },
@@ -186,7 +186,7 @@ export default function OperatorDashboard() {
           value={byStatus.DELIVERED || 0}
           icon={CheckCircle2}
           gradient="linear-gradient(135deg, #16A34A 0%, #0D9488 100%)"
-          sub={`${clientsRes?.total || 0} ta klient`}
+          sub={`${clientsRes?.pagination?.total || 0} ta klient`}
           onClick={() => navigate('/operator/orders?status=DELIVERED')}
         />
       </div>

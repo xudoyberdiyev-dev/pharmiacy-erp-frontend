@@ -36,6 +36,12 @@ const ROLE_MENUS = {
     { to: '/accountant', icon: FileText, label: 'Hujjatlar' },
   ],
   SUPER_ADMIN: [
+    { to: '/admin',          icon: LayoutDashboard, label: 'Bosh sahifa' },
+    { to: '/admin/clients',  icon: Users,            label: 'Klientlar'   },
+    { to: '/admin/orders',   icon: Package,          label: 'Orderlar'    },
+    { to: '/admin/vehicles', icon: Truck,            label: 'Mashinalar'  },
+    { to: '/admin/document', icon: FileText,         label: 'Document'    },
+    { to: '/admin/users',    icon: Users,            label: 'Xodimlar'    },
     { to: '/superadmin', icon: BarChart3, label: 'Statistika' },
     { to: '/superadmin/monitoring', icon: LayoutDashboard, label: 'Monitoring' },
     { to: '/superadmin/activity', icon: ClipboardList, label: 'Faoliyat tarixi' },

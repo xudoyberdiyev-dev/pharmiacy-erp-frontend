@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderAPI } from '../../api';
+import { FILE_BASE_URL } from '../../api/axios';
 import StatusBadge from '../../components/shared/StatusBadge';
 import toast from 'react-hot-toast';
 import { CheckCircle, Clock, FileCheck } from 'lucide-react';
@@ -151,7 +152,7 @@ function OrderCard({ order, step, onConfirm, isPending }) {
         </div>
         <div className="flex flex-col gap-2 items-end">
           {order.deliveryPhotoUrl && (
-            <a href={`http://localhost:5000${order.deliveryPhotoUrl}`} target="_blank" rel="noreferrer"
+            <a href={`${FILE_BASE_URL}${order.deliveryPhotoUrl}`} target="_blank" rel="noreferrer"
               className="text-xs text-blue-600 hover:underline">📸 Rasm</a>
           )}
           <button

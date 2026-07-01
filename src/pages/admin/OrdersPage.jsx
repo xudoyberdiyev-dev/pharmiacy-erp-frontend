@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { orderAPI } from '../../api';
 import StatusBadge from '../../components/shared/StatusBadge';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Eye } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { format } from 'date-fns';
 
 const STATUSES = ['', 'NEW', 'PICKING', 'MARKING', 'CHECKING', 'LOADING', 'IN_TRANSIT', 'DELIVERED'];
@@ -25,9 +25,6 @@ export default function OrdersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Orderlar</h1>
-        <button onClick={() => navigate('/admin/orders/new')} className="btn-primary flex items-center gap-2">
-          <Plus size={18} /> Yangi order
-        </button>
       </div>
 
       {/* Status filter */}

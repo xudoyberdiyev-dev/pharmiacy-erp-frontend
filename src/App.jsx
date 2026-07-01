@@ -9,7 +9,6 @@ import LoginPage from './pages/auth/LoginPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import ClientsPage from './pages/admin/ClientsPage';
 import OrdersPage from './pages/admin/OrdersPage';
-import CreateOrderPage from './pages/admin/CreateOrderPage';
 import OrderDetailPage from './pages/admin/OrderDetailPage';
 import DocumentPanel from './pages/admin/DocumentPanel';
 import UsersPage from './pages/admin/UsersPage';
@@ -88,7 +87,6 @@ function AppRoutes() {
         <Route index element={<AdminDashboard />} />
         <Route path="clients" element={<ClientsPage />} />
         <Route path="orders" element={<OrdersPage />} />
-        <Route path="orders/new" element={<CreateOrderPage />} />
         <Route path="orders/:id" element={<OrderDetailPage />} />
         <Route path="vehicles" element={<VehiclesPage />} />
         <Route path="document" element={<DocumentPanel />} />
