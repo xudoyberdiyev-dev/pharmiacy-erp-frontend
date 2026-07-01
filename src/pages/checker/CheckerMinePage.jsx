@@ -1,12 +1,91 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { checkerAPI } from '../../api';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import {
   CheckCircle2, Clock, AlertTriangle, Zap, Package,
-  TrendingUp, X, User, FileSpreadsheet, Eye, Box
+  TrendingUp, X, User, FileSpreadsheet, Eye, Box, Plus, Trash2, Minus
 } from 'lucide-react';
+
+const BOX_TYPES = [
+  { value: 'SBOR',     label: 'Sbor' },
+  { value: 'ORIGINAL', label: 'Original' },
+  { value: 'XALTA',    label: 'Xalta' },
+];
+
+// ── Box breakdown (tur bo'yicha) ─────────────────────────────────────────────
+function BoxBreakdownSection({ rows, setRows }) {
+  const usedTypes = rows.map(r => r.type);
+  const availableTypes = BOX_TYPES.filter(t => !usedTypes.includes(t.value));
+  const total = rows.reduce((s, r) => s + (r.count || 0), 0);
+
+  const addRow = () => {
+    if (!availableTypes.length) return;
+    setRows(prev => [...prev, { type: availableTypes[0].value, count: 1 }]);
+  };
+  const updateRow = (idx, patch) => setRows(prev => prev.map((r, i) => i === idx ? { ...r, ...patch } : r));
+  const removeRow = (idx) => setRows(prev => prev.filter((_, i) => i !== idx));
+
+  return (
+    <div className="bg-sky-50 rounded-xl p-4 border-2 border-sky-200 space-y-3">
+      <div className="flex items-center gap-2">
+        <Box size={16} className="text-sky-600" />
+        <p className="font-black text-sky-900">Qutilar soni (tur bo'yicha)</p>
+      </div>
+      <p className="text-xs text-gray-500 -mt-1">Har bir quti turi bo'yicha sonini kiriting</p>
+
+      <div className="space-y-2">
+        {rows.map((row, idx) => (
+          <div key={idx} className="flex items-center gap-2 bg-white rounded-xl p-2 border border-sky-100">
+            <select
+              value={row.type}
+              onChange={e => updateRow(idx, { type: e.target.value })}
+              className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm font-bold bg-gray-50 focus:outline-none focus:ring-2 focus:ring-sky-400 transition-shadow"
+            >
+              <option value={row.type}>{BOX_TYPES.find(t => t.value === row.type)?.label}</option>
+              {availableTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+            <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg border border-gray-200 shrink-0">
+              <button type="button" onClick={() => updateRow(idx, { count: Math.max(1, row.count - 1) })}
+                className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-sky-600 transition-colors">
+                <Minus size={13} />
+              </button>
+              <input
+                type="number" min="1" value={row.count}
+                onChange={e => updateRow(idx, { count: Math.max(1, parseInt(e.target.value) || 1) })}
+                className="w-10 text-center text-sm font-black outline-none bg-transparent"
+              />
+              <button type="button" onClick={() => updateRow(idx, { count: row.count + 1 })}
+                className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-sky-600 transition-colors">
+                <Plus size={13} />
+              </button>
+            </div>
+            {rows.length > 1 && (
+              <button type="button" onClick={() => removeRow(idx)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 transition-colors shrink-0">
+                <Trash2 size={14} />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {availableTypes.length > 0 && (
+        <button type="button" onClick={addRow}
+          className="w-full py-2 rounded-lg border-2 border-dashed border-sky-300 text-sky-600 text-xs font-bold hover:bg-sky-100 transition-colors flex items-center justify-center gap-1.5">
+          <Plus size={13} /> Yana tur qo'shish
+        </button>
+      )}
+
+      <div className="flex items-center justify-between px-3.5 py-2.5 bg-sky-600 rounded-xl">
+        <span className="text-xs font-bold text-sky-100">Jami</span>
+        <span className="text-lg font-black text-white">{total} ta quti</span>
+      </div>
+    </div>
+  );
+}
 
 // ── Countdown ─────────────────────────────────────────────────────────────────
 function calcState(deadline, totalMinutes) {
@@ -63,27 +142,28 @@ function TimerDisplay({ deadline, totalMinutes }) {
 }
 
 // ── Detail Modal ──────────────────────────────────────────────────────────────
-function DetailModal({ order, onClose, onComplete }) {
-  const [boxCount, setBoxCount] = useState('');
+function DetailModal({ order, index, onClose, onComplete }) {
+  const [rows, setRows] = useState([{ type: 'SBOR', count: 1 }]);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
 
   const qc = useQueryClient();
   const mutation = useMutation({
-    mutationFn: () => checkerAPI.complete(order.id, { boxCount: parseInt(boxCount) }),
+    mutationFn: () => checkerAPI.complete(order.id, { boxes: rows }),
     onSuccess: (res) => {
       toast.success(res.data.message || 'Order tasdiqlandi!');
       onComplete();
       onClose();
       qc.invalidateQueries(['checker-mine']);
       qc.invalidateQueries(['checker-available']);
+      navigate(`/checker/print/${order.id}`);
     },
     onError: e => toast.error(e.response?.data?.message || 'Xato'),
   });
 
   const handleConfirm = () => {
-    const n = parseInt(boxCount);
-    if (!boxCount || isNaN(n) || n < 1) {
-      setError('Qutiler sonini kiriting (kamida 1)');
+    if (!rows.length || rows.some(r => !r.count || r.count < 1)) {
+      setError('Har bir tur uchun kamida 1 ta quti kiriting');
       return;
     }
     setError('');
@@ -97,7 +177,7 @@ function DetailModal({ order, onClose, onComplete }) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
           <div>
             <h3 className="font-black text-gray-900">Order tafsilotlari</h3>
-            <p className="text-xs text-gray-400 mt-0.5">#{order.orderNumber?.slice(-8)} · {order.client?.orgName}</p>
+            <p className="text-xs text-gray-400 mt-0.5">#{index + 1} · {order.client?.orgName}</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center">
             <X size={16} className="text-gray-400" />
@@ -177,13 +257,6 @@ function DetailModal({ order, onClose, onComplete }) {
 
           {/* Excel files */}
           <div className="space-y-1.5">
-            {order.productsExcelUrl && (
-              <a href={`${import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5000'}${order.productsExcelUrl}`}
-                target="_blank" rel="noreferrer"
-                className="flex items-center gap-2 px-3 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition-colors">
-                <FileSpreadsheet size={14} /> Picking Excel ko'rish
-              </a>
-            )}
             {order.markedExcelUrl && (
               <a href={`${import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:5000'}${order.markedExcelUrl}`}
                 target="_blank" rel="noreferrer"
@@ -193,25 +266,9 @@ function DetailModal({ order, onClose, onComplete }) {
             )}
           </div>
 
-          {/* Box count input */}
-          <div className="bg-sky-50 rounded-xl p-4 border-2 border-sky-200">
-            <div className="flex items-center gap-2 mb-3">
-              <Box size={16} className="text-sky-600" />
-              <p className="font-black text-sky-900">Qutiler soni</p>
-            </div>
-            <p className="text-xs text-gray-500 mb-3">Jami nechta quti ekanini sanab, shu yerga kiriting</p>
-            <input
-              type="number"
-              min="1"
-              value={boxCount}
-              onChange={e => { setBoxCount(e.target.value); setError(''); }}
-              placeholder="Masalan: 12"
-              className={`w-full px-4 py-3 rounded-xl border-2 text-2xl font-black text-center outline-none transition-colors ${
-                error ? 'border-red-400 bg-red-50' : 'border-sky-300 focus:border-sky-500 bg-white'
-              }`}
-            />
-            {error && <p className="text-xs text-red-600 font-semibold mt-1.5">{error}</p>}
-          </div>
+          {/* Box breakdown input */}
+          <BoxBreakdownSection rows={rows} setRows={r => { setError(''); setRows(r); }} />
+          {error && <p className="text-xs text-red-600 font-semibold -mt-2">{error}</p>}
         </div>
 
         {/* Footer */}
@@ -222,7 +279,7 @@ function DetailModal({ order, onClose, onComplete }) {
           </button>
           <button
             onClick={handleConfirm}
-            disabled={mutation.isPending || !boxCount}
+            disabled={mutation.isPending || !rows.length}
             className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 text-white text-sm font-bold
               hover:from-sky-600 hover:to-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
           >
@@ -237,7 +294,7 @@ function DetailModal({ order, onClose, onComplete }) {
 }
 
 // ── Order card ────────────────────────────────────────────────────────────────
-function MineCard({ order }) {
+function MineCard({ order, index }) {
   const [showDetail, setShowDetail] = useState(false);
   const [done, setDone] = useState(false);
   const isOverdue = order.checkingDeadline && new Date(order.checkingDeadline) < new Date();
@@ -249,7 +306,7 @@ function MineCard({ order }) {
           <CheckCircle2 size={30} className="text-green-500" />
         </div>
         <p className="text-sm font-black text-green-700">In Transit ga o'tdi!</p>
-        <p className="text-xs text-gray-400">#{order.orderNumber?.slice(-8)}</p>
+        <p className="text-xs text-gray-400">#{index + 1}</p>
       </div>
     );
   }
@@ -259,6 +316,7 @@ function MineCard({ order }) {
       {showDetail && (
         <DetailModal
           order={order}
+          index={index}
           onClose={() => setShowDetail(false)}
           onComplete={() => setDone(true)}
         />
@@ -271,7 +329,7 @@ function MineCard({ order }) {
           {/* Header */}
           <div className="flex items-start justify-between gap-2 mb-3">
             <div>
-              <p className="font-mono text-base font-black text-gray-900">#{order.orderNumber?.slice(-8)}</p>
+              <p className="font-mono text-base font-black text-gray-900">#{index + 1}</p>
               <p className="text-xs text-gray-400 mt-0.5">
                 Qabul: {order.checkingStartedAt ? format(new Date(order.checkingStartedAt), 'HH:mm') : '—'}
               </p>
@@ -406,7 +464,7 @@ export default function CheckerMinePage() {
         <>
           <StatsRow orders={orders} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {orders.map(o => <MineCard key={o.id} order={o} />)}
+            {orders.map((o, i) => <MineCard key={o.id} order={o} index={i} />)}
           </div>
         </>
       )}

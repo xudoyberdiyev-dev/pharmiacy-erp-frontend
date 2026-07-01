@@ -12,7 +12,7 @@ const URGENCY_STYLE = {
   overdue:  { card: 'border-red-500',    badge: 'bg-red-600 text-white border-red-600' },
 };
 
-function OrderCard({ order, onAccepted }) {
+function OrderCard({ order, index, onAccepted }) {
   const style = URGENCY_STYLE[order.urgency] || URGENCY_STYLE.normal;
   const dur = order.checkingDuration;
   const h = Math.floor(dur / 60), m = dur % 60;
@@ -32,7 +32,7 @@ function OrderCard({ order, onAccepted }) {
         {/* Header */}
         <div className="flex items-start justify-between gap-2 mb-3">
           <div>
-            <p className="font-mono text-base font-black text-gray-900">#{order.orderNumber?.slice(-8)}</p>
+            <p className="font-mono text-base font-black text-gray-900">#{index + 1}</p>
             <p className="text-xs text-gray-400 mt-0.5">{format(new Date(order.createdAt), 'dd.MM.yyyy HH:mm')}</p>
           </div>
           {order.urgency !== 'normal' && style.badge && (
@@ -182,7 +182,7 @@ export default function CheckerAvailablePage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {visible.map(o => <OrderCard key={o.id} order={o} onAccepted={onAccepted} />)}
+          {visible.map((o, i) => <OrderCard key={o.id} order={o} index={i} onAccepted={onAccepted} />)}
         </div>
       )}
     </div>

@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { checkerAPI } from '../../api';
 import { format } from 'date-fns';
-import { Clock, TrendingUp, AlertTriangle, CheckCircle2, Package, User, Calendar } from 'lucide-react';
+import { Clock, TrendingUp, AlertTriangle, CheckCircle2, Package, User, Calendar, Printer } from 'lucide-react';
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -22,15 +23,17 @@ function StatCard({ icon: Icon, label, value, color, bg }) {
   );
 }
 
-function OrderRow({ order }) {
+function OrderRow({ order, index }) {
+  const navigate = useNavigate();
   const doneAt   = order.checkingDoneAt   ? format(new Date(order.checkingDoneAt),   'HH:mm') : '—';
   const deadline = order.checkingDeadline ? format(new Date(order.checkingDeadline), 'HH:mm') : '—';
   return (
     <div className={`bg-white rounded-2xl border-2 p-4 shadow-sm ${order.isLate ? 'border-red-200' : 'border-green-200'}`}>
       <div className="flex items-start justify-between gap-3 mb-2">
         <div>
-          <p className="font-mono text-sm font-black text-gray-900">#{order.orderNumber?.slice(-8)}</p>
+          <p className="font-mono text-sm font-black text-gray-900">#{index + 1}</p>
           <p className="text-[11px] text-gray-400">{order.client?.orgName}</p>
+          <p className="text-[11px] text-gray-400 font-semibold">Faktura: {order.invoiceNumber || '—'}</p>
         </div>
         {order.isLate ? (
           <span className="flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-lg bg-red-50 text-red-600 border border-red-200">
@@ -65,6 +68,15 @@ function OrderRow({ order }) {
         </div>
         <span className="font-bold text-gray-600">{order.boxCount ? `${order.boxCount} quti` : ''}</span>
       </div>
+
+      {order.boxCount > 0 && (
+        <button
+          onClick={() => navigate(`/checker/print/${order.id}`)}
+          className="w-full mt-3 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-100 transition-colors"
+        >
+          <Printer size={13} /> Chek qog'ozni qayta chop etish
+        </button>
+      )}
     </div>
   );
 }
@@ -134,7 +146,7 @@ export default function CheckerHistoryPage() {
           <p className="text-xs text-gray-400 font-bold uppercase tracking-wider px-1">
             {orders.length} ta order — {format(new Date(date + 'T00:00:00'), 'dd.MM.yyyy')}
           </p>
-          {orders.map(o => <OrderRow key={o.id} order={o} />)}
+          {orders.map((o, i) => <OrderRow key={o.id} order={o} index={i} />)}
         </div>
       )}
     </div>
