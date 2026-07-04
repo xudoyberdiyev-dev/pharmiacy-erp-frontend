@@ -2,18 +2,14 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
   LayoutDashboard, Users, Package, Truck, FileText,
-  BarChart3, LogOut, ClipboardList, CheckSquare, Tag, ShieldCheck
+  LogOut, ClipboardList, CheckSquare, Tag, ShieldCheck
 } from 'lucide-react';
 
+// Note: ADMIN/SUPER_ADMIN no longer use this sidebar — they render
+// AdminHeaderLayout instead (src/components/layout/AdminHeaderLayout.jsx).
+// This sidebar now only serves DRIVER/ACCOUNTANT (mounted via MainLayout)
+// plus the OPERATOR/PICKER/MARKER/CHECKER entries kept for reference.
 const ROLE_MENUS = {
-  ADMIN: [
-    { to: '/admin',          icon: LayoutDashboard, label: 'Bosh sahifa' },
-    { to: '/admin/clients',  icon: Users,            label: 'Klientlar'   },
-    { to: '/admin/orders',   icon: Package,          label: 'Orderlar'    },
-    { to: '/admin/vehicles', icon: Truck,            label: 'Mashinalar'  },
-    { to: '/admin/document', icon: FileText,         label: 'Document'    },
-    { to: '/admin/users',    icon: Users,            label: 'Xodimlar'    },
-  ],
   OPERATOR: [
     { to: '/operator', icon: LayoutDashboard, label: 'Bosh sahifa' },
     { to: '/operator/clients', icon: Users, label: 'Klientlar' },
@@ -35,28 +31,15 @@ const ROLE_MENUS = {
   ACCOUNTANT: [
     { to: '/accountant', icon: FileText, label: 'Hujjatlar' },
   ],
-  SUPER_ADMIN: [
-    { to: '/admin',          icon: LayoutDashboard, label: 'Bosh sahifa' },
-    { to: '/admin/clients',  icon: Users,            label: 'Klientlar'   },
-    { to: '/admin/orders',   icon: Package,          label: 'Orderlar'    },
-    { to: '/admin/vehicles', icon: Truck,            label: 'Mashinalar'  },
-    { to: '/admin/document', icon: FileText,         label: 'Document'    },
-    { to: '/admin/users',    icon: Users,            label: 'Xodimlar'    },
-    { to: '/superadmin', icon: BarChart3, label: 'Statistika' },
-    { to: '/superadmin/monitoring', icon: LayoutDashboard, label: 'Monitoring' },
-    { to: '/superadmin/activity', icon: ClipboardList, label: 'Faoliyat tarixi' },
-  ],
 };
 
 const ROLE_LABELS = {
-  ADMIN: 'Admin',
   OPERATOR: 'Operator',
   PICKER: 'Picker',
   MARKER: 'Marker',
   CHECKER: 'Checker',
   DRIVER: 'Haydovchi',
   ACCOUNTANT: 'Bugalter',
-  SUPER_ADMIN: 'Super Admin',
 };
 
 export default function Sidebar() {

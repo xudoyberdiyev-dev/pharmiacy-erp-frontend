@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { statsAPI } from '../../api';
 import StatusBadge from '../../components/shared/StatusBadge';
-import { MapPin, Clock, Package, Truck, RefreshCw } from 'lucide-react';
+import Pagination from '../../components/shared/Pagination';
+import { MapPin, Clock, Package, Truck, RefreshCw, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 
 const STATUS_GROUPS = [
@@ -12,54 +14,87 @@ const STATUS_GROUPS = [
   { status: 'IN_TRANSIT', label: "Yo'lda", color: 'bg-orange-500' },
 ];
 
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default function SuperAdminMonitoring() {
+  const [date, setDate] = useState(today());
+  const [status, setStatus] = useState('');
+  const [page, setPage] = useState(1);
+  const limit = 20;
+
   const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ['monitoring'],
-    queryFn: () => statsAPI.getMonitoring(),
-    select: r => r.data.data,
+    queryKey: ['monitoring', date, status, page],
+    queryFn: () => statsAPI.getMonitoring({ date, status: status || undefined, page, limit }),
+    select: r => r.data,
     refetchInterval: 20000,
   });
 
-  const activeOrders = Array.isArray(data) ? data : [];
-  const groups = STATUS_GROUPS.reduce((acc, { status }) => {
-    acc[status] = activeOrders.filter(o => o.status === status).length;
-    return acc;
-  }, {});
+  const activeOrders = data?.data || [];
+  const counts = data?.counts || {};
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Package size={24} /> Real-time Monitoring
         </h1>
-        <button
-          onClick={() => refetch()}
-          disabled={isFetching}
-          className="btn-secondary flex items-center gap-2 text-sm"
-        >
-          <RefreshCw size={15} className={isFetching ? 'animate-spin' : ''} />
-          Yangilash
-        </button>
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm cursor-pointer hover:border-blue-300 transition-colors">
+            <Calendar size={14} className="text-blue-500" />
+            <input
+              type="date"
+              value={date}
+              max={today()}
+              onChange={e => { setDate(e.target.value); setPage(1); }}
+              className="text-sm font-bold text-gray-700 outline-none cursor-pointer bg-transparent"
+            />
+          </label>
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="btn-secondary flex items-center gap-2 text-sm"
+          >
+            <RefreshCw size={15} className={isFetching ? 'animate-spin' : ''} />
+            Yangilash
+          </button>
+        </div>
       </div>
 
-      {/* Status counters */}
+      {/* Status counters — click to filter the list below */}
       <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
-        {STATUS_GROUPS.map(({ status, label, color }) => (
-          <div key={status} className="bg-white rounded-xl border p-4 text-center shadow-sm">
+        {STATUS_GROUPS.map(({ status: s, label, color }) => (
+          <button
+            key={s}
+            onClick={() => { setStatus(prev => prev === s ? '' : s); setPage(1); }}
+            className={`bg-white rounded-xl border p-4 text-center shadow-sm transition-all ${
+              status === s ? 'ring-2 ring-blue-500 border-blue-300' : 'hover:border-gray-300'
+            }`}
+          >
             <div className={`w-3 h-3 rounded-full ${color} mx-auto mb-2`}></div>
-            <p className="text-2xl font-bold">{groups[status] ?? 0}</p>
+            <p className="text-2xl font-bold">{counts[s] ?? 0}</p>
             <p className="text-xs text-gray-500 mt-0.5">{label}</p>
-          </div>
+          </button>
         ))}
       </div>
 
       {/* Active orders */}
       <div>
-        <h2 className="font-semibold text-gray-700 mb-3">Faol orderlar ({activeOrders.length})</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold text-gray-700">
+            Faol orderlar ({data?.total ?? 0}) — {format(new Date(date + 'T00:00:00'), 'dd.MM.yyyy')}
+          </h2>
+          {status && (
+            <button onClick={() => { setStatus(''); setPage(1); }} className="text-xs text-blue-600 hover:underline">
+              Filtrini tozalash
+            </button>
+          )}
+        </div>
         {isLoading && <div className="text-gray-400 text-sm">Yuklanmoqda...</div>}
         {!isLoading && activeOrders.length === 0 && (
           <div className="text-center py-12 text-gray-400 bg-white rounded-xl border">
-            Hozirda faol order yo'q
+            {date === today() ? 'Bugun faol order yo\'q' : 'Bu kunda faol order yo\'q'}
           </div>
         )}
         <div className="space-y-3">
@@ -70,7 +105,7 @@ export default function SuperAdminMonitoring() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 flex-wrap">
-                      <span className="font-mono font-bold">#{order.orderNumber?.slice(-8)}</span>
+                      <span className="font-mono font-bold">{order.invoiceNumber}</span>
                       <StatusBadge status={order.status} />
                       {isLate && <span className="text-xs text-red-600 font-medium bg-red-50 px-2 py-0.5 rounded-full">⚠️ Kechikmoqda</span>}
                     </div>
@@ -97,6 +132,16 @@ export default function SuperAdminMonitoring() {
             );
           })}
         </div>
+        {activeOrders.length > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 mt-3">
+            <Pagination
+              page={data?.page || page}
+              pages={data?.pages || 1}
+              total={data?.total}
+              onChange={setPage}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

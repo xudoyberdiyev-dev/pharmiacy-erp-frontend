@@ -158,7 +158,7 @@ export default function OperatorOrderDetail() {
           </button>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-lg font-black text-gray-900 font-mono">#{order.orderNumber?.slice(-10)}</h1>
+              <h1 className="text-lg font-black text-gray-900 font-mono">#{order.invoiceNumber}</h1>
               <StatusBadge status={order.status} large />
             </div>
             <p className="text-xs text-gray-400 mt-0.5 font-medium">{format(new Date(order.createdAt), 'dd.MM.yyyy HH:mm')} · {order.createdBy?.fullName}</p>

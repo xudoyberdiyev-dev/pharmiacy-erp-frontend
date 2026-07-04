@@ -56,7 +56,7 @@ function CancelModal({ order, onClose, onConfirm, loading }) {
           </div>
           <div className="bg-gray-50 rounded-xl p-3.5 space-y-1">
             <p className="text-xs text-gray-400">Order</p>
-            <p className="font-mono font-bold text-gray-900">#{order.orderNumber?.slice(-8)}</p>
+            <p className="font-mono font-bold text-gray-900">#{order.invoiceNumber}</p>
             <p className="text-sm text-gray-600">{order.client?.orgName}</p>
           </div>
           <div>
@@ -248,7 +248,7 @@ export default function OperatorOrdersPage() {
                     >
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm font-black text-gray-900">#{o.orderNumber?.slice(-8)}</span>
+                          <span className="font-mono text-sm font-black text-gray-900">#{o.invoiceNumber}</span>
                           {late && (
                             <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-red-500 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-md">
                               <AlertTriangle size={9} /> KECH

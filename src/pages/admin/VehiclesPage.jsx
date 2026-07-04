@@ -7,6 +7,7 @@ import {
   Truck, Plus, Pencil, Trash2, ToggleLeft, ToggleRight,
   Search, X, Check, AlertTriangle, Car
 } from 'lucide-react';
+import Pagination from '../../components/shared/Pagination';
 
 const inp = "w-full px-3.5 py-2.5 border-2 border-gray-100 rounded-xl text-sm font-medium focus:outline-none focus:border-blue-400 bg-gray-50 focus:bg-white transition-all";
 
@@ -194,18 +195,23 @@ export default function VehiclesPage() {
 
   const [search, setSearch]         = useState('');
   const [filterActive, setFilter]   = useState('all');
+  const [page, setPage]             = useState(1);
   const [modal, setModal]           = useState(null); // null | 'create' | vehicle-obj
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const limit = 12;
 
-  const params = {};
+  const params = { search: search || undefined, page, limit };
   if (filterActive !== 'all') params.isActive = filterActive === 'active' ? 'true' : 'false';
 
   const { data, isLoading } = useQuery({
     queryKey: ['vehicles', params],
     queryFn: () => vehicleAPI.getAll(params),
-    select: r => r.data.data || [],
+    select: r => r.data,
     refetchInterval: 30000,
   });
+
+  const vehicles = data?.data || [];
+  const pagination = data?.pagination || {};
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['vehicles'] });
 
@@ -233,13 +239,8 @@ export default function VehiclesPage() {
     onError: e => toast.error(e.response?.data?.message || 'Xato'),
   });
 
-  const filtered = (data || []).filter(v =>
-    !search || v.model.toLowerCase().includes(search.toLowerCase()) ||
-    v.plateNumber.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const active   = (data || []).filter(v => v.isActive).length;
-  const inactive = (data || []).filter(v => !v.isActive).length;
+  const active   = vehicles.filter(v => v.isActive).length;
+  const inactive = vehicles.filter(v => !v.isActive).length;
 
   return (
     <div className="space-y-6">
@@ -267,7 +268,7 @@ export default function VehiclesPage() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Jami',    value: (data || []).length, color: 'text-blue-600',  bg: 'bg-blue-50'  },
+          { label: 'Jami',    value: pagination.total ?? vehicles.length, color: 'text-blue-600',  bg: 'bg-blue-50'  },
           { label: 'Faol',    value: active,              color: 'text-green-600', bg: 'bg-green-50' },
           { label: 'Nofaol',  value: inactive,            color: 'text-gray-500',  bg: 'bg-gray-50'  },
         ].map(s => (
@@ -284,12 +285,12 @@ export default function VehiclesPage() {
           <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => { setSearch(e.target.value); setPage(1); }}
             placeholder="Model yoki davlat raqami bo'yicha qidirish..."
             className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-100 rounded-xl text-sm bg-white focus:outline-none focus:border-blue-400 transition-all"
           />
           {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+            <button onClick={() => { setSearch(''); setPage(1); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
               <X size={14} />
             </button>
           )}
@@ -300,7 +301,7 @@ export default function VehiclesPage() {
             { key: 'active',   label: 'Faol'     },
             { key: 'inactive', label: 'Nofaol'   },
           ].map(f => (
-            <button key={f.key} onClick={() => setFilter(f.key)}
+            <button key={f.key} onClick={() => { setFilter(f.key); setPage(1); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 filterActive === f.key
                   ? 'bg-white text-blue-600 shadow-sm'
@@ -328,7 +329,7 @@ export default function VehiclesPage() {
             </div>
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : vehicles.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-20 text-center">
           <div className="w-16 h-16 mx-auto bg-gray-50 rounded-2xl flex items-center justify-center mb-4">
             <Truck size={28} className="text-gray-200" />
@@ -344,18 +345,28 @@ export default function VehiclesPage() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map(v => (
-            <VehicleCard
-              key={v.id}
-              vehicle={v}
-              canEdit={isAdmin}
-              onEdit={setModal}
-              onToggle={v => toggleMut.mutate(v.id)}
-              onDelete={setDeleteTarget}
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {vehicles.map(v => (
+              <VehicleCard
+                key={v.id}
+                vehicle={v}
+                canEdit={isAdmin}
+                onEdit={setModal}
+                onToggle={v => toggleMut.mutate(v.id)}
+                onDelete={setDeleteTarget}
+              />
+            ))}
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100">
+            <Pagination
+              page={pagination.page || page}
+              pages={pagination.pages || 1}
+              total={pagination.total}
+              onChange={setPage}
             />
-          ))}
-        </div>
+          </div>
+        </>
       )}
 
       {/* Create / Edit modal */}

@@ -94,7 +94,7 @@ function EtirovModal({ order, onClose, onDone }) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div>
             <h3 className="font-black text-gray-900">Etirozni bildirish</h3>
-            <p className="text-xs text-gray-400 mt-0.5">#{order.orderNumber?.slice(-8)} · {order.client?.orgName}</p>
+            <p className="text-xs text-gray-400 mt-0.5">#{order.invoiceNumber} · {order.client?.orgName}</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors">
             <X size={16} className="text-gray-400" />
@@ -208,7 +208,7 @@ function MineCard({ order }) {
           <CheckCircle2 size={30} className="text-green-500" />
         </div>
         <p className="text-sm font-black text-green-700">Checking bo'limiga o'tdi!</p>
-        <p className="text-xs text-gray-400">#{order.orderNumber?.slice(-8)}</p>
+        <p className="text-xs text-gray-400">#{order.invoiceNumber}</p>
       </div>
     );
   }
@@ -230,7 +230,7 @@ function MineCard({ order }) {
           {/* Header */}
           <div className="flex items-start justify-between gap-2 mb-3">
             <div>
-              <p className="font-mono text-base font-black text-gray-900">#{order.orderNumber?.slice(-8)}</p>
+              <p className="font-mono text-base font-black text-gray-900">#{order.invoiceNumber}</p>
               <p className="text-xs text-gray-400 mt-0.5">
                 Qabul qilindi: {order.markingStartedAt ? format(new Date(order.markingStartedAt), 'HH:mm') : '—'}
               </p>

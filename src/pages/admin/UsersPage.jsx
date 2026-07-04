@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userAPI } from '../../api';
 import toast from 'react-hot-toast';
-import { Plus, UserCheck, UserX, RefreshCw, X, QrCode } from 'lucide-react';
+import { Plus, UserCheck, UserX, RefreshCw, X, QrCode, Search, Users, Download } from 'lucide-react';
+import Pagination from '../../components/shared/Pagination';
 
 const ROLES = [
   { value: 'OPERATOR', label: 'Operator' },
@@ -14,6 +15,8 @@ const ROLES = [
   { value: 'DOCUMENT', label: 'Hujjatchi' },
   { value: 'ADMIN', label: 'Admin' },
 ];
+
+const QR_ROLES = ['PICKER', 'MARKER', 'CHECKER'];
 
 const ROLE_COLORS = {
   OPERATOR: 'bg-cyan-100 text-cyan-700',
@@ -35,7 +38,7 @@ function UserModal({ onClose }) {
     mutationFn: () => userAPI.create(form),
     onSuccess: () => {
       toast.success('Xodim qo\'shildi!');
-      qc.invalidateQueries(['users']);
+      qc.invalidateQueries({ queryKey: ['users'] });
       onClose();
     },
     onError: (e) => toast.error(e.response?.data?.message || 'Xato yuz berdi'),
@@ -81,66 +84,142 @@ function UserModal({ onClose }) {
   );
 }
 
+function QrModal({ user, onClose }) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-bold text-gray-900">{user.fullName}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+        </div>
+        {user.qrCodeImage ? (
+          <>
+            <img src={user.qrCodeImage} alt="QR kod" className="w-56 h-56 mx-auto rounded-xl border border-gray-100" />
+            <a
+              href={user.qrCodeImage}
+              download={`${user.fullName}-qr.png`}
+              className="mt-4 inline-flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 text-sm font-bold transition-colors"
+            >
+              <Download size={14} /> Yuklab olish
+            </a>
+          </>
+        ) : (
+          <p className="text-gray-400 text-sm py-8">QR kod hali yaratilmagan</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function UsersPage() {
   const qc = useQueryClient();
   const [showModal, setShowModal] = useState(false);
+  const [qrUser, setQrUser] = useState(null);
   const [roleFilter, setRoleFilter] = useState('');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const limit = 20;
 
   const { data, isLoading } = useQuery({
-    queryKey: ['users', roleFilter],
-    queryFn: () => userAPI.getAll(roleFilter ? { role: roleFilter } : {}),
-    select: r => r.data.data,
+    queryKey: ['users', roleFilter, search, page],
+    queryFn: () => userAPI.getAll({ role: roleFilter || undefined, search: search || undefined, page, limit }),
+    select: r => r.data,
   });
 
   const toggleMutation = useMutation({
     mutationFn: (id) => userAPI.toggleActive(id),
-    onSuccess: () => { toast.success('Holat o\'zgartirildi!'); qc.invalidateQueries(['users']); },
+    onSuccess: () => { toast.success('Holat o\'zgartirildi!'); qc.invalidateQueries({ queryKey: ['users'] }); },
     onError: (e) => toast.error(e.response?.data?.message || 'Xato'),
   });
 
   const qrMutation = useMutation({
     mutationFn: (id) => userAPI.regenerateQr(id),
-    onSuccess: (res) => {
+    onSuccess: () => {
       toast.success('QR yangilandi!');
-      qc.invalidateQueries(['users']);
+      qc.invalidateQueries({ queryKey: ['users'] });
     },
     onError: (e) => toast.error(e.response?.data?.message || 'Xato'),
   });
 
-  const users = data || [];
+  const users = data?.data || [];
+  const pagination = data?.pagination || {};
+  const activeCount = users.filter(u => u.isActive).length;
+  const blockedCount = users.filter(u => !u.isActive).length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Xodimlar</h1>
-        <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
-          <Plus size={18} /> Xodim qo'shish
+    <div className="space-y-5">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-3">
+          <div className="w-9 h-9 bg-blue-100 rounded-2xl flex items-center justify-center">
+            <Users size={18} className="text-blue-600" />
+          </div>
+          Xodimlar
+        </h1>
+        <button
+          onClick={() => setShowModal(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md shadow-blue-200 hover:shadow-lg transition-all"
+        >
+          <Plus size={16} strokeWidth={2.5} /> Xodim qo'shish
         </button>
       </div>
 
-      {/* Role filter */}
-      <div className="flex gap-2 flex-wrap">
-        <button
-          onClick={() => setRoleFilter('')}
-          className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${!roleFilter ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-400'}`}
-        >
-          Barchasi
-        </button>
-        {ROLES.map(r => (
-          <button
-            key={r.value}
-            onClick={() => setRoleFilter(r.value)}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${roleFilter === r.value ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-400'}`}
-          >
-            {r.label}
-          </button>
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { label: 'Sahifadagilar', value: pagination.total ?? users.length, color: 'text-blue-600', bg: 'bg-blue-50' },
+          { label: 'Faol', value: activeCount, color: 'text-green-600', bg: 'bg-green-50' },
+          { label: 'Bloklangan', value: blockedCount, color: 'text-red-500', bg: 'bg-red-50' },
+        ].map(s => (
+          <div key={s.label} className={`${s.bg} rounded-2xl p-4`}>
+            <p className={`text-3xl font-black ${s.color}`}>{s.value}</p>
+            <p className="text-xs text-gray-500 font-medium mt-0.5">{s.label}</p>
+          </div>
         ))}
       </div>
 
+      {/* Search + role filter */}
+      <div className="space-y-3">
+        <div className="relative">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1); }}
+            placeholder="Ism yoki telefon bo'yicha qidirish..."
+            className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-100 rounded-xl text-sm bg-white focus:outline-none focus:border-blue-400 transition-all"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => { setRoleFilter(''); setPage(1); }}
+            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${!roleFilter ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-400'}`}
+          >
+            Barchasi
+          </button>
+          {ROLES.map(r => (
+            <button
+              key={r.value}
+              onClick={() => { setRoleFilter(r.value); setPage(1); }}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${roleFilter === r.value ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-400'}`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {isLoading ? (
-        <div className="text-center py-12 text-gray-400">Yuklanmoqda...</div>
+        <div className="space-y-2">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 h-16 animate-pulse" />
+          ))}
+        </div>
       ) : (
-        <div className="card p-0 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase tracking-wide bg-gray-50">
@@ -186,24 +265,42 @@ export default function UsersPage() {
                       >
                         {u.isActive ? 'Bloklash' : 'Faollashtirish'}
                       </button>
-                      <button
-                        onClick={() => qrMutation.mutate(u.id)}
-                        disabled={qrMutation.isPending}
-                        title="QR yangilash"
-                        className="text-xs px-3 py-1.5 rounded-lg font-medium bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors flex items-center gap-1"
-                      >
-                        <RefreshCw size={12} /> QR
-                      </button>
+                      {QR_ROLES.includes(u.role) && (
+                        <>
+                          <button
+                            onClick={() => setQrUser(u)}
+                            title="QR ko'rish"
+                            className="text-xs px-3 py-1.5 rounded-lg font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors flex items-center gap-1"
+                          >
+                            <QrCode size={12} /> Ko'rish
+                          </button>
+                          <button
+                            onClick={() => qrMutation.mutate(u.id)}
+                            disabled={qrMutation.isPending}
+                            title="QR yangilash"
+                            className="text-xs px-3 py-1.5 rounded-lg font-medium bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors flex items-center gap-1"
+                          >
+                            <RefreshCw size={12} /> Yangilash
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          <Pagination
+            page={pagination.page || page}
+            pages={pagination.pages || 1}
+            total={pagination.total}
+            onChange={setPage}
+          />
         </div>
       )}
 
       {showModal && <UserModal onClose={() => setShowModal(false)} />}
+      {qrUser && <QrModal user={qrUser} onClose={() => setQrUser(null)} />}
     </div>
   );
 }

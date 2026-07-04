@@ -39,7 +39,7 @@ function EtirozliCard({ order }) {
       }`}>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="font-mono text-base font-black text-gray-900">#{order.orderNumber?.slice(-8)}</p>
+            <p className="font-mono text-base font-black text-gray-900">#{order.invoiceNumber}</p>
             <p className="text-xs text-gray-500 mt-0.5">{format(new Date(order.createdAt), 'dd.MM.yyyy HH:mm')}</p>
           </div>
           <div className="flex flex-col items-end gap-1.5">

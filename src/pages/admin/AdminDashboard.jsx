@@ -1,13 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
-import { orderAPI, clientAPI } from '../../api';
+import { orderAPI, statsAPI } from '../../api';
 import StatusBadge from '../../components/shared/StatusBadge';
-import { Package, Users, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Package, Users, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 
-function StatCard({ label, value, icon: Icon, color, sub }) {
+function StatCard({ label, value, icon: Icon, color, sub, onClick }) {
   return (
-    <div className="card flex items-start gap-4">
+    <div
+      className={`card flex items-start gap-4 ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+      onClick={onClick}
+    >
       <div className={`p-3 rounded-xl ${color}`}>
         <Icon size={22} className="text-white" />
       </div>
@@ -23,22 +26,19 @@ function StatCard({ label, value, icon: Icon, color, sub }) {
 export default function AdminDashboard() {
   const navigate = useNavigate();
 
+  const { data: statsRes } = useQuery({
+    queryKey: ['stats'],
+    queryFn: () => statsAPI.getStats(),
+    select: (r) => r.data.data,
+  });
+
   const { data: ordersRes } = useQuery({
-    queryKey: ['orders', 'all'],
+    queryKey: ['orders', 'recent'],
     queryFn: () => orderAPI.getAll({ limit: 10 }),
   });
 
-  const { data: clientsRes } = useQuery({
-    queryKey: ['clients'],
-    queryFn: () => clientAPI.getAll({ limit: 1 }),
-  });
-
   const orders = ordersRes?.data?.data || [];
-  const totalOrders = ordersRes?.data?.total || 0;
-  const totalClients = clientsRes?.data?.pagination?.total || 0;
-
-  const newOrders = orders.filter(o => o.status === 'NEW').length;
-  const delivered = orders.filter(o => o.status === 'DELIVERED').length;
+  const pendingCount = statsRes?.pendingAdminConfirm?.length ?? 0;
 
   return (
     <div className="space-y-6">
@@ -51,11 +51,19 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Jami orderlar" value={totalOrders} icon={Package} color="bg-blue-600" />
-        <StatCard label="Klientlar" value={totalClients} icon={Users} color="bg-purple-600" />
-        <StatCard label="Yangi orderlar" value={newOrders} icon={Clock} color="bg-amber-500" sub="Kutmoqda" />
-        <StatCard label="Yetkazildi" value={delivered} icon={CheckCircle} color="bg-green-600" sub="So'nggi 20 ta" />
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <StatCard label="Jami orderlar" value={statsRes?.totalOrders} icon={Package} color="bg-blue-600" />
+        <StatCard label="Klientlar" value={statsRes?.totalClients} icon={Users} color="bg-purple-600" />
+        <StatCard label="Bugungi orderlar" value={statsRes?.todayOrders} icon={Clock} color="bg-amber-500" />
+        <StatCard label="Yetkazildi" value={statsRes?.completedOrders} icon={CheckCircle} color="bg-green-600" />
+        <StatCard
+          label="48 soatda tasdiqlanmagan"
+          value={pendingCount}
+          icon={AlertTriangle}
+          color="bg-red-600"
+          sub={pendingCount > 0 ? 'Ko\'rish uchun bosing' : undefined}
+          onClick={() => navigate('/admin/overdue')}
+        />
       </div>
 
       {/* Recent orders */}
@@ -70,7 +78,7 @@ export default function AdminDashboard() {
           <table className="w-full">
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase tracking-wide bg-gray-50">
-                <th className="px-6 py-3">Order #</th>
+                <th className="px-6 py-3">Faktura</th>
                 <th className="px-6 py-3">Klient</th>
                 <th className="px-6 py-3">Summa</th>
                 <th className="px-6 py-3">Status</th>
@@ -84,7 +92,7 @@ export default function AdminDashboard() {
               )}
               {orders.map(order => (
                 <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-3 font-mono text-sm font-medium">{order.orderNumber?.slice(-8)}</td>
+                  <td className="px-6 py-3 font-mono text-sm font-medium">{order.invoiceNumber}</td>
                   <td className="px-6 py-3 text-sm">{order.client?.orgName || '—'}</td>
                   <td className="px-6 py-3 text-sm font-medium">{order.totalAmount?.toLocaleString()} so'm</td>
                   <td className="px-6 py-3"><StatusBadge status={order.status} /></td>

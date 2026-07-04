@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { documentAPI } from '../../api';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import {
   FileSpreadsheet, Search, X, CheckSquare, Square,
-  RefreshCw, Building2, Sparkles
+  RefreshCw, Building2, Truck, Sparkles
 } from 'lucide-react';
+import TripModal from './TripModal';
 
 function EmptyState() {
   return (
@@ -22,13 +24,15 @@ function EmptyState() {
 
 export default function DocumentPendingPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [selected, setSelected] = useState([]);
   const [search, setSearch] = useState('');
+  const [showModal, setShowModal] = useState(false);
 
   const { data: orders = [], isLoading, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ['document', 'pending'],
     queryFn: () => documentAPI.getPending(),
-    select: r => (r.data.data || []).filter(o => !o.dispatchDocumentId),
+    select: r => r.data.data || [],
     refetchInterval: 15000,
   });
 
@@ -44,30 +48,16 @@ export default function DocumentPendingPage() {
   const selectedOrders = orders.filter(o => selected.includes(o.id));
   const totalSelectedAmount = selectedOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
 
-  const exportMutation = useMutation({
-    mutationFn: () => documentAPI.exportExcel(selected),
+  const assignMutation = useMutation({
+    mutationFn: ({ driverId, vehicleId }) => documentAPI.assignTrip({ orderIds: selected, driverId, vehicleId }),
     onSuccess: (res) => {
-      const disposition = res.headers['content-disposition'] || '';
-      const match = disposition.match(/filename="?([^"]+)"?/);
-      const filename = match ? match[1] : 'hujjat.xlsx';
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success('Hujjat yaratildi! "Hujjatlashtirilgan" bo\'limidan safarga tayyorlang', { duration: 4500 });
+      toast.success(res.data.message);
       setSelected([]);
+      setShowModal(false);
       qc.invalidateQueries(['document']);
+      navigate('/document/documented');
     },
-    onError: async (e) => {
-      const msg = e.response?.data instanceof Blob
-        ? JSON.parse(await e.response.data.text()).message
-        : e.response?.data?.message;
-      toast.error(msg || 'Xato yuz berdi');
-    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Xato yuz berdi'),
   });
 
   const toggle = (id) => setSelected(p => p.includes(id) ? p.filter(i => i !== id) : [...p, id]);
@@ -201,20 +191,27 @@ export default function DocumentPendingPage() {
                   Bekor qilish
                 </button>
                 <button
-                  onClick={() => exportMutation.mutate()}
-                  disabled={exportMutation.isPending}
+                  onClick={() => setShowModal(true)}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white
                     bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700
-                    shadow-lg shadow-indigo-500/30 transition-all disabled:opacity-60"
+                    shadow-lg shadow-indigo-500/30 transition-all"
                 >
-                  {exportMutation.isPending
-                    ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Yaratilmoqda...</>
-                    : <><FileSpreadsheet size={15} /> Hujjat yaratish</>}
+                  <Truck size={15} /> Haydovchi va mashina biriktirish
                 </button>
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {showModal && (
+        <TripModal
+          orders={selectedOrders}
+          onClose={() => setShowModal(false)}
+          onConfirm={(driverId, vehicleId) => assignMutation.mutate({ driverId, vehicleId })}
+          loading={assignMutation.isPending}
+          confirmLabel="Biriktirish"
+        />
       )}
     </div>
   );

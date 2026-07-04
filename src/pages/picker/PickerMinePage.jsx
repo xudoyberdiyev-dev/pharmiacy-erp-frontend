@@ -99,7 +99,7 @@ function MineCard({ order }) {
         {/* Order # + client */}
         <div className="flex items-start justify-between gap-2 mb-3">
           <div>
-            <p className="font-mono text-base font-black text-gray-900">#{order.orderNumber?.slice(-8)}</p>
+            <p className="font-mono text-base font-black text-gray-900">#{order.invoiceNumber}</p>
             <p className="text-xs text-gray-400 mt-0.5">
               Qabul qilindi: {order.pickingStartedAt ? format(new Date(order.pickingStartedAt), 'HH:mm') : '—'}
             </p>

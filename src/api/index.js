@@ -41,6 +41,7 @@ export const orderAPI = {
   adminConfirm: (id) => api.patch(`/orders/${id}/admin-confirm`),
   accountantConfirm: (id, step) => api.patch(`/orders/${id}/accountant-confirm`, { step }),
   updateLocation: (data) => api.post('/orders/location', data),
+  getConfirmationHistory: (params) => api.get('/orders/confirmation-history', { params }),
 };
 
 // ===== PICKER =====
@@ -83,9 +84,12 @@ export const checkerAPI = {
 
 // ===== DOCUMENT =====
 export const documentAPI = {
-  getPending:  () => api.get('/document/orders/pending'),
-  getReady:    () => api.get('/document/orders/ready'),
-  exportExcel: (orderIds) => api.post('/document/export', { orderIds }, { responseType: 'blob' }),
+  getPending:          () => api.get('/document/orders/pending'),
+  getAwaitingDocument: () => api.get('/document/orders/awaiting-document'),
+  getReady:            () => api.get('/document/orders/ready'),
+  exportExcel: (orderIds, columns, footer) => api.post(
+    '/document/export', { orderIds, columns, footer }, { responseType: 'blob' }
+  ),
   assignTrip:  (data) => api.post('/document/assign-trip', data),
 };
 
@@ -112,6 +116,6 @@ export const vehicleAPI = {
 // ===== STATS =====
 export const statsAPI = {
   getStats: (params) => api.get('/stats', { params }),
-  getMonitoring: () => api.get('/monitoring'),
+  getMonitoring: (params) => api.get('/monitoring', { params }),
   getActivityLog: (params) => api.get('/activity-log', { params }),
 };

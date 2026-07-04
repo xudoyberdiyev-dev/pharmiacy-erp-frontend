@@ -79,7 +79,7 @@ export default function SuperAdminActivity() {
                   </span>
                   {log.order && (
                     <span className="font-mono text-xs text-gray-500">
-                      #{log.order?.orderNumber?.slice(-8)}
+                      #{log.order?.invoiceNumber}
                     </span>
                   )}
                 </div>

@@ -272,7 +272,7 @@ export default function OperatorDashboard() {
                       <Clock size={14} className="text-red-500" />
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-gray-900">#{o.orderNumber?.slice(-8)}</p>
+                      <p className="text-sm font-bold text-gray-900">#{o.invoiceNumber}</p>
                       <p className="text-xs text-gray-400">{o.client?.orgName}</p>
                     </div>
                   </div>
@@ -343,7 +343,7 @@ export default function OperatorDashboard() {
                     >
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm font-black text-gray-800">#{o.orderNumber?.slice(-8)}</span>
+                          <span className="font-mono text-sm font-black text-gray-800">#{o.invoiceNumber}</span>
                           {late && (
                             <span className="text-[10px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-md">KECH</span>
                           )}

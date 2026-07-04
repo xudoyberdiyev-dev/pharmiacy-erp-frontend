@@ -7,7 +7,7 @@ import { useState, useRef, useEffect } from 'react';
 
 const NAV_LINKS = [
   { to: '/document',             label: 'Chekingdan o\'tganlar',    icon: FileSpreadsheet, end: true },
-  { to: '/document/documented',  label: 'Hujjatlashtirilgan',       icon: FileCheck2 },
+  { to: '/document/documented',  label: 'Hujjatlashtirish',         icon: FileCheck2 },
   { to: '/document/ready',       label: 'Safarga tayyor',           icon: Truck },
 ];
 

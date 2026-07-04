@@ -50,7 +50,7 @@ export default function DriverPanel() {
             <div key={order.id} className="bg-white rounded-xl border border-orange-200 p-5 shadow-sm space-y-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="font-mono font-bold">#{order.orderNumber?.slice(-8)}</span>
+                  <span className="font-mono font-bold">#{order.invoiceNumber}</span>
                   <StatusBadge status={order.status} />
                 </div>
                 <p className="font-medium text-gray-800">{order.client?.orgName}</p>
@@ -115,7 +115,7 @@ export default function DriverPanel() {
             {done.slice(0, 5).map(order => (
               <div key={order.id} className="bg-white rounded-xl border p-4 flex items-center justify-between">
                 <div>
-                  <span className="font-mono text-sm font-bold">#{order.orderNumber?.slice(-8)}</span>
+                  <span className="font-mono text-sm font-bold">#{order.invoiceNumber}</span>
                   <span className="text-sm text-gray-500 ml-2">{order.client?.orgName}</span>
                 </div>
                 <StatusBadge status={order.status} />

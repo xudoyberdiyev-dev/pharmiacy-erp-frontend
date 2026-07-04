@@ -4,15 +4,18 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 import MainLayout from './components/layout/MainLayout';
+import AdminHeaderLayout from './components/layout/AdminHeaderLayout';
 import OperatorLayout from './components/layout/OperatorLayout';
 import LoginPage from './pages/auth/LoginPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import ClientsPage from './pages/admin/ClientsPage';
 import OrdersPage from './pages/admin/OrdersPage';
 import OrderDetailPage from './pages/admin/OrderDetailPage';
-import DocumentPanel from './pages/admin/DocumentPanel';
 import UsersPage from './pages/admin/UsersPage';
 import VehiclesPage from './pages/admin/VehiclesPage';
+import OrdersApprovalPage from './pages/admin/OrdersApprovalPage';
+import OverdueOrdersPage from './pages/admin/OverdueOrdersPage';
+import ConfirmationHistoryPage from './pages/admin/ConfirmationHistoryPage';
 import OperatorDashboard from './pages/operator/OperatorDashboard';
 import OperatorOrdersPage from './pages/operator/OperatorOrdersPage';
 import OperatorCreateOrder from './pages/operator/OperatorCreateOrder';
@@ -74,7 +77,7 @@ function ProtectedRoute({ children, roles }) {
 }
 
 const ROOT_REDIRECTS = {
-  ADMIN: '/admin', SUPER_ADMIN: '/admin',
+  ADMIN: '/admin', SUPER_ADMIN: '/superadmin',
   OPERATOR: '/operator',
   PICKER: '/picker', MARKER: '/marker',
   CHECKER: '/checker', DRIVER: '/driver', ACCOUNTANT: '/accountant',
@@ -89,14 +92,17 @@ function AppRoutes() {
       <Route path="/" element={user ? <Navigate to={ROOT_REDIRECTS[user.role] || '/login'} replace /> : <Navigate to="/login" replace />} />
 
       {/* ADMIN */}
-      <Route path="/admin" element={<ProtectedRoute roles={['ADMIN', 'SUPER_ADMIN']}><MainLayout /></ProtectedRoute>}>
+      <Route path="/admin" element={<ProtectedRoute roles={['ADMIN']}><AdminHeaderLayout /></ProtectedRoute>}>
         <Route index element={<AdminDashboard />} />
         <Route path="clients" element={<ClientsPage />} />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="orders/:id" element={<OrderDetailPage />} />
         <Route path="vehicles" element={<VehiclesPage />} />
-        <Route path="document" element={<DocumentPanel />} />
         <Route path="users" element={<UsersPage />} />
+        <Route path="approvals" element={<OrdersApprovalPage />} />
+        <Route path="overdue" element={<OverdueOrdersPage />} />
+        <Route path="confirmation-history" element={<ConfirmationHistoryPage />} />
+        <Route path="monitoring" element={<SuperAdminMonitoring />} />
       </Route>
 
       {/* OPERATOR */}
@@ -146,9 +152,8 @@ function AppRoutes() {
       </Route>
 
       {/* SUPER ADMIN */}
-      <Route path="/superadmin" element={<ProtectedRoute roles={['SUPER_ADMIN']}><MainLayout /></ProtectedRoute>}>
+      <Route path="/superadmin" element={<ProtectedRoute roles={['SUPER_ADMIN']}><AdminHeaderLayout /></ProtectedRoute>}>
         <Route index element={<SuperAdminStats />} />
-        <Route path="monitoring" element={<SuperAdminMonitoring />} />
         <Route path="activity" element={<SuperAdminActivity />} />
       </Route>
 

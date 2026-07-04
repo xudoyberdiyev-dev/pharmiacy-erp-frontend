@@ -174,7 +174,7 @@ function EtirozliCard({ order }) {
       <div className={`rounded-t-2xl px-5 py-4 border-b ${hasPending ? 'bg-amber-50 border-amber-100' : 'bg-gray-50 border-gray-100'}`}>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="font-mono text-base font-black text-gray-900">#{order.orderNumber?.slice(-8)}</p>
+            <p className="font-mono text-base font-black text-gray-900">#{order.invoiceNumber}</p>
             <p className="text-xs text-gray-500 mt-0.5">{format(new Date(order.createdAt), 'dd.MM.yyyy HH:mm')}</p>
           </div>
           <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border ${

@@ -29,7 +29,7 @@ function OrderRow({ order }) {
     <div className={`bg-white rounded-2xl border-2 p-4 shadow-sm ${order.isLate ? 'border-red-200' : 'border-purple-200'}`}>
       <div className="flex items-start justify-between gap-3 mb-2">
         <div>
-          <p className="font-mono text-sm font-black text-gray-900">#{order.orderNumber?.slice(-8)}</p>
+          <p className="font-mono text-sm font-black text-gray-900">#{order.invoiceNumber}</p>
           <p className="text-[11px] text-gray-400">{order.client?.orgName}</p>
         </div>
         {order.isLate ? (

@@ -2,17 +2,32 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { clientAPI } from '../../api';
 import toast from 'react-hot-toast';
-import { Plus, Search, MapPin, Phone, Building2, X } from 'lucide-react';
+import { Plus, Search, MapPin, Phone, Building2, X, Pencil, Power, Users } from 'lucide-react';
+import Pagination from '../../components/shared/Pagination';
 
-function ClientModal({ onClose }) {
+const EMPTY_FORM = { orgName: '', inn: '', phone: '', address: '', longitude: '', latitude: '' };
+
+function ClientModal({ client, onClose }) {
   const qc = useQueryClient();
-  const [form, setForm] = useState({ orgName:'', inn:'', phone:'', address:'', longitude:'', latitude:'' });
+  const isEdit = !!client;
+  const [form, setForm] = useState(
+    client
+      ? {
+          orgName: client.orgName,
+          inn: client.inn,
+          phone: client.phone,
+          address: client.address,
+          longitude: client.longitude,
+          latitude: client.latitude,
+        }
+      : EMPTY_FORM
+  );
 
   const mutation = useMutation({
-    mutationFn: () => clientAPI.create(form),
+    mutationFn: () => (isEdit ? clientAPI.update(client.id, form) : clientAPI.create(form)),
     onSuccess: () => {
-      toast.success('Klient qo\'shildi!');
-      qc.invalidateQueries(['clients']);
+      toast.success(isEdit ? 'Klient yangilandi!' : 'Klient qo\'shildi!');
+      qc.invalidateQueries({ queryKey: ['clients'] });
       onClose();
     },
     onError: (e) => toast.error(e.response?.data?.message || 'Xato yuz berdi'),
@@ -24,7 +39,7 @@ function ClientModal({ onClose }) {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
         <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="font-semibold text-lg">Yangi klient qo'shish</h2>
+          <h2 className="font-semibold text-lg">{isEdit ? 'Klientni tahrirlash' : 'Yangi klient qo\'shish'}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
         </div>
         <div className="p-6 space-y-4">
@@ -73,75 +88,189 @@ function ClientModal({ onClose }) {
 }
 
 export default function ClientsPage() {
+  const qc = useQueryClient();
   const [search, setSearch] = useState('');
-  const [showModal, setShowModal] = useState(false);
+  const [activeFilter, setActiveFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const [modalClient, setModalClient] = useState(undefined); // undefined = closed, null = create, object = edit
+  const limit = 12;
 
   const { data, isLoading } = useQuery({
-    queryKey: ['clients', search],
-    queryFn: () => clientAPI.getAll({ search, limit: 50 }),
+    queryKey: ['clients', search, activeFilter, page],
+    queryFn: () => clientAPI.getAll({
+      search: search || undefined,
+      isActive: activeFilter || undefined,
+      page,
+      limit,
+    }),
     select: r => r.data,
   });
 
+  const toggleMutation = useMutation({
+    mutationFn: (id) => clientAPI.toggleActive(id),
+    onSuccess: () => {
+      toast.success('Holat o\'zgartirildi!');
+      qc.invalidateQueries({ queryKey: ['clients'] });
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Xato'),
+  });
+
   const clients = data?.data || [];
+  const pagination = data?.pagination || {};
+  const activeCount = clients.filter(c => c.isActive).length;
+  const inactiveCount = clients.filter(c => !c.isActive).length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Klientlar</h1>
-        <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
-          <Plus size={18} /> Klient qo'shish
+    <div className="space-y-5">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-3">
+          <div className="w-9 h-9 bg-blue-100 rounded-2xl flex items-center justify-center">
+            <Users size={18} className="text-blue-600" />
+          </div>
+          Klientlar
+        </h1>
+        <button
+          onClick={() => setModalClient(null)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md shadow-blue-200 hover:shadow-lg transition-all"
+        >
+          <Plus size={16} strokeWidth={2.5} /> Klient qo'shish
         </button>
       </div>
 
-      <div className="card p-4">
-        <div className="relative">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { label: 'Sahifadagilar', value: pagination.total ?? clients.length, color: 'text-blue-600', bg: 'bg-blue-50' },
+          { label: 'Faol', value: activeCount, color: 'text-green-600', bg: 'bg-green-50' },
+          { label: 'Nofaol', value: inactiveCount, color: 'text-gray-500', bg: 'bg-gray-50' },
+        ].map(s => (
+          <div key={s.label} className={`${s.bg} rounded-2xl p-4`}>
+            <p className={`text-3xl font-black ${s.color}`}>{s.value}</p>
+            <p className="text-xs text-gray-500 font-medium mt-0.5">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Search + filter */}
+      <div className="flex gap-3">
+        <div className="relative flex-1">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
-            className="input pl-10"
-            placeholder="Nom, INN yoki telefon bo'yicha qidirish..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => { setSearch(e.target.value); setPage(1); }}
+            placeholder="Nom, INN yoki telefon bo'yicha qidirish..."
+            className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-100 rounded-xl text-sm bg-white focus:outline-none focus:border-blue-400 transition-all"
           />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
+          {[
+            { value: '', label: 'Barchasi' },
+            { value: 'true', label: 'Faol' },
+            { value: 'false', label: 'Nofaol' },
+          ].map(f => (
+            <button
+              key={f.value}
+              onClick={() => { setActiveFilter(f.value); setPage(1); }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                activeFilter === f.value ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
         </div>
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-gray-400">Yuklanmoqda...</div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {clients.length === 0 && (
-            <div className="col-span-3 text-center py-12 text-gray-400">Klientlar topilmadi</div>
-          )}
-          {clients.map(client => (
-            <div key={client.id} className="card hover:shadow-md transition-shadow">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Building2 size={20} className="text-blue-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900 truncate">{client.orgName}</h3>
-                  <p className="text-xs text-gray-500">INN: {client.inn}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 h-40 animate-pulse">
+              <div className="flex gap-3 mb-4">
+                <div className="w-10 h-10 bg-gray-100 rounded-xl" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-gray-100 rounded w-2/3" />
+                  <div className="h-3 bg-gray-100 rounded w-1/2" />
                 </div>
               </div>
-              <div className="mt-4 space-y-2">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Phone size={14} className="text-gray-400" />
-                  {client.phone}
-                </div>
-                <div className="flex items-start gap-2 text-sm text-gray-600">
-                  <MapPin size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />
-                  <span className="line-clamp-2">{client.address}</span>
-                </div>
-                <div className="text-xs text-gray-400">
-                  📍 {client.latitude?.toFixed(4)}, {client.longitude?.toFixed(4)}
-                </div>
-              </div>
+              <div className="h-8 bg-gray-100 rounded-xl" />
             </div>
           ))}
         </div>
+      ) : (
+        <>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {clients.length === 0 && (
+              <div className="col-span-3 text-center py-12 text-gray-400">Klientlar topilmadi</div>
+            )}
+            {clients.map(client => (
+              <div key={client.id} className={`bg-white rounded-2xl border-2 p-5 shadow-sm transition-all hover:shadow-md ${client.isActive ? 'border-gray-100' : 'border-gray-200 opacity-60'}`}>
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Building2 size={20} className="text-blue-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 truncate">{client.orgName}</h3>
+                    <p className="text-xs text-gray-500">INN: {client.inn}</p>
+                  </div>
+                  <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium flex-shrink-0 ${
+                    client.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                  }`}>
+                    {client.isActive ? 'Faol' : 'Nofaol'}
+                  </span>
+                </div>
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Phone size={14} className="text-gray-400" />
+                    {client.phone}
+                  </div>
+                  <div className="flex items-start gap-2 text-sm text-gray-600">
+                    <MapPin size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                    <span className="line-clamp-2">{client.address}</span>
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    📍 {client.latitude?.toFixed(4)}, {client.longitude?.toFixed(4)}
+                  </div>
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <button
+                    onClick={() => setModalClient(client)}
+                    className="flex-1 flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors"
+                  >
+                    <Pencil size={12} /> Tahrirlash
+                  </button>
+                  <button
+                    onClick={() => toggleMutation.mutate(client.id)}
+                    disabled={toggleMutation.isPending}
+                    className={`flex-1 flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                      client.isActive ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'
+                    }`}
+                  >
+                    <Power size={12} /> {client.isActive ? 'Nofaollashtirish' : 'Faollashtirish'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-100">
+            <Pagination
+              page={pagination.page || page}
+              pages={pagination.pages || 1}
+              total={pagination.total}
+              onChange={setPage}
+            />
+          </div>
+        </>
       )}
 
-      {showModal && <ClientModal onClose={() => setShowModal(false)} />}
+      {modalClient !== undefined && (
+        <ClientModal client={modalClient} onClose={() => setModalClient(undefined)} />
+      )}
     </div>
   );
 }

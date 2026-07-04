@@ -80,7 +80,7 @@ export default function AccountantPanel() {
           {done.slice(0, 10).map(order => (
             <div key={order.id} className="bg-white rounded-xl border border-green-200 p-4 flex items-center justify-between">
               <div>
-                <span className="font-mono font-bold text-sm">#{order.orderNumber?.slice(-8)}</span>
+                <span className="font-mono font-bold text-sm">#{order.invoiceNumber}</span>
                 <span className="text-sm text-gray-600 ml-2">{order.client?.orgName}</span>
               </div>
               <div className="flex items-center gap-2">
@@ -123,7 +123,7 @@ function OrderCard({ order, step, onConfirm, isPending }) {
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="font-mono font-bold">#{order.orderNumber?.slice(-8)}</span>
+            <span className="font-mono font-bold">#{order.invoiceNumber}</span>
             <StatusBadge status={order.status} />
           </div>
           <p className="font-medium">{order.client?.orgName}</p>

@@ -69,7 +69,7 @@ export default function OrderDetailPage() {
         </button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold font-mono">#{o.orderNumber}</h1>
+            <h1 className="text-xl font-bold font-mono">#{o.invoiceNumber}</h1>
             <StatusBadge status={o.status} />
             {o.adminConfirmed && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">

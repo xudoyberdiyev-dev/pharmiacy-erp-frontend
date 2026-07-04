@@ -61,7 +61,7 @@ export default function SuperAdminStats() {
             {s.pendingAdminConfirm.map(o => (
               <div key={o.id} className="flex items-center justify-between bg-white rounded-lg border border-red-200 p-3">
                 <div>
-                  <span className="font-mono text-sm font-bold">#{o.orderNumber?.slice(-8)}</span>
+                  <span className="font-mono text-sm font-bold">{o.invoiceNumber}</span>
                   <span className="text-sm text-gray-600 ml-2">{o.client?.orgName}</span>
                 </div>
                 <span className="text-xs text-gray-500">{o.driver?.fullName}</span>
@@ -73,44 +73,62 @@ export default function SuperAdminStats() {
 
       {/* Top performers */}
       <div className="grid md:grid-cols-2 gap-4">
-        <div className="card">
-          <h2 className="font-semibold mb-4">🏃 Eng faol pickerlar</h2>
-          {(s.topPickers || []).length === 0 ? (
-            <p className="text-gray-400 text-sm">Ma'lumot yo'q</p>
-          ) : (
-            <div className="space-y-2">
-              {s.topPickers.map((p, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400 w-5">{i + 1}.</span>
-                    <span className="text-sm">{p.user?.fullName || '—'}</span>
-                  </div>
-                  <span className="text-sm font-bold text-blue-600">{p.count}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="card">
-          <h2 className="font-semibold mb-4">🚗 Eng faol driverlar</h2>
-          {(s.topDrivers || []).length === 0 ? (
-            <p className="text-gray-400 text-sm">Ma'lumot yo'q</p>
-          ) : (
-            <div className="space-y-2">
-              {s.topDrivers.map((d, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400 w-5">{i + 1}.</span>
-                    <span className="text-sm">{d.user?.fullName || '—'}</span>
-                  </div>
-                  <span className="text-sm font-bold text-green-600">{d.count}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <Leaderboard
+          title="🏃 Eng faol pickerlar"
+          subtitle="Yetkazilgan orderlar bo'yicha; kechikkan = pick muddatidan keyin yakunlagan"
+          entries={s.topPickers}
+          accentColor="text-blue-600"
+        />
+        <Leaderboard
+          title="🏷️ Eng faol markerlar"
+          subtitle="Yetkazilgan orderlar bo'yicha; kechikkan = marking muddatidan keyin yakunlagan"
+          entries={s.topMarkers}
+          accentColor="text-purple-600"
+        />
+        <Leaderboard
+          title="✔️ Eng faol checkerlar"
+          subtitle="Yetkazilgan orderlar bo'yicha; kechikkan = cheking muddatidan keyin yakunlagan"
+          entries={s.topCheckers}
+          accentColor="text-amber-600"
+        />
+        <Leaderboard
+          title="🚗 Eng faol driverlar"
+          subtitle="Yetkazilgan orderlar soni bo'yicha"
+          entries={s.topDrivers}
+          accentColor="text-green-600"
+        />
       </div>
+    </div>
+  );
+}
+
+function Leaderboard({ title, subtitle, entries, accentColor }) {
+  return (
+    <div className="card">
+      <h2 className="font-semibold">{title}</h2>
+      <p className="text-xs text-gray-400 mb-4">{subtitle}</p>
+      {(entries || []).length === 0 ? (
+        <p className="text-gray-400 text-sm">Ma'lumot yo'q</p>
+      ) : (
+        <div className="space-y-2">
+          {entries.map((p, i) => (
+            <div key={i} className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-400 w-5">{i + 1}.</span>
+                <span className="text-sm">{p.user?.fullName || '—'}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-sm font-bold ${accentColor}`}>{p.count} ta bajardi</span>
+                {p.lateCount > 0 && (
+                  <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                    {p.lateCount} ta kechikkan
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -44,7 +44,7 @@ function OrderCard({ order, onAccepted }) {
         {/* Header row */}
         <div className="flex items-start justify-between gap-2 mb-3">
           <div>
-            <p className="font-mono text-base font-black text-gray-900 tracking-tight">#{order.orderNumber?.slice(-8)}</p>
+            <p className="font-mono text-base font-black text-gray-900 tracking-tight">#{order.invoiceNumber}</p>
             <p className="text-xs text-gray-400 font-medium mt-0.5">{format(new Date(order.createdAt), 'dd.MM.yyyy HH:mm')}</p>
           </div>
           {urgency !== 'normal' && style.badge && (
