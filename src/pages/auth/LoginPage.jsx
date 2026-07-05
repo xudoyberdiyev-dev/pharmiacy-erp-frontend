@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 
 const ROLE_REDIRECTS = {
-  ADMIN: '/admin', SUPER_ADMIN: '/admin',
+  ADMIN: '/admin', SUPER_ADMIN: '/superadmin',
   OPERATOR: '/operator',
   PICKER: '/picker', MARKER: '/marker',
   CHECKER: '/checker', DRIVER: '/driver', ACCOUNTANT: '/accountant',

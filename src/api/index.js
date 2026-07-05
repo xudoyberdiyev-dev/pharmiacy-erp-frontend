@@ -39,7 +39,7 @@ export const orderAPI = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   adminConfirm: (id) => api.patch(`/orders/${id}/admin-confirm`),
-  accountantConfirm: (id, step) => api.patch(`/orders/${id}/accountant-confirm`, { step }),
+  accountantConfirm: (id) => api.patch(`/orders/${id}/accountant-confirm`),
   updateLocation: (data) => api.post('/orders/location', data),
   getConfirmationHistory: (params) => api.get('/orders/confirmation-history', { params }),
 };
@@ -118,4 +118,16 @@ export const statsAPI = {
   getStats: (params) => api.get('/stats', { params }),
   getMonitoring: (params) => api.get('/monitoring', { params }),
   getActivityLog: (params) => api.get('/activity-log', { params }),
+  getSales: (params) => api.get('/stats/sales', { params }),
+  getRegional: (params) => api.get('/stats/regional', { params }),
+  getDriverLocations: () => api.get('/stats/driver-locations'),
+  getOrdersDetail: (params) => api.get('/stats/orders-detail', { params }),
+  getTopClients: (params) => api.get('/stats/top-clients', { params }),
+};
+
+// ===== NOTIFICATIONS =====
+export const notificationAPI = {
+  getAll: (params) => api.get('/notifications', { params }),
+  markRead: (id) => api.patch(`/notifications/${id}/read`),
+  markAllRead: () => api.patch('/notifications/read-all'),
 };

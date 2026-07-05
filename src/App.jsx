@@ -45,6 +45,11 @@ import AccountantPanel from './pages/accountant/AccountantPanel';
 import SuperAdminStats from './pages/superadmin/SuperAdminStats';
 import SuperAdminMonitoring from './pages/superadmin/SuperAdminMonitoring';
 import SuperAdminActivity from './pages/superadmin/SuperAdminActivity';
+import SuperAdminAdminsPage from './pages/superadmin/SuperAdminAdminsPage';
+import SuperAdminSalesPage from './pages/superadmin/SuperAdminSalesPage';
+import SuperAdminRegionsPage from './pages/superadmin/SuperAdminRegionsPage';
+import SuperAdminAlertsPage from './pages/superadmin/SuperAdminAlertsPage';
+import SuperAdminDriversMapPage from './pages/superadmin/SuperAdminDriversMapPage';
 
 const qc = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30000 } }
@@ -154,6 +159,12 @@ function AppRoutes() {
       {/* SUPER ADMIN */}
       <Route path="/superadmin" element={<ProtectedRoute roles={['SUPER_ADMIN']}><AdminHeaderLayout /></ProtectedRoute>}>
         <Route index element={<SuperAdminStats />} />
+        <Route path="admins" element={<SuperAdminAdminsPage />} />
+        <Route path="sales" element={<SuperAdminSalesPage />} />
+        <Route path="regions" element={<SuperAdminRegionsPage />} />
+        <Route path="monitoring" element={<SuperAdminMonitoring />} />
+        <Route path="alerts" element={<SuperAdminAlertsPage />} />
+        <Route path="drivers-map" element={<SuperAdminDriversMapPage />} />
         <Route path="activity" element={<SuperAdminActivity />} />
       </Route>
 

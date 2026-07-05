@@ -5,8 +5,10 @@ import { statsAPI } from '../../api';
 import {
   LayoutDashboard, Users, Package, Truck, ClipboardCheck, AlertTriangle,
   History, BarChart3, ClipboardList, ShieldCheck, ChevronDown, LogOut,
+  UserCog, TrendingUp, MapPinned, Bell as BellIcon, Map,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import NotificationBell from './NotificationBell';
 
 function Badge({ count, color = 'red' }) {
   if (!count) return null;
@@ -34,9 +36,15 @@ const ADMIN_NAV = [
 ];
 
 // SUPER_ADMIN has its own separate panel — none of ADMIN's pages are shared.
-// What else lives here will be defined in a future task.
+// Read-only statistics/monitoring only, plus the one write action: creating ADMIN accounts.
 const SUPER_ADMIN_NAV = [
   { to: '/superadmin', end: true, label: 'Statistika', icon: BarChart3 },
+  { to: '/superadmin/admins', end: false, label: 'Adminlar', icon: UserCog },
+  { to: '/superadmin/sales', end: false, label: 'Sotuv statistikasi', icon: TrendingUp },
+  { to: '/superadmin/regions', end: false, label: 'Hudud tahlili', icon: MapPinned },
+  { to: '/superadmin/monitoring', end: false, label: 'Monitoring', icon: LayoutDashboard },
+  { to: '/superadmin/alerts', end: false, label: 'Kechikishlar', icon: BellIcon },
+  { to: '/superadmin/drivers-map', end: false, label: 'Haydovchilar xaritasi', icon: Map },
   { to: '/superadmin/activity', end: false, label: 'Faoliyat tarixi', icon: ClipboardList },
 ];
 
@@ -106,6 +114,8 @@ export default function AdminHeaderLayout() {
               </NavLink>
             ))}
           </nav>
+
+          {isSuperAdmin && <NotificationBell />}
 
           <div className="relative shrink-0" ref={dropRef}>
             <button

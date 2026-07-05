@@ -4,8 +4,9 @@ import { clientAPI } from '../../api';
 import toast from 'react-hot-toast';
 import { Plus, Search, MapPin, Phone, Building2, X, Pencil, Power, Users } from 'lucide-react';
 import Pagination from '../../components/shared/Pagination';
+import { REGIONS, regionLabel } from '../../utils/regions';
 
-const EMPTY_FORM = { orgName: '', inn: '', phone: '', address: '', longitude: '', latitude: '' };
+const EMPTY_FORM = { orgName: '', inn: '', phone: '', address: '', region: '', longitude: '', latitude: '' };
 
 function ClientModal({ client, onClose }) {
   const qc = useQueryClient();
@@ -17,6 +18,7 @@ function ClientModal({ client, onClose }) {
           inn: client.inn,
           phone: client.phone,
           address: client.address,
+          region: client.region || '',
           longitude: client.longitude,
           latitude: client.latitude,
         }
@@ -60,6 +62,13 @@ function ClientModal({ client, onClose }) {
           <div>
             <label className="label">Manzil *</label>
             <input className="input" placeholder="Toshkent, Yunusobod tumani" value={form.address} onChange={set('address')} />
+          </div>
+          <div>
+            <label className="label">Viloyat</label>
+            <select className="input" value={form.region} onChange={set('region')}>
+              <option value="">Tanlanmagan</option>
+              {REGIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+            </select>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -235,6 +244,11 @@ export default function ClientsPage() {
                   <div className="text-xs text-gray-400">
                     📍 {client.latitude?.toFixed(4)}, {client.longitude?.toFixed(4)}
                   </div>
+                  {client.region && (
+                    <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium bg-purple-50 text-purple-600">
+                      {regionLabel(client.region)}
+                    </span>
+                  )}
                 </div>
                 <div className="mt-4 flex gap-2">
                   <button
