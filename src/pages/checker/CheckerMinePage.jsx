@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import {
   CheckCircle2, Clock, AlertTriangle, Zap, Package,
-  TrendingUp, X, User, FileSpreadsheet, Eye, Box, Plus, Trash2, Minus
+  TrendingUp, X, User, FileSpreadsheet, Eye, Box, Plus, Minus, Printer
 } from 'lucide-react';
 
 const BOX_TYPES = [
@@ -15,69 +15,52 @@ const BOX_TYPES = [
   { value: 'XALTA',    label: 'Xalta' },
 ];
 
-// ── Box breakdown (tur bo'yicha) ─────────────────────────────────────────────
+// ── Box breakdown (har doim 3 turi ham ko'rinadi: Sbor, Original, Xalta) ──────
+// Har bir turning soni alohida, doimiy maydon — checker birontasini
+// "kiritmasdan" o'tkazib yubora olmaydi, shuning uchun chop etishda 3 turning
+// hammasi (kerakli bo'lganlari) stiker sifatida chiqadi.
 function BoxBreakdownSection({ rows, setRows }) {
-  const usedTypes = rows.map(r => r.type);
-  const availableTypes = BOX_TYPES.filter(t => !usedTypes.includes(t.value));
   const total = rows.reduce((s, r) => s + (r.count || 0), 0);
 
-  const addRow = () => {
-    if (!availableTypes.length) return;
-    setRows(prev => [...prev, { type: availableTypes[0].value, count: 1 }]);
+  const updateCount = (type, count) => {
+    setRows(prev => prev.map(r => r.type === type ? { ...r, count: Math.max(0, count) } : r));
   };
-  const updateRow = (idx, patch) => setRows(prev => prev.map((r, i) => i === idx ? { ...r, ...patch } : r));
-  const removeRow = (idx) => setRows(prev => prev.filter((_, i) => i !== idx));
 
   return (
     <div className="bg-sky-50 rounded-xl p-4 border-2 border-sky-200 space-y-3">
       <div className="flex items-center gap-2">
         <Box size={16} className="text-sky-600" />
-        <p className="font-black text-sky-900">Qutilar soni (tur bo'yicha)</p>
+        <p className="font-black text-sky-900">Qutilar soni (har bir tur bo'yicha)</p>
       </div>
-      <p className="text-xs text-gray-500 -mt-1">Har bir quti turi bo'yicha sonini kiriting</p>
+      <p className="text-xs text-gray-500 -mt-1">Sbor, Original va Xalta uchun sonini alohida kiriting (yo'q bo'lsa 0 qoldiring)</p>
 
       <div className="space-y-2">
-        {rows.map((row, idx) => (
-          <div key={idx} className="flex items-center gap-2 bg-white rounded-xl p-2 border border-sky-100">
-            <select
-              value={row.type}
-              onChange={e => updateRow(idx, { type: e.target.value })}
-              className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm font-bold bg-gray-50 focus:outline-none focus:ring-2 focus:ring-sky-400 transition-shadow"
-            >
-              <option value={row.type}>{BOX_TYPES.find(t => t.value === row.type)?.label}</option>
-              {availableTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-            <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg border border-gray-200 shrink-0">
-              <button type="button" onClick={() => updateRow(idx, { count: Math.max(1, row.count - 1) })}
-                className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-sky-600 transition-colors">
-                <Minus size={13} />
-              </button>
-              <input
-                type="number" min="1" value={row.count}
-                onChange={e => updateRow(idx, { count: Math.max(1, parseInt(e.target.value) || 1) })}
-                className="w-10 text-center text-sm font-black outline-none bg-transparent"
-              />
-              <button type="button" onClick={() => updateRow(idx, { count: row.count + 1 })}
-                className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-sky-600 transition-colors">
-                <Plus size={13} />
-              </button>
+        {BOX_TYPES.map(({ value, label }) => {
+          const row = rows.find(r => r.type === value) || { count: 0 };
+          return (
+            <div key={value} className="flex items-center gap-2 bg-white rounded-xl p-2 border border-sky-100">
+              <span className="flex-1 px-3 py-2 rounded-lg bg-gray-50 text-sm font-bold text-gray-800">
+                {label}
+              </span>
+              <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg border border-gray-200 shrink-0">
+                <button type="button" onClick={() => updateCount(value, row.count - 1)}
+                  className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-sky-600 transition-colors">
+                  <Minus size={13} />
+                </button>
+                <input
+                  type="number" min="0" value={row.count}
+                  onChange={e => updateCount(value, parseInt(e.target.value) || 0)}
+                  className="w-10 text-center text-sm font-black outline-none bg-transparent"
+                />
+                <button type="button" onClick={() => updateCount(value, row.count + 1)}
+                  className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-sky-600 transition-colors">
+                  <Plus size={13} />
+                </button>
+              </div>
             </div>
-            {rows.length > 1 && (
-              <button type="button" onClick={() => removeRow(idx)}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 transition-colors shrink-0">
-                <Trash2 size={14} />
-              </button>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
-
-      {availableTypes.length > 0 && (
-        <button type="button" onClick={addRow}
-          className="w-full py-2 rounded-lg border-2 border-dashed border-sky-300 text-sky-600 text-xs font-bold hover:bg-sky-100 transition-colors flex items-center justify-center gap-1.5">
-          <Plus size={13} /> Yana tur qo'shish
-        </button>
-      )}
 
       <div className="flex items-center justify-between px-3.5 py-2.5 bg-sky-600 rounded-xl">
         <span className="text-xs font-bold text-sky-100">Jami</span>
@@ -142,28 +125,43 @@ function TimerDisplay({ deadline, totalMinutes }) {
 }
 
 // ── Detail Modal ──────────────────────────────────────────────────────────────
+// Checker 2 xil rejimdan birini tanlaydi:
+//   'print'  — Sbor/Original/Xalta bo'yicha taqsimot kiritiladi, tasdiqdan
+//              keyin stiker chop etish sahifasiga o'tadi.
+//   'simple' — shunchaki umumiy quti sonini yozadi, stikersiz, checking
+//              shu zahoti yakunlanadi (chop etish sahifasiga o'tilmaydi).
 function DetailModal({ order, index, onClose, onComplete }) {
-  const [rows, setRows] = useState([{ type: 'SBOR', count: 1 }]);
+  const [mode, setMode] = useState(null); // null | 'print' | 'simple'
+  const [rows, setRows] = useState(BOX_TYPES.map(t => ({ type: t.value, count: 0 })));
+  const [simpleCount, setSimpleCount] = useState(1);
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const qc = useQueryClient();
   const mutation = useMutation({
-    mutationFn: () => checkerAPI.complete(order.id, { boxes: rows }),
+    // 'print' — faqat soni > 0 bo'lgan turlar yuboriladi (chop etishda shular
+    // uchun stiker chiqadi). 'simple' — shunchaki umumiy son yuboriladi.
+    mutationFn: () => mode === 'print'
+      ? checkerAPI.complete(order.id, { boxes: rows.filter(r => r.count > 0) })
+      : checkerAPI.complete(order.id, { boxCount: simpleCount }),
     onSuccess: (res) => {
       toast.success(res.data.message || 'Order tasdiqlandi!');
       onComplete();
       onClose();
       qc.invalidateQueries(['checker-mine']);
       qc.invalidateQueries(['checker-available']);
-      navigate(`/checker/print/${order.id}`);
+      if (mode === 'print') navigate(`/checker/print/${order.id}`);
     },
     onError: e => toast.error(e.response?.data?.message || 'Xato'),
   });
 
   const handleConfirm = () => {
-    if (!rows.length || rows.some(r => !r.count || r.count < 1)) {
-      setError('Har bir tur uchun kamida 1 ta quti kiriting');
+    if (mode === 'print' && !rows.some(r => r.count > 0)) {
+      setError('Kamida bitta tur uchun quti sonini kiriting (sbor, original yoki xalta)');
+      return;
+    }
+    if (mode === 'simple' && (!simpleCount || simpleCount < 1)) {
+      setError('Qutilar sonini to\'g\'ri kiriting');
       return;
     }
     setError('');
@@ -266,8 +264,64 @@ function DetailModal({ order, index, onClose, onComplete }) {
             )}
           </div>
 
-          {/* Box breakdown input */}
-          <BoxBreakdownSection rows={rows} setRows={r => { setError(''); setRows(r); }} />
+          {/* Rejim tanlanmagan bo'lsa — 2 ta katta tugma */}
+          {mode === null && (
+            <div className="grid grid-cols-1 gap-2.5">
+              <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider">Qanday yakunlaysiz?</p>
+              <button type="button" onClick={() => setMode('print')}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 border-sky-200 bg-sky-50 hover:bg-sky-100 transition-colors text-left">
+                <Printer size={18} className="text-sky-600 shrink-0" />
+                <div>
+                  <p className="text-sm font-black text-sky-900">Chek chiqarish</p>
+                  <p className="text-[11px] text-sky-600">Sbor / Original / Xalta bo'yicha kiritib, stiker chop etish</p>
+                </div>
+              </button>
+              <button type="button" onClick={() => setMode('simple')}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors text-left">
+                <Box size={18} className="text-gray-500 shrink-0" />
+                <div>
+                  <p className="text-sm font-black text-gray-800">Chek chiqarmasdan davom etish</p>
+                  <p className="text-[11px] text-gray-500">Faqat umumiy quti sonini yozib yakunlash (stikersiz)</p>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {/* Chek bilan — tur bo'yicha taqsimot */}
+          {mode === 'print' && (
+            <BoxBreakdownSection rows={rows} setRows={r => { setError(''); setRows(r); }} />
+          )}
+
+          {/* Cheksiz — shunchaki umumiy son */}
+          {mode === 'simple' && (
+            <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-200 space-y-3">
+              <p className="font-black text-gray-800">Qutilar soni</p>
+              <p className="text-xs text-gray-500 -mt-2">Chek/stiker chiqarilmaydi, faqat umumiy son saqlanadi</p>
+              <div className="flex items-center gap-2 bg-white rounded-xl p-2 border border-gray-200 w-fit">
+                <button type="button" onClick={() => { setError(''); setSimpleCount(c => Math.max(1, c - 1)); }}
+                  className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-sky-600 transition-colors">
+                  <Minus size={15} />
+                </button>
+                <input
+                  type="number" min="1" value={simpleCount}
+                  onChange={e => { setError(''); setSimpleCount(Math.max(1, parseInt(e.target.value) || 1)); }}
+                  className="w-14 text-center text-lg font-black outline-none bg-transparent"
+                />
+                <button type="button" onClick={() => { setError(''); setSimpleCount(c => c + 1); }}
+                  className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-sky-600 transition-colors">
+                  <Plus size={15} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {mode !== null && (
+            <button type="button" onClick={() => { setMode(null); setError(''); }}
+              className="text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors">
+              ← Orqaga
+            </button>
+          )}
+
           {error && <p className="text-xs text-red-600 font-semibold -mt-2">{error}</p>}
         </div>
 
@@ -277,16 +331,20 @@ function DetailModal({ order, index, onClose, onComplete }) {
             className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50">
             Yopish
           </button>
-          <button
-            onClick={handleConfirm}
-            disabled={mutation.isPending || !rows.length}
-            className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 text-white text-sm font-bold
-              hover:from-sky-600 hover:to-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-          >
-            {mutation.isPending
-              ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saqlanmoqda...</>
-              : <><CheckCircle2 size={15} /> Tasdiqlash</>}
-          </button>
+          {mode !== null && (
+            <button
+              onClick={handleConfirm}
+              disabled={mutation.isPending}
+              className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 text-white text-sm font-bold
+                hover:from-sky-600 hover:to-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+            >
+              {mutation.isPending
+                ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saqlanmoqda...</>
+                : mode === 'print'
+                  ? <><Printer size={15} /> Tasdiqlash va chek chiqarish</>
+                  : <><CheckCircle2 size={15} /> Tasdiqlash</>}
+            </button>
+          )}
         </div>
       </div>
     </div>

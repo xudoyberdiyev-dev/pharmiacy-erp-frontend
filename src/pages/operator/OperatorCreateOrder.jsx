@@ -213,7 +213,6 @@ export default function OperatorCreateOrder() {
     if (!form.clientId) return 'Klient tanlanmagan';
     if (!form.contractNumber.trim()) return 'Shartnoma raqami kiritilmagan';
     if (!form.invoiceNumber.trim()) return 'Faktura raqami kiritilmagan';
-    if (!form.lotNumber.trim()) return 'Lot raqami kiritilmagan';
     if (!form.totalAmount || parseFloat(form.totalAmount) < 0) return 'Narx summasi kiritilmagan';
     if (!excel) return 'Excel fayl yuklash shart';
     return null;
@@ -297,12 +296,14 @@ export default function OperatorCreateOrder() {
               <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-2">Hujjat raqamlari</label>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { k: 'contractNumber', label: 'Shartnoma #', ph: 'SH-2024-001' },
-                  { k: 'invoiceNumber',  label: 'Faktura #',   ph: 'FK-001' },
-                  { k: 'lotNumber',      label: 'Lot #',       ph: 'LOT-001' },
-                ].map(({ k, label, ph }) => (
+                  { k: 'contractNumber', label: 'Shartnoma #', ph: 'SH-2024-001', optional: false },
+                  { k: 'invoiceNumber',  label: 'Faktura #',   ph: 'FK-001', optional: false },
+                  { k: 'lotNumber',      label: 'Lot #',       ph: 'LOT-001', optional: true },
+                ].map(({ k, label, ph, optional }) => (
                   <div key={k}>
-                    <label className="block text-[11px] text-gray-400 mb-1">{label} *</label>
+                    <label className="block text-[11px] text-gray-400 mb-1">
+                      {label} {optional ? <span className="text-gray-300 normal-case">(ixtiyoriy)</span> : '*'}
+                    </label>
                     <input value={form[k]} onChange={set(k)} placeholder={ph} className={inp} />
                   </div>
                 ))}

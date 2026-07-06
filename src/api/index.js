@@ -70,6 +70,8 @@ export const markerAPI = {
   }),
   completeNoFile: (id) => api.patch(`/marker/orders/${id}/complete`),
   raiseEtirov: (id, data) => api.post(`/marker/orders/${id}/etirov`, data),
+  openEtirovWindow: (id) => api.patch(`/marker/orders/${id}/etirov/open`),
+  closeEtirovWindow: (id) => api.patch(`/marker/orders/${id}/etirov/close`),
   getHistory: (params) => api.get('/marker/orders/history', { params }),
 };
 

@@ -74,19 +74,64 @@ function TimerDisplay({ deadline, totalMinutes }) {
 }
 
 // ── Etirov Modal ──────────────────────────────────────────────────────────────
-function EtirovModal({ order, onClose, onDone }) {
+// Diqqat: oynani ochish (server chaqiruvi) MOdal ichida emas, tugma bosilganda
+// (MineCard'da) amalga oshiriladi — chunki React StrictMode dev rejimida
+// effect'larni 2 marta ishga tushiradi va agar bir martalik server chaqiruvi
+// effect ichida bo'lsa, ikkinchi chaqiruv "imkoniyat allaqachon ishlatilgan"
+// xatosini qaytarardi (real foydalanuvchi hali hech narsa bosmasdan turib).
+// Shu sababli bu komponent faqat allaqachon ochilgan oynaning hisoblagichini
+// yuritadi va serverga faqat "yopish" so'rovini yuboradi (bu operatsiya
+// bir necha marta chaqirilsa ham xavfsiz — backend idempotent).
+function EtirovModal({ order, window: etirovWindow, onClose, onDone }) {
   const [selected, setSelected] = useState(null);
   const [comment, setComment] = useState('');
+  const expiresAtMs = new Date(etirovWindow.expiresAt).getTime();
+  const [secondsLeft, setSecondsLeft] = useState(() => Math.max(0, Math.ceil((expiresAtMs - Date.now()) / 1000)));
+  const qc = useQueryClient();
+  const resolvedRef = useRef(false); // true once submitted yoki oyna yopilgan (qayta close yubormaslik uchun)
+
+  const closeWindow = () => {
+    if (resolvedRef.current) return;
+    resolvedRef.current = true;
+    markerAPI.closeEtirovWindow(order.id).finally(() => {
+      qc.invalidateQueries(['marker-mine']);
+    });
+  };
+
+  // Faqat hisoblagich — hech qanday tashqi so'rov yubormaydi, shuning uchun
+  // StrictMode uni ikki marta ishga tushirsa ham hech qanday zarari yo'q.
+  useEffect(() => {
+    const tick = () => setSecondsLeft(Math.max(0, Math.ceil((expiresAtMs - Date.now()) / 1000)));
+    tick();
+    const interval = setInterval(tick, 250);
+    return () => clearInterval(interval);
+  }, [expiresAtMs]);
+
+  // 30s tugab, marker bildirmasa — oynani avtomatik yopib, marking vaqtini davom ettiramiz.
+  // Bu real vaqt o'tgandan keyingina ishga tushadi (mount payti emas), shuning
+  // uchun StrictMode'ning darhol qayta-chaqirishidan zarar ko'rmaydi.
+  useEffect(() => {
+    if (secondsLeft <= 0) closeWindow();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [secondsLeft]);
+
+  const handleCancel = () => {
+    closeWindow();
+    onClose();
+  };
 
   const mutation = useMutation({
     mutationFn: () => markerAPI.raiseEtirov(order.id, { type: selected, comment: comment.trim() || undefined }),
     onSuccess: () => {
+      resolvedRef.current = true; // backend allaqachon oynani yopdi
       toast.success('Etirozni picker ga yuborildi');
       onDone();
       onClose();
     },
     onError: e => toast.error(e.response?.data?.message || 'Xato'),
   });
+
+  const timeUp = secondsLeft <= 0;
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -96,16 +141,26 @@ function EtirovModal({ order, onClose, onDone }) {
             <h3 className="font-black text-gray-900">Etirozni bildirish</h3>
             <p className="text-xs text-gray-400 mt-0.5">#{order.invoiceNumber} · {order.client?.orgName}</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors">
+          <button onClick={handleCancel} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors">
             <X size={16} className="text-gray-400" />
           </button>
+        </div>
+
+        {/* 30s countdown */}
+        <div className={`mx-5 mt-4 rounded-xl px-4 py-2.5 flex items-center justify-between ${timeUp ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200'}`}>
+          <span className={`text-xs font-bold ${timeUp ? 'text-red-600' : 'text-amber-700'}`}>
+            {timeUp ? 'Vaqt tugadi — endi bu order uchun etiroz bildirib bo\'lmaydi' : 'Bildirish uchun qolgan vaqt'}
+          </span>
+          {!timeUp && (
+            <span className="text-lg font-black font-mono text-amber-700">0:{String(secondsLeft).padStart(2, '0')}</span>
+          )}
         </div>
 
         <div className="p-5 space-y-2.5">
           <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-3">Sabab tanlang</p>
           {ETIROV_TYPES.map(t => (
-            <button key={t.value} onClick={() => setSelected(t.value)}
-              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl border-2 text-left transition-all ${
+            <button key={t.value} onClick={() => setSelected(t.value)} disabled={timeUp}
+              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl border-2 text-left transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                 selected === t.value
                   ? 'border-purple-500 bg-purple-50'
                   : 'border-gray-100 hover:border-purple-200 hover:bg-purple-50/50'
@@ -127,19 +182,20 @@ function EtirovModal({ order, onClose, onDone }) {
               onChange={e => setComment(e.target.value)}
               placeholder="Batafsil izoh yozing..."
               rows={3}
-              className="w-full mt-2 px-3.5 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-400 outline-none text-sm resize-none transition-colors"
+              disabled={timeUp}
+              className="w-full mt-2 px-3.5 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-400 outline-none text-sm resize-none transition-colors disabled:opacity-50"
             />
           )}
         </div>
 
         <div className="px-5 pb-5 flex gap-3">
-          <button onClick={onClose}
+          <button onClick={handleCancel}
             className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">
             Bekor qilish
           </button>
           <button
             onClick={() => mutation.mutate()}
-            disabled={!selected || (selected === 'OTHER' && !comment.trim()) || mutation.isPending}
+            disabled={timeUp || !selected || (selected === 'OTHER' && !comment.trim()) || mutation.isPending}
             className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-violet-600 text-white text-sm font-bold
               hover:from-purple-600 hover:to-violet-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
           >
@@ -157,10 +213,26 @@ function EtirovModal({ order, onClose, onDone }) {
 function MineCard({ order }) {
   const qc = useQueryClient();
   const fileInputRef = useRef(null);
-  const [showEtirov, setShowEtirov] = useState(false);
+  const [etirovWindow, setEtirovWindow] = useState(null); // null = modal yopiq
+  const [openingEtirov, setOpeningEtirov] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [done, setDone] = useState(false);
   const isOverdue = order.markingDeadline && new Date(order.markingDeadline) < new Date();
+
+  // Tugma bosilganda (haqiqiy foydalanuvchi harakati) bir martalik 30s
+  // oynani serverda ochamiz — faqat shu bosilganda, muvaffaqiyatli bo'lsa modal ochiladi.
+  const handleOpenEtirov = async () => {
+    setOpeningEtirov(true);
+    try {
+      const res = await markerAPI.openEtirovWindow(order.id);
+      setEtirovWindow(res.data.window);
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Etiroz oynasini ochib bo\'lmadi');
+      qc.invalidateQueries(['marker-mine']);
+    } finally {
+      setOpeningEtirov(false);
+    }
+  };
 
   const completeMut = useMutation({
     mutationFn: (formData) => markerAPI.complete(order.id, formData),
@@ -215,10 +287,11 @@ function MineCard({ order }) {
 
   return (
     <>
-      {showEtirov && (
+      {etirovWindow && (
         <EtirovModal
           order={order}
-          onClose={() => setShowEtirov(false)}
+          window={etirovWindow}
+          onClose={() => setEtirovWindow(null)}
           onDone={() => qc.invalidateQueries(['marker-mine'])}
         />
       )}
@@ -346,14 +419,17 @@ function MineCard({ order }) {
             </div>
           )}
 
-          {/* Etirov button */}
+          {/* Etirov button — order.etirovWindowUsed true bo'lsa (30s imkoniyat
+              ishlatilgan yoki tugab ketgan) qayta bosib bo'lmaydi */}
           <button
-            onClick={() => setShowEtirov(true)}
-            disabled={completeMut.isPending}
+            onClick={handleOpenEtirov}
+            disabled={completeMut.isPending || order.etirovWindowUsed || openingEtirov}
+            title={order.etirovWindowUsed ? 'Bu order uchun etiroz bildirish imkoniyati ishlatilgan' : undefined}
             className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold
-              border-2 border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-all disabled:opacity-60"
+              border-2 border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <AlertCircle size={13} /> Etirozni bildirish
+            <AlertCircle size={13} />
+            {order.etirovWindowUsed ? 'Etiroz imkoniyati ishlatilgan' : openingEtirov ? 'Ochilmoqda...' : 'Etirozni bildirish'}
           </button>
         </div>
       </div>
