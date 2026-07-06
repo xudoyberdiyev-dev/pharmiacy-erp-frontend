@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://pharmacy-erp-backend-production.up.railway.app/api';
 
 // Yuklangan fayllar (excel, rasm) shu bazadan ochiladi: `${FILE_BASE_URL}${order.productsExcelUrl}`
 export const FILE_BASE_URL = API_URL.replace(/\/api\/?$/, '');
