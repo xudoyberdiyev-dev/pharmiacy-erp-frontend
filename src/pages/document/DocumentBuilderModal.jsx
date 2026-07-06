@@ -40,11 +40,17 @@ export default function DocumentBuilderModal({ orders, onClose, onConfirm, loadi
   const [accountantId, setAccountantId] = useState('');
   const [adminId, setAdminId] = useState('');
 
-  const { data: accountants } = useQuery({
-    queryKey: ['users', 'ACCOUNTANT'],
-    queryFn: () => userAPI.getAll({ role: 'ACCOUNTANT', isActive: true }),
+  const { data: accountants1 } = useQuery({
+    queryKey: ['users', 'ACCOUNTANT1'],
+    queryFn: () => userAPI.getAll({ role: 'ACCOUNTANT1', isActive: true }),
     select: r => r.data.data,
   });
+  const { data: accountants2 } = useQuery({
+    queryKey: ['users', 'ACCOUNTANT2'],
+    queryFn: () => userAPI.getAll({ role: 'ACCOUNTANT2', isActive: true }),
+    select: r => r.data.data,
+  });
+  const accountants = [...(accountants1 || []), ...(accountants2 || [])];
   const { data: admins } = useQuery({
     queryKey: ['users', 'ADMIN'],
     queryFn: () => userAPI.getAll({ role: 'ADMIN', isActive: true }),

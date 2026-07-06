@@ -76,6 +76,11 @@ export default function OrderDetailPage() {
                 <CheckCircle size={12} /> Admin tasdiqlagan
               </span>
             )}
+            {o.acct1Confirmed && o.acct2Confirmed && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-700">
+                <CheckCircle size={12} /> Bugalterlar tasdiqladi
+              </span>
+            )}
           </div>
           <p className="text-sm text-gray-500 mt-0.5">
             {format(new Date(o.createdAt), 'dd.MM.yyyy HH:mm')} · {o.createdBy?.fullName}

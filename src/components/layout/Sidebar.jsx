@@ -7,7 +7,7 @@ import {
 
 // Note: ADMIN/SUPER_ADMIN no longer use this sidebar — they render
 // AdminHeaderLayout instead (src/components/layout/AdminHeaderLayout.jsx).
-// This sidebar now only serves DRIVER/ACCOUNTANT (mounted via MainLayout)
+// This sidebar now only serves DRIVER/ACCOUNTANT1/ACCOUNTANT2 (mounted via MainLayout)
 // plus the OPERATOR/PICKER/MARKER/CHECKER entries kept for reference.
 const ROLE_MENUS = {
   OPERATOR: [
@@ -28,8 +28,11 @@ const ROLE_MENUS = {
   DRIVER: [
     { to: '/driver', icon: Truck, label: 'Mening orderlarim' },
   ],
-  ACCOUNTANT: [
-    { to: '/accountant', icon: FileText, label: 'Hujjatlar' },
+  ACCOUNTANT1: [
+    { to: '/accountant1', icon: FileText, label: '1-tasdiqlash' },
+  ],
+  ACCOUNTANT2: [
+    { to: '/accountant2', icon: FileText, label: '2-tasdiqlash' },
   ],
 };
 
@@ -39,7 +42,8 @@ const ROLE_LABELS = {
   MARKER: 'Marker',
   CHECKER: 'Checker',
   DRIVER: 'Haydovchi',
-  ACCOUNTANT: 'Bugalter',
+  ACCOUNTANT1: 'Bugalter 1',
+  ACCOUNTANT2: 'Bugalter 2',
 };
 
 export default function Sidebar() {

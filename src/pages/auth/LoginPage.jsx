@@ -13,7 +13,8 @@ const ROLE_REDIRECTS = {
   ADMIN: '/admin', SUPER_ADMIN: '/superadmin',
   OPERATOR: '/operator',
   PICKER: '/picker', MARKER: '/marker',
-  CHECKER: '/checker', DRIVER: '/driver', ACCOUNTANT: '/accountant',
+  CHECKER: '/checker', DRIVER: '/driver',
+  ACCOUNTANT1: '/accountant1', ACCOUNTANT2: '/accountant2',
   DOCUMENT: '/document',
 };
 
@@ -464,7 +465,7 @@ export default function LoginPage() {
             QR skaner bilan: Picker · Marker · Checker
           </p>
           <p className="text-xs" style={{ color: 'rgba(148,187,255,0.22)' }}>
-            Parol bilan: Admin · Operator · Haydovchi · Bugalter · Hujjatchi
+            Parol bilan: Admin · Operator · Haydovchi · Bugalter 1 · Bugalter 2 · Hujjatchi
           </p>
         </div>
       </div>

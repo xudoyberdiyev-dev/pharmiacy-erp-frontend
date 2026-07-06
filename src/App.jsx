@@ -41,7 +41,8 @@ import DocumentPendingPage from './pages/document/DocumentPendingPage';
 import DocumentDocumentedPage from './pages/document/DocumentDocumentedPage';
 import DocumentReadyPage from './pages/document/DocumentReadyPage';
 import DriverPanel from './pages/driver/DriverPanel';
-import AccountantPanel from './pages/accountant/AccountantPanel';
+import Accountant1Panel from './pages/accountant/Accountant1Panel';
+import Accountant2Panel from './pages/accountant/Accountant2Panel';
 import SuperAdminStats from './pages/superadmin/SuperAdminStats';
 import SuperAdminMonitoring from './pages/superadmin/SuperAdminMonitoring';
 import SuperAdminActivity from './pages/superadmin/SuperAdminActivity';
@@ -85,7 +86,8 @@ const ROOT_REDIRECTS = {
   ADMIN: '/admin', SUPER_ADMIN: '/superadmin',
   OPERATOR: '/operator',
   PICKER: '/picker', MARKER: '/marker',
-  CHECKER: '/checker', DRIVER: '/driver', ACCOUNTANT: '/accountant',
+  CHECKER: '/checker', DRIVER: '/driver',
+  ACCOUNTANT1: '/accountant1', ACCOUNTANT2: '/accountant2',
   DOCUMENT: '/document',
 };
 
@@ -151,9 +153,13 @@ function AppRoutes() {
         <Route index element={<DriverPanel />} />
       </Route>
 
-      {/* ACCOUNTANT */}
-      <Route path="/accountant" element={<ProtectedRoute roles={['ACCOUNTANT']}><MainLayout /></ProtectedRoute>}>
-        <Route index element={<AccountantPanel />} />
+      {/* ACCOUNTANT 1 */}
+      <Route path="/accountant1" element={<ProtectedRoute roles={['ACCOUNTANT1']}><MainLayout /></ProtectedRoute>}>
+        <Route index element={<Accountant1Panel />} />
+      </Route>
+      {/* ACCOUNTANT 2 */}
+      <Route path="/accountant2" element={<ProtectedRoute roles={['ACCOUNTANT2']}><MainLayout /></ProtectedRoute>}>
+        <Route index element={<Accountant2Panel />} />
       </Route>
 
       {/* SUPER ADMIN */}

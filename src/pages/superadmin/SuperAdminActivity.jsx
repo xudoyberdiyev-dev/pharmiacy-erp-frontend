@@ -64,7 +64,8 @@ const ACTION_META = {
 
 const ROLE_LABELS = {
   ADMIN: 'Admin', SUPER_ADMIN: 'Super Admin', OPERATOR: 'Operator', PICKER: 'Picker',
-  MARKER: 'Marker', CHECKER: 'Checker', DRIVER: 'Haydovchi', ACCOUNTANT: 'Bugalter', DOCUMENT: 'Hujjatchi',
+  MARKER: 'Marker', CHECKER: 'Checker', DRIVER: 'Haydovchi',
+  ACCOUNTANT1: 'Bugalter 1', ACCOUNTANT2: 'Bugalter 2', DOCUMENT: 'Hujjatchi',
 };
 
 function actionMeta(action) {
