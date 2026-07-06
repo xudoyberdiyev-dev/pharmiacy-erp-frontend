@@ -5,7 +5,7 @@ import AccountantOrderDetailModal from './components/AccountantOrderDetailModal'
 import { FileCheck, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 
-export default function Accountant1Panel() {
+export default function BugalterPanelOne() {
   const [selected, setSelected] = useState(null);
 
   const { data, isLoading } = useQuery({

@@ -41,8 +41,8 @@ import DocumentPendingPage from './pages/document/DocumentPendingPage';
 import DocumentDocumentedPage from './pages/document/DocumentDocumentedPage';
 import DocumentReadyPage from './pages/document/DocumentReadyPage';
 import DriverPanel from './pages/driver/DriverPanel';
-import Accountant1Panel from './pages/accountant/Accountant1Panel';
-import Accountant2Panel from './pages/accountant/Accountant2Panel';
+import BugalterPanelOne from './pages/accountant/BugalterPanelOne';
+import BugalterPanelTvo from './pages/accountant/BugalterPanelTvo';
 import SuperAdminStats from './pages/superadmin/SuperAdminStats';
 import SuperAdminMonitoring from './pages/superadmin/SuperAdminMonitoring';
 import SuperAdminActivity from './pages/superadmin/SuperAdminActivity';
@@ -155,11 +155,11 @@ function AppRoutes() {
 
       {/* ACCOUNTANT 1 */}
       <Route path="/accountant1" element={<ProtectedRoute roles={['ACCOUNTANT1']}><MainLayout /></ProtectedRoute>}>
-        <Route index element={<Accountant1Panel />} />
+        <Route index element={<BugalterPanelOne />} />
       </Route>
       {/* ACCOUNTANT 2 */}
       <Route path="/accountant2" element={<ProtectedRoute roles={['ACCOUNTANT2']}><MainLayout /></ProtectedRoute>}>
-        <Route index element={<Accountant2Panel />} />
+        <Route index element={<BugalterPanelTvo />} />
       </Route>
 
       {/* SUPER ADMIN */}
