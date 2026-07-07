@@ -89,16 +89,17 @@ export default function AccountantOrderDetailModal({ order, step, onClose }) {
         ) : (
           <p className="text-xs text-gray-400 px-1">Marking Excel fayli yuklanmagan</p>
         )}
-        {order.deliveryPhotoUrl && (
+        {order.deliveryPhotoUrls?.map((url, i) => (
           <a
-            href={`${FILE_BASE_URL}${order.deliveryPhotoUrl}`}
+            key={url}
+            href={`${FILE_BASE_URL}${url}`}
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 transition-colors rounded-xl px-3.5 py-2.5 text-sm font-bold text-blue-700"
           >
-            <Image size={16} /> Yetkazish rasmini ko'rish
+            <Image size={16} /> Yetkazish rasmini ko'rish {order.deliveryPhotoUrls.length > 1 ? i + 1 : ''}
           </a>
-        )}
+        ))}
       </div>
 
       <button

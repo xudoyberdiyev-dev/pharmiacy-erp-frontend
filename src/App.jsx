@@ -41,7 +41,10 @@ import DocumentLayout from './components/layout/DocumentLayout';
 import DocumentPendingPage from './pages/document/DocumentPendingPage';
 import DocumentDocumentedPage from './pages/document/DocumentDocumentedPage';
 import DocumentReadyPage from './pages/document/DocumentReadyPage';
+import DriverMobileLayout from './components/layout/DriverMobileLayout';
 import DriverPanel from './pages/driver/DriverPanel';
+import DriverOrderDetail from './pages/driver/DriverOrderDetail';
+import DriverProfile from './pages/driver/DriverProfile';
 import BugalterPanelOne from './pages/accountant/BugalterPanelOne';
 import BugalterPanelTvo from './pages/accountant/BugalterPanelTvo';
 import SuperAdminStats from './pages/superadmin/SuperAdminStats';
@@ -151,8 +154,10 @@ function AppRoutes() {
         <Route path="ready" element={<DocumentReadyPage />} />
       </Route>
 
-      <Route path="/driver" element={<ProtectedRoute roles={['DRIVER']}><MainLayout /></ProtectedRoute>}>
+      <Route path="/driver" element={<ProtectedRoute roles={['DRIVER']}><DriverMobileLayout /></ProtectedRoute>}>
         <Route index element={<DriverPanel />} />
+        <Route path="orders/:id" element={<DriverOrderDetail />} />
+        <Route path="profile" element={<DriverProfile />} />
       </Route>
 
       {/* ACCOUNTANT 1 */}

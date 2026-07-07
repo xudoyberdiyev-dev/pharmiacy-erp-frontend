@@ -1,0 +1,131 @@
+import { useEffect, useRef, useState } from 'react';
+import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { orderAPI } from '../../api';
+import { Package, User, Smartphone } from 'lucide-react';
+
+function isMobileDevice() {
+  const ua = navigator.userAgent || '';
+  const uaIsMobile = /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(ua);
+  const narrowViewport = window.innerWidth <= 820;
+  return uaIsMobile || narrowViewport;
+}
+
+function DesktopBlockedScreen() {
+  return (
+    <div className="min-h-screen bg-[#F5F6FA] flex items-center justify-center p-6">
+      <div className="max-w-sm text-center">
+        <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center mx-auto mb-5">
+          <Smartphone size={28} className="text-blue-600" />
+        </div>
+        <h1 className="text-lg font-black text-gray-900 mb-2">Faqat mobil qurilmalar uchun</h1>
+        <p className="text-sm text-gray-500 leading-relaxed">
+          Haydovchi paneli faqat mobil telefonlardan ochiladi. Iltimos, shu sahifani telefoningizdan oching.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Haydovchi ilovaga kirgan bo'lsa, brauzer joylashuvini so'rab, uning faol
+// (IN_TRANSIT) orderlariga davriy GPS yuboradi — shu orqali SuperAdmin
+// "Haydovchilar xaritasi" sahifasida real vaqtda ko'rinadi.
+function useShareLocation(enabled) {
+  const watchIdRef = useRef(null);
+
+  const { data: activeOrders } = useQuery({
+    queryKey: ['driver-active-orders-for-location'],
+    queryFn: () => orderAPI.getAll({ status: 'IN_TRANSIT', limit: 50 }),
+    select: r => r.data.data || [],
+    enabled,
+    refetchInterval: 60000,
+  });
+
+  useEffect(() => {
+    if (!enabled || !navigator.geolocation) return undefined;
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        (activeOrders || []).forEach(order => {
+          orderAPI.updateLocation({ orderId: order.id, latitude, longitude }).catch(() => {});
+        });
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 }
+    );
+
+    return () => {
+      if (watchIdRef.current != null) navigator.geolocation.clearWatch(watchIdRef.current);
+    };
+  }, [enabled, activeOrders]);
+}
+
+export default function DriverMobileLayout() {
+  const { user } = useAuth();
+  const location = useLocation();
+  const [allowed, setAllowed] = useState(() => isMobileDevice());
+
+  useEffect(() => {
+    const onResize = () => setAllowed(isMobileDevice());
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useShareLocation(allowed);
+
+  if (!allowed) return <DesktopBlockedScreen />;
+
+  const initials = user?.fullName?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || '?';
+  const isDetailPage = /^\/driver\/orders\//.test(location.pathname);
+
+  const TABS = [
+    { to: '/driver', end: true, label: 'Buyurtmalar', icon: Package },
+    { to: '/driver/profile', end: true, label: 'Profil', icon: User },
+  ];
+
+  return (
+    <div className="min-h-screen bg-[#F5F6FA] flex flex-col">
+      {!isDetailPage && (
+        <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
+          <div className="px-4 h-14 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-[#3B5BFD] flex items-center justify-center text-white font-black text-sm">
+                {initials}
+              </div>
+              <div>
+                <p className="text-[13px] font-bold text-gray-900 leading-tight">{user?.fullName}</p>
+                <p className="text-[10px] text-gray-400 font-semibold leading-tight">Haydovchi</p>
+              </div>
+            </div>
+          </div>
+        </header>
+      )}
+
+      <main className="flex-1 overflow-y-auto pb-20">
+        <div className="px-4 py-4">
+          <Outlet />
+        </div>
+      </main>
+
+      {!isDetailPage && (
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex items-stretch z-40"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          {TABS.map(({ to, end, label, icon: Icon }) => (
+            <NavLink key={to} to={to} end={end}
+              className={({ isActive }) =>
+                `flex-1 flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-bold transition-colors ${
+                  isActive ? 'text-[#3B5BFD]' : 'text-gray-400'
+                }`
+              }
+            >
+              <Icon size={20} />
+              {label}
+            </NavLink>
+          ))}
+        </nav>
+      )}
+    </div>
+  );
+}

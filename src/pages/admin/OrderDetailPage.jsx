@@ -140,7 +140,7 @@ export default function OrderDetailPage() {
       </div>
 
       {/* Fayllar */}
-      {(o.productsExcelUrl || o.markedExcelUrl || o.deliveryPhotoUrl) && (
+      {(o.productsExcelUrl || o.markedExcelUrl || o.deliveryPhotoUrls?.length > 0) && (
         <Section title="Fayllar" icon={Package}>
           <div className="flex flex-wrap gap-3">
             {o.productsExcelUrl && (
@@ -155,12 +155,12 @@ export default function OrderDetailPage() {
                 📋 Marked Excel
               </a>
             )}
-            {o.deliveryPhotoUrl && (
-              <a href={`${FILE_BASE_URL}${o.deliveryPhotoUrl}`} target="_blank" rel="noreferrer"
+            {o.deliveryPhotoUrls?.map((url, i) => (
+              <a key={url} href={`${FILE_BASE_URL}${url}`} target="_blank" rel="noreferrer"
                 className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg text-sm hover:bg-green-100 transition-colors">
-                📸 Yetkazib berish rasmi
+                📸 Yetkazib berish rasmi {o.deliveryPhotoUrls.length > 1 ? i + 1 : ''}
               </a>
-            )}
+            ))}
           </div>
         </Section>
       )}
