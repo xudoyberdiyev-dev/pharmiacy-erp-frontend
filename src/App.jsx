@@ -29,6 +29,7 @@ import PickerEtirozliPage from './pages/picker/PickerEtirozliPage';
 import MarkerLayout from './components/layout/MarkerLayout';
 import MarkerAvailablePage from './pages/marker/MarkerAvailablePage';
 import MarkerMinePage from './pages/marker/MarkerMinePage';
+import MarkerReturnedPage from './pages/marker/MarkerReturnedPage';
 import MarkerEtirozliPage from './pages/marker/MarkerEtirozliPage';
 import MarkerHistoryPage from './pages/marker/MarkerHistoryPage';
 import CheckerLayout from './components/layout/CheckerLayout';
@@ -133,6 +134,7 @@ function AppRoutes() {
       <Route path="/marker" element={<ProtectedRoute roles={['MARKER']}><MarkerLayout /></ProtectedRoute>}>
         <Route index element={<MarkerAvailablePage />} />
         <Route path="mine" element={<MarkerMinePage />} />
+        <Route path="returned" element={<MarkerReturnedPage />} />
         <Route path="history" element={<MarkerHistoryPage />} />
       </Route>
       {/* CHECKER */}

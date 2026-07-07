@@ -63,6 +63,7 @@ export const pickerAPI = {
 export const markerAPI = {
   getAvailable: () => api.get('/marker/orders/available'),
   getMine: () => api.get('/marker/orders/mine'),
+  getReturned: () => api.get('/marker/orders/returned'),
   getEtirozli: () => api.get('/marker/orders/etirozli'),
   accept: (id) => api.patch(`/marker/orders/${id}/accept`),
   complete: (id, formData) => api.patch(`/marker/orders/${id}/complete`, formData, {
@@ -81,7 +82,7 @@ export const checkerAPI = {
   getMine:      () => api.get('/checker/orders/mine'),
   getHistory:   (params) => api.get('/checker/orders/history', { params }),
   accept:       (id) => api.patch(`/checker/orders/${id}/accept`),
-  returnToMarking: (id) => api.patch(`/checker/orders/${id}/return-to-marking`),
+  returnToMarking: (id, reason) => api.patch(`/checker/orders/${id}/return-to-marking`, { reason }),
   complete:     (id, data) => api.patch(`/checker/orders/${id}/complete`, data),
 };
 
