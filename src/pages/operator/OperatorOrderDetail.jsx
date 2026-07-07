@@ -104,7 +104,7 @@ export default function OperatorOrderDetail() {
     setEditForm({
       contractNumber: order.contractNumber,
       invoiceNumber: order.invoiceNumber,
-      lotNumber: order.lotNumber,
+      lotNumber: order.lotNumber || '',
       totalAmount: order.totalAmount,
       pickingMinutes: order.pickingDuration,
       markingMinutes: order.markingDuration,
