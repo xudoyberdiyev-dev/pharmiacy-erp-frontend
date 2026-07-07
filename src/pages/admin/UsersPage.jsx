@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userAPI } from '../../api';
 import toast from 'react-hot-toast';
-import { Plus, UserCheck, UserX, RefreshCw, X, QrCode, Search, Users, Download } from 'lucide-react';
+import { Plus, UserCheck, UserX, RefreshCw, X, QrCode, Search, Users, Download, Pencil, Eye, EyeOff } from 'lucide-react';
 import Pagination from '../../components/shared/Pagination';
 
 const ROLES = [
@@ -11,8 +11,8 @@ const ROLES = [
   { value: 'MARKER', label: 'Marker' },
   { value: 'CHECKER', label: 'Checker' },
   { value: 'DRIVER', label: 'Haydovchi' },
-  { value: 'ACCOUNTANT1', label: 'Bugalter 1' },
-  { value: 'ACCOUNTANT2', label: 'Bugalter 2' },
+  { value: 'ACCOUNTANT1', label: 'Hisobchi 1' },
+  { value: 'ACCOUNTANT2', label: 'Hisobchi 2' },
   { value: 'DOCUMENT', label: 'Hujjatchi' },
   { value: 'ADMIN', label: 'Admin' },
 ];
@@ -32,14 +32,28 @@ const ROLE_COLORS = {
   SUPER_ADMIN: 'bg-red-100 text-red-700',
 };
 
-function UserModal({ onClose }) {
+function UserModal({ user, onClose }) {
+  const isEdit = !!user;
   const qc = useQueryClient();
-  const [form, setForm] = useState({ fullName: '', phone: '', password: '', role: 'PICKER' });
+  const [showPassword, setShowPassword] = useState(false);
+  const [form, setForm] = useState({
+    fullName: user?.fullName || '',
+    phone:    user?.phone    || '',
+    password: '',
+    role:     user?.role     || 'PICKER',
+  });
 
   const mutation = useMutation({
-    mutationFn: () => userAPI.create(form),
+    mutationFn: () => {
+      if (isEdit) {
+        const data = { fullName: form.fullName, phone: form.phone };
+        if (form.password) data.password = form.password;
+        return userAPI.update(user.id, data);
+      }
+      return userAPI.create(form);
+    },
     onSuccess: () => {
-      toast.success('Xodim qo\'shildi!');
+      toast.success(isEdit ? "Xodim ma'lumotlari yangilandi!" : 'Xodim qo\'shildi!');
       qc.invalidateQueries({ queryKey: ['users'] });
       onClose();
     },
@@ -47,12 +61,13 @@ function UserModal({ onClose }) {
   });
 
   const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
+  const canSubmit = form.fullName.trim() && form.phone.trim() && (isEdit || form.password.trim());
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
         <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="font-semibold text-lg">Yangi xodim qo'shish</h2>
+          <h2 className="font-semibold text-lg">{isEdit ? 'Xodimni tahrirlash' : "Yangi xodim qo'shish"}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
         </div>
         <div className="p-6 space-y-4">
@@ -65,19 +80,44 @@ function UserModal({ onClose }) {
             <input className="input" placeholder="+998901234567" value={form.phone} onChange={set('phone')} />
           </div>
           <div>
-            <label className="label">Parol *</label>
-            <input className="input" type="password" placeholder="••••••••" value={form.password} onChange={set('password')} />
+            <label className="label">
+              Parol {isEdit ? <span className="text-gray-400 font-normal">(o'zgartirmasangiz bo'sh qoldiring)</span> : '*'}
+            </label>
+            <div className="relative">
+              <input
+                className="input pr-10"
+                type={showPassword ? 'text' : 'password'}
+                placeholder={isEdit ? 'Yangi parol' : '••••••••'}
+                value={form.password}
+                onChange={set('password')}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
-          <div>
-            <label className="label">Lavozim *</label>
-            <select className="input" value={form.role} onChange={set('role')}>
-              {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-            </select>
-          </div>
+          {!isEdit && (
+            <div>
+              <label className="label">Lavozim *</label>
+              <select className="input" value={form.role} onChange={set('role')}>
+                {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+              </select>
+            </div>
+          )}
+          {isEdit && (
+            <p className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">
+              Saqlagandan so'ng xodim keyingi safar tizimga aynan shu yangilangan telefon/parol bilan kirib, o'z paneliga o'tadi.
+            </p>
+          )}
         </div>
         <div className="flex gap-3 p-6 border-t">
           <button onClick={onClose} className="btn-secondary flex-1">Bekor qilish</button>
-          <button onClick={() => mutation.mutate()} disabled={mutation.isPending} className="btn-primary flex-1">
+          <button onClick={() => mutation.mutate()} disabled={mutation.isPending || !canSubmit} className="btn-primary flex-1 disabled:opacity-50">
             {mutation.isPending ? 'Saqlanmoqda...' : 'Saqlash'}
           </button>
         </div>
@@ -116,6 +156,7 @@ function QrModal({ user, onClose }) {
 export default function UsersPage() {
   const qc = useQueryClient();
   const [showModal, setShowModal] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
   const [qrUser, setQrUser] = useState(null);
   const [roleFilter, setRoleFilter] = useState('');
   const [search, setSearch] = useState('');
@@ -261,6 +302,12 @@ export default function UsersPage() {
                   <td className="px-6 py-3">
                     <div className="flex items-center gap-2">
                       <button
+                        onClick={() => setEditingUser(u)}
+                        className="text-xs px-3 py-1.5 rounded-lg font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors flex items-center gap-1"
+                      >
+                        <Pencil size={12} /> Tahrirlash
+                      </button>
+                      <button
                         onClick={() => toggleMutation.mutate(u.id)}
                         disabled={toggleMutation.isPending}
                         className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${u.isActive ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}
@@ -302,6 +349,7 @@ export default function UsersPage() {
       )}
 
       {showModal && <UserModal onClose={() => setShowModal(false)} />}
+      {editingUser && <UserModal user={editingUser} onClose={() => setEditingUser(null)} />}
       {qrUser && <QrModal user={qrUser} onClose={() => setQrUser(null)} />}
     </div>
   );
