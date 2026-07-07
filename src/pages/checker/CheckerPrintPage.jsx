@@ -19,39 +19,67 @@ function buildLabels(boxBreakdown) {
   return flat.map((l, idx) => ({ ...l, index: idx + 1, total }));
 }
 
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+function formatDateTime(value) {
+  const d = value ? new Date(value) : new Date();
+  const date = `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}.${d.getFullYear()}`;
+  const time = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  return { date, time };
+}
+
 function Label({ order, box }) {
   const color = BOX_TYPE_COLORS[box.type] || BOX_TYPE_COLORS.SBOR;
+  const { date, time } = formatDateTime(order.checkingDoneAt);
+
   return (
     <div
       className="label-card"
       style={{
         width: '6cm', height: '6cm', boxSizing: 'border-box',
-        border: `2px solid ${color.border}`, borderRadius: '10px',
-        background: '#fff', padding: '0.3cm',
-        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+        border: '1px solid #E5E7EB', borderRadius: '10px', overflow: 'hidden',
+        background: '#fff', display: 'flex', flexDirection: 'column',
       }}
     >
-      <div className="flex items-start justify-between">
+      <div style={{ padding: '0.28cm 0.32cm', borderBottom: '1px solid #E5E7EB' }} className="overflow-hidden">
+        <p className="text-[14px] font-black text-gray-900 leading-tight break-words">
+          {order.client?.orgName}
+        </p>
+        <p className="text-[12px] text-gray-500 leading-tight break-words mt-0.5">
+          {order.client?.address || '—'}
+        </p>
+      </div>
+
+      <div
+        style={{ padding: '0.28cm 0.32cm', borderBottom: '1px solid #E5E7EB' }}
+        className="flex-1 flex flex-col justify-center gap-2"
+      >
+        <div className="flex items-start justify-between">
+          <span className="text-xl font-black text-gray-900 leading-none">{box.total}/{box.index}</span>
+          <div className="text-right">
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Faktura</p>
+            <p className="text-[12px] font-bold text-gray-800 leading-tight">{order.invoiceNumber}</p>
+          </div>
+        </div>
         <span
           style={{ background: color.bg, color: color.text, border: `1px solid ${color.border}` }}
-          className="text-[16px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md"
+          className="self-start text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md"
         >
           {BOX_TYPE_LABELS[box.type] || box.type}
         </span>
-        <span className="text-3xl font-black text-gray-900 leading-none">{box.total}/{box.index}</span>
       </div>
 
-      <div className="space-y-1.5 overflow-hidden">
-        <p className="text-[19px] font-black text-gray-900 leading-tight break-words">
-          {order.client?.orgName}
-        </p>
-        {order.client?.address && (
-          <p className="text-[15px] text-gray-500 leading-tight break-words">{order.client.address}</p>
-        )}
-      </div>
-
-      <div className="text-[15px] text-gray-500 font-bold border-t pt-1.5" style={{ borderColor: color.border }}>
-        Faktura: {order.invoiceNumber}
+      <div style={{ padding: '0.24cm 0.32cm' }} className="flex items-center justify-between">
+        <div>
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Sana</p>
+          <p className="text-[12px] font-bold text-gray-800">{date}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Vaqt</p>
+          <p className="text-[12px] font-bold text-gray-800">{time}</p>
+        </div>
       </div>
     </div>
   );
