@@ -44,10 +44,10 @@ function Label({ order, box }) {
       }}
     >
       <div style={{ padding: '0.28cm 0.32cm', borderBottom: '1px solid #E5E7EB' }} className="overflow-hidden">
-        <p className="text-[14px] font-black text-gray-900 leading-tight break-words">
+        <p className="text-[14px] font-black text-gray-900 leading-tight truncate">
           {order.client?.orgName}
         </p>
-        <p className="text-[12px] text-gray-500 leading-tight break-words mt-0.5">
+        <p className="text-[12px] text-gray-500 leading-tight truncate mt-0.5">
           {order.client?.address || '—'}
         </p>
       </div>

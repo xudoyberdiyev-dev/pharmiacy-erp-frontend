@@ -143,7 +143,7 @@ export default function OperatorOrderDetail() {
   );
   if (!order) return <div className="text-center py-20 text-gray-400">Order topilmadi</div>;
 
-  const canEdit   = order.status === 'NEW' && order.createdById === user?.id;
+  const canEdit   = order.createdById === user?.id;
   const canCancel = order.status === 'NEW' && order.createdById === user?.id;
 
   return (
@@ -321,7 +321,8 @@ export default function OperatorOrderDetail() {
                     ))}
                   </div>
                   <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 font-medium">
-                    Vaqt o'zgarganda deadlinelar qayta hisoblanadi (order yaratilgan vaqtdan boshlab).
+                    Bu vaqt faqat hali boshlanmagan bosqichlarga ta'sir qiladi — allaqachon qabul qilingan
+                    bosqichning muddati o'zgarmaydi.
                   </p>
                 </div>
               )}
