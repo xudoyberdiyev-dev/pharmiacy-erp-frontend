@@ -95,6 +95,7 @@ export const documentAPI = {
     '/document/export', { orderIds, columns, footer }, { responseType: 'blob' }
   ),
   assignTrip:  (data) => api.post('/document/assign-trip', data),
+  returnToPending: (orderIds) => api.patch('/document/orders/return-to-pending', { orderIds }),
 };
 
 // ===== USERS =====
