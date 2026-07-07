@@ -6,10 +6,16 @@ import { orderAPI } from '../../api';
 import { Package, User, Smartphone } from 'lucide-react';
 
 function isMobileDevice() {
-  const ua = navigator.userAgent || '';
-  const uaIsMobile = /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(ua);
-  const narrowViewport = window.innerWidth <= 820;
-  return uaIsMobile || narrowViewport;
+  const ua = navigator.userAgent || navigator.vendor || '';
+  const uaIsMobile = /Android|iPhone|iPad|iPod|Mobile|Windows Phone|BlackBerry|IEMobile|Opera Mini|webOS/i.test(ua);
+  // Touch capability is the most reliable signal — it works even when a
+  // browser's "Desktop site" mode swaps the user-agent string to a desktop one.
+  const isTouchDevice =
+    (typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches) ||
+    navigator.maxTouchPoints > 0 ||
+    'ontouchstart' in window;
+  const narrowViewport = window.innerWidth <= 900;
+  return uaIsMobile || isTouchDevice || narrowViewport;
 }
 
 function DesktopBlockedScreen() {
