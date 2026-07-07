@@ -27,30 +27,30 @@ function Label({ order, box }) {
       style={{
         width: '6cm', height: '6cm', boxSizing: 'border-box',
         border: `2px solid ${color.border}`, borderRadius: '10px',
-        background: '#fff', padding: '0.35cm',
+        background: '#fff', padding: '0.3cm',
         display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
       }}
     >
       <div className="flex items-start justify-between">
         <span
           style={{ background: color.bg, color: color.text, border: `1px solid ${color.border}` }}
-          className="text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md"
+          className="text-[16px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md"
         >
           {BOX_TYPE_LABELS[box.type] || box.type}
         </span>
-        <span className="text-lg font-black text-gray-900 leading-none">{box.total}/{box.index}</span>
+        <span className="text-3xl font-black text-gray-900 leading-none">{box.total}/{box.index}</span>
       </div>
 
-      <div className="space-y-1 overflow-hidden">
-        <p className="text-[12px] font-black text-gray-900 leading-tight break-words">
+      <div className="space-y-1.5 overflow-hidden">
+        <p className="text-[19px] font-black text-gray-900 leading-tight break-words">
           {order.client?.orgName}
         </p>
         {order.client?.address && (
-          <p className="text-[10px] text-gray-500 leading-tight break-words">{order.client.address}</p>
+          <p className="text-[15px] text-gray-500 leading-tight break-words">{order.client.address}</p>
         )}
       </div>
 
-      <div className="text-[10px] text-gray-500 font-bold border-t pt-1" style={{ borderColor: color.border }}>
+      <div className="text-[15px] text-gray-500 font-bold border-t pt-1.5" style={{ borderColor: color.border }}>
         Faktura: {order.invoiceNumber}
       </div>
     </div>
