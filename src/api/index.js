@@ -81,6 +81,7 @@ export const checkerAPI = {
   getMine:      () => api.get('/checker/orders/mine'),
   getHistory:   (params) => api.get('/checker/orders/history', { params }),
   accept:       (id) => api.patch(`/checker/orders/${id}/accept`),
+  returnToMarking: (id) => api.patch(`/checker/orders/${id}/return-to-marking`),
   complete:     (id, data) => api.patch(`/checker/orders/${id}/complete`, data),
 };
 

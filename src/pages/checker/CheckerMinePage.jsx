@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import {
   CheckCircle2, Clock, AlertTriangle, Zap, Package,
-  TrendingUp, X, User, FileSpreadsheet, Eye, Box, Plus, Minus, Printer
+  TrendingUp, X, User, FileSpreadsheet, Eye, Box, Plus, Minus, Printer, RotateCcw
 } from 'lucide-react';
 
 const BOX_TYPES = [
@@ -355,7 +355,41 @@ function DetailModal({ order, index, onClose, onComplete }) {
 function MineCard({ order, index }) {
   const [showDetail, setShowDetail] = useState(false);
   const [done, setDone] = useState(false);
+  const [returned, setReturned] = useState(false);
   const isOverdue = order.checkingDeadline && new Date(order.checkingDeadline) < new Date();
+  const qc = useQueryClient();
+
+  // Orderni checking paneldan chiqarib, qaytadan marking bo'limiga yuboradi —
+  // marker uni yana "qabul qilish" orqali olib, eski Excel o'rniga yangisini
+  // yuklashi mumkin bo'ladi.
+  const returnMut = useMutation({
+    mutationFn: () => checkerAPI.returnToMarking(order.id),
+    onSuccess: (res) => {
+      toast.success(res.data.message || 'Order marking bo\'limiga qaytarildi');
+      setReturned(true);
+      qc.invalidateQueries(['checker-mine']);
+      qc.invalidateQueries(['checker-available']);
+    },
+    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+  });
+
+  const handleReturn = () => {
+    if (window.confirm('Bu orderni marking bo\'limiga qaytarmoqchimisiz? Marker uni qaytadan qabul qilib, yangi Excel yuklashi kerak bo\'ladi.')) {
+      returnMut.mutate();
+    }
+  };
+
+  if (returned) {
+    return (
+      <div className="bg-white rounded-2xl border-2 border-amber-300 shadow-sm flex flex-col items-center justify-center py-12 gap-3">
+        <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center">
+          <RotateCcw size={26} className="text-amber-500" />
+        </div>
+        <p className="text-sm font-black text-amber-700">Marking bo'limiga qaytarildi!</p>
+        <p className="text-xs text-gray-400">#{index + 1}</p>
+      </div>
+    );
+  }
 
   if (done) {
     return (
@@ -447,14 +481,25 @@ function MineCard({ order, index }) {
           </div>
         </div>
 
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-4 space-y-2">
           <button
             onClick={() => setShowDetail(true)}
+            disabled={returnMut.isPending}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold text-white
               bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700
-              shadow-md shadow-sky-200 transition-all"
+              shadow-md shadow-sky-200 transition-all disabled:opacity-60"
           >
             <Eye size={15} /> Detail ko'rish va tasdiqlash
+          </button>
+          <button
+            onClick={handleReturn}
+            disabled={returnMut.isPending}
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold
+              border-2 border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-all disabled:opacity-60"
+          >
+            {returnMut.isPending
+              ? <><span className="w-3.5 h-3.5 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin" /> Qaytarilmoqda...</>
+              : <><RotateCcw size={13} /> Markinga qaytarish</>}
           </button>
         </div>
       </div>
