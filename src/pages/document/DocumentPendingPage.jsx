@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import {
   FileSpreadsheet, Search, X, CheckSquare, Square,
-  RefreshCw, Building2, Truck, Sparkles
+  RefreshCw, Building2, Truck, Sparkles, Pencil, Check
 } from 'lucide-react';
 import TripModal from './TripModal';
 
@@ -28,6 +28,8 @@ export default function DocumentPendingPage() {
   const [selected, setSelected] = useState([]);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editValue, setEditValue] = useState('');
 
   const { data: orders = [], isLoading, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ['document', 'pending'],
@@ -59,6 +61,27 @@ export default function DocumentPendingPage() {
     },
     onError: (e) => toast.error(e.response?.data?.message || 'Xato yuz berdi'),
   });
+
+  const amountMutation = useMutation({
+    mutationFn: ({ id, totalAmount }) => documentAPI.updateAmount(id, totalAmount),
+    onSuccess: () => {
+      toast.success('Summa yangilandi');
+      setEditingId(null);
+      qc.invalidateQueries(['document', 'pending']);
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Xato yuz berdi'),
+  });
+
+  const startEditAmount = (o) => {
+    setEditingId(o.id);
+    setEditValue(String(o.totalAmount ?? ''));
+  };
+
+  const saveAmount = (id) => {
+    const value = parseFloat(editValue);
+    if (Number.isNaN(value) || value < 0) return toast.error("Summani to'g'ri kiriting");
+    amountMutation.mutate({ id, totalAmount: value });
+  };
 
   const toggle = (id) => setSelected(p => p.includes(id) ? p.filter(i => i !== id) : [...p, id]);
   const toggleAll = () => setSelected(p => p.length === filtered.length ? [] : filtered.map(o => o.id));
@@ -156,9 +179,56 @@ export default function DocumentPendingPage() {
                           <span className="text-sm font-semibold text-gray-800 truncate max-w-[180px]">{o.client?.orgName}</span>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5">
-                        <p className="text-sm font-black text-gray-900 whitespace-nowrap">{o.totalAmount?.toLocaleString()}</p>
-                        <p className="text-[11px] text-gray-400">so'm</p>
+                      <td className="px-5 py-3.5" onClick={e => e.stopPropagation()}>
+                        {editingId === o.id ? (
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              autoFocus
+                              type="text"
+                              inputMode="numeric"
+                              value={editValue}
+                              onChange={e => setEditValue(e.target.value.replace(/[^\d.]/g, ''))}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') saveAmount(o.id);
+                                if (e.key === 'Escape') setEditingId(null);
+                              }}
+                              className="w-28 px-2.5 py-1.5 bg-indigo-50 border border-indigo-200 rounded-lg text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                            />
+                            <button
+                              onClick={() => saveAmount(o.id)}
+                              disabled={amountMutation.isPending}
+                              className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700 transition-colors disabled:opacity-50 shrink-0"
+                            >
+                              <Check size={14} />
+                            </button>
+                            <button
+                              onClick={() => setEditingId(null)}
+                              className="w-7 h-7 rounded-lg bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200 transition-colors shrink-0"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="group flex items-center gap-2">
+                            <div>
+                              {o.originalAmount != null && (
+                                <p className="text-[11px] text-gray-400 line-through leading-tight">
+                                  {o.originalAmount.toLocaleString()}
+                                </p>
+                              )}
+                              <p className={`text-sm font-black whitespace-nowrap leading-tight ${o.originalAmount != null ? 'text-emerald-600' : 'text-gray-900'}`}>
+                                {o.totalAmount?.toLocaleString()}
+                              </p>
+                              <p className="text-[11px] text-gray-400">so'm</p>
+                            </div>
+                            <button
+                              onClick={() => startEditAmount(o)}
+                              className="w-6 h-6 rounded-lg text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                            >
+                              <Pencil size={12} />
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );

@@ -96,6 +96,7 @@ export const documentAPI = {
   ),
   assignTrip:  (data) => api.post('/document/assign-trip', data),
   returnToPending: (orderIds) => api.patch('/document/orders/return-to-pending', { orderIds }),
+  updateAmount: (id, totalAmount) => api.patch(`/document/orders/${id}/amount`, { totalAmount }),
 };
 
 // ===== USERS =====
