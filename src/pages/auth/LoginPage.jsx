@@ -184,6 +184,7 @@ function QrScannerPanel({ onBack }) {
   const [status, setStatus] = useState('waiting'); // waiting | processing | success | error
   const [errorMsg, setErrorMsg] = useState('');
   const [lastScanned, setLastScanned] = useState('');
+  const [debugRaw, setDebugRaw] = useState('');
 
   // Yangi QR kodlar xom tokenni (faqat hex harflar) kodlaydi. Eski (allaqachon
   // chop etilgan) badjlar esa { qrToken, phone } JSON kodlagan bo'lishi mumkin —
@@ -221,15 +222,18 @@ function QrScannerPanel({ onBack }) {
     } catch (err) {
       setStatus('error');
       setErrorMsg(err.response?.data?.message || 'QR kod xato yoki eskirgan');
+      setDebugRaw(rawScan);
+      console.warn('[QR login] skaner matni:', rawScan, '-> token:', token);
       setTimeout(() => {
         setStatus('waiting');
         setErrorMsg('');
         setLastScanned('');
+        setDebugRaw('');
         if (inputRef.current) {
           inputRef.current.value = '';
           inputRef.current.focus();
         }
-      }, 2500);
+      }, 4000);
     }
   };
 
@@ -364,6 +368,11 @@ function QrScannerPanel({ onBack }) {
             <div className="text-center px-4">
               <p className="text-sm font-semibold text-red-300">Xato!</p>
               <p className="text-xs mt-1" style={{ color: 'rgba(252,165,165,0.7)' }}>{errorMsg}</p>
+              {debugRaw && (
+                <p className="text-[10px] mt-2 font-mono break-all" style={{ color: 'rgba(252,165,165,0.4)' }}>
+                  {debugRaw}
+                </p>
+              )}
             </div>
           </>
         )}
