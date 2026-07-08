@@ -185,19 +185,23 @@ function QrScannerPanel({ onBack }) {
   const [errorMsg, setErrorMsg] = useState('');
   const [lastScanned, setLastScanned] = useState('');
 
-  // QR rasmga { qrToken, phone } JSON kodlangan (qrCode.js#generateQrCodeImage) —
-  // jismoniy skaner esa QR ichidagi matnni AYNAN o'qib, o'sha JSON'ni klaviaturadek
-  // yozadi. Shuning uchun avval JSON sifatida ochib, ichidagi qrToken'ni olamiz;
-  // agar kimdir eski/oddiy token matnini skanerlasa (JSON emas), o'sha matnni
-  // to'g'ridan-to'g'ri token sifatida ishlatamiz.
+  // Yangi QR kodlar xom tokenni (faqat hex harflar) kodlaydi. Eski (allaqachon
+  // chop etilgan) badjlar esa { qrToken, phone } JSON kodlagan bo'lishi mumkin —
+  // shu ikkalasini ham qo'llab-quvvatlaymiz. Arzon HID skanerlar ba'zan
+  // AIM prefiks (masalan "]Q1") yoki boshqa keraksiz belgilarni JSON'dan oldin/
+  // keyin qo'shib yuboradi, shuning uchun butun matnni JSON deb talab qilmasdan,
+  // ichidan {...} qismini qidirib topamiz.
   const extractQrToken = (raw) => {
-    try {
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed.qrToken === 'string') return parsed.qrToken;
-    } catch {
-      // JSON emas — bo'lsa kerak, raw matnning o'zi token
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed && typeof parsed.qrToken === 'string') return parsed.qrToken;
+      } catch {
+        // JSON qismga o'xshasa-da tahlil qilib bo'lmadi — pastda raw qaytariladi
+      }
     }
-    return raw;
+    return raw.trim();
   };
 
   // Jismoniy skaner — tez klaviatura kirish → Enter
