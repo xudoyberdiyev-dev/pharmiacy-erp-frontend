@@ -41,6 +41,10 @@ import DocumentLayout from './components/layout/DocumentLayout';
 import DocumentPendingPage from './pages/document/DocumentPendingPage';
 import DocumentDocumentedPage from './pages/document/DocumentDocumentedPage';
 import DocumentReadyPage from './pages/document/DocumentReadyPage';
+import DocumentHistoryPage from './pages/document/DocumentHistoryPage';
+import DocumentReturnedPage from './pages/document/DocumentReturnedPage';
+import DocumentReturnDetailPage from './pages/document/DocumentReturnDetailPage';
+import PublicOrderInfoPage from './pages/public/PublicOrderInfoPage';
 import DriverMobileLayout from './components/layout/DriverMobileLayout';
 import DriverPanel from './pages/driver/DriverPanel';
 import DriverOrderDetail from './pages/driver/DriverOrderDetail';
@@ -102,6 +106,9 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={user ? <Navigate to={ROOT_REDIRECTS[user.role] || '/login'} replace /> : <Navigate to="/login" replace />} />
 
+      {/* QR skan orqali — login talab qilmaydi */}
+      <Route path="/public/orders/:id" element={<PublicOrderInfoPage />} />
+
       {/* ADMIN */}
       <Route path="/admin" element={<ProtectedRoute roles={['ADMIN']}><AdminHeaderLayout /></ProtectedRoute>}>
         <Route index element={<AdminDashboard />} />
@@ -152,6 +159,9 @@ function AppRoutes() {
         <Route index element={<DocumentPendingPage />} />
         <Route path="documented" element={<DocumentDocumentedPage />} />
         <Route path="ready" element={<DocumentReadyPage />} />
+        <Route path="history" element={<DocumentHistoryPage />} />
+        <Route path="returned" element={<DocumentReturnedPage />} />
+        <Route path="orders/:id/return" element={<DocumentReturnDetailPage />} />
       </Route>
 
       <Route path="/driver" element={<ProtectedRoute roles={['DRIVER']}><DriverMobileLayout /></ProtectedRoute>}>

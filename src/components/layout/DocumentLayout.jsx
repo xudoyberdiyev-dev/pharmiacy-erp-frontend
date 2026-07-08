@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
-  FileSpreadsheet, FileCheck2, Truck, LogOut, ChevronDown, Activity
+  FileSpreadsheet, FileCheck2, Truck, LogOut, ChevronDown, Activity, History, Undo2
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
@@ -9,6 +9,8 @@ const NAV_LINKS = [
   { to: '/document',             label: 'Chekingdan o\'tganlar',    icon: FileSpreadsheet, end: true },
   { to: '/document/documented',  label: 'Hujjatlashtirish',         icon: FileCheck2 },
   { to: '/document/ready',       label: 'Safarga tayyor',           icon: Truck },
+  { to: '/document/history',     label: 'Tarix',                    icon: History },
+  { to: '/document/returned',    label: 'Qaytgan orderlar',         icon: Undo2 },
 ];
 
 export default function DocumentLayout() {

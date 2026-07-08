@@ -97,6 +97,18 @@ export const documentAPI = {
   assignTrip:  (data) => api.post('/document/assign-trip', data),
   returnToPending: (orderIds) => api.patch('/document/orders/return-to-pending', { orderIds }),
   updateAmount: (id, totalAmount) => api.patch(`/document/orders/${id}/amount`, { totalAmount }),
+  getHistory:   () => api.get('/document/orders/history'),
+  getReturned:  () => api.get('/document/orders/returned'),
+  getOrderFull: (id) => api.get(`/document/orders/${id}`),
+  submitReturn: (id, formData) => api.patch(`/document/orders/${id}/return`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  downloadReturnReport: (id) => api.get(`/document/orders/${id}/return-report`, { responseType: 'blob' }),
+};
+
+// ===== PUBLIC (login talab qilmaydi — QR skan uchun) =====
+export const publicAPI = {
+  getOrderInfo: (id) => api.get(`/public/orders/${id}`),
 };
 
 // ===== USERS =====
