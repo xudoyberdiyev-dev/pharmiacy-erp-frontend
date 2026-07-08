@@ -185,9 +185,25 @@ function QrScannerPanel({ onBack }) {
   const [errorMsg, setErrorMsg] = useState('');
   const [lastScanned, setLastScanned] = useState('');
 
+  // QR rasmga { qrToken, phone } JSON kodlangan (qrCode.js#generateQrCodeImage) —
+  // jismoniy skaner esa QR ichidagi matnni AYNAN o'qib, o'sha JSON'ni klaviaturadek
+  // yozadi. Shuning uchun avval JSON sifatida ochib, ichidagi qrToken'ni olamiz;
+  // agar kimdir eski/oddiy token matnini skanerlasa (JSON emas), o'sha matnni
+  // to'g'ridan-to'g'ri token sifatida ishlatamiz.
+  const extractQrToken = (raw) => {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.qrToken === 'string') return parsed.qrToken;
+    } catch {
+      // JSON emas — bo'lsa kerak, raw matnning o'zi token
+    }
+    return raw;
+  };
+
   // Jismoniy skaner — tez klaviatura kirish → Enter
-  const processToken = async (token) => {
-    if (!token || token.length < 6) return;
+  const processToken = async (rawScan) => {
+    if (!rawScan || rawScan.length < 6) return;
+    const token = extractQrToken(rawScan);
     setStatus('processing');
     setLastScanned(token.slice(0, 12) + '...');
     try {
