@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import {
   ArrowLeft, Building2, FileSpreadsheet, Upload, X, Undo2,
-  User2, CheckCircle
+  User2, CheckCircle, Banknote
 } from 'lucide-react';
 
 const inp = "w-full px-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl text-sm font-medium focus:outline-none focus:border-indigo-400 focus:bg-white focus:shadow-md focus:shadow-indigo-100 transition-all";
@@ -29,6 +29,7 @@ export default function DocumentReturnDetailPage() {
   const qc = useQueryClient();
   const [note, setNote] = useState('');
   const [newExcel, setNewExcel] = useState(null);
+  const [returnedAmount, setReturnedAmount] = useState('');
 
   const { data: order, isLoading } = useQuery({
     queryKey: ['document', 'order', id],
@@ -44,6 +45,7 @@ export default function DocumentReturnDetailPage() {
     mutationFn: () => {
       const fd = new FormData();
       fd.append('returnedGoodsNote', note);
+      if (returnedAmount !== '') fd.append('returnedAmount', returnedAmount);
       if (newExcel) fd.append('markedExcel', newExcel);
       return documentAPI.submitReturn(id, fd);
     },
@@ -55,8 +57,19 @@ export default function DocumentReturnDetailPage() {
     onError: (e) => toast.error(e.response?.data?.message || 'Xato yuz berdi'),
   });
 
+  const parsedReturnedAmount = returnedAmount !== '' ? parseFloat(returnedAmount) : null;
+  const newTotal = parsedReturnedAmount != null && order
+    ? order.totalAmount - parsedReturnedAmount
+    : null;
+
   const handleSubmit = () => {
     if (!note.trim()) return toast.error('Izoh yozish majburiy');
+    if (parsedReturnedAmount != null) {
+      if (Number.isNaN(parsedReturnedAmount) || parsedReturnedAmount < 0)
+        return toast.error("Qaytarilgan summani to'g'ri kiriting");
+      if (parsedReturnedAmount > order.totalAmount)
+        return toast.error("Qaytarilgan summa faktura summasidan katta bo'lishi mumkin emas");
+    }
     submitMutation.mutate();
   };
 
@@ -173,6 +186,29 @@ export default function DocumentReturnDetailPage() {
           </div>
 
           <div>
+            <label className="block text-xs text-gray-400 font-bold mb-1.5">Qaytarilgan summa (so'm, ixtiyoriy)</label>
+            <div className="relative">
+              <Banknote size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                inputMode="numeric"
+                value={returnedAmount}
+                onChange={e => setReturnedAmount(e.target.value.replace(/[^\d.]/g, ''))}
+                placeholder="0"
+                className={inp + ' pl-11'}
+              />
+            </div>
+            {parsedReturnedAmount != null && !Number.isNaN(parsedReturnedAmount) && (
+              <p className={`text-xs mt-1.5 font-semibold ${newTotal < 0 ? 'text-red-500' : 'text-gray-500'}`}>
+                {order.totalAmount.toLocaleString()} − {parsedReturnedAmount.toLocaleString()} = {' '}
+                <span className={newTotal < 0 ? 'text-red-600' : 'text-emerald-600'}>
+                  {newTotal.toLocaleString()} so'm
+                </span> {newTotal < 0 && '(faktura summasidan katta bo\'lmasin)'}
+              </p>
+            )}
+          </div>
+
+          <div>
             <label className="block text-xs text-gray-400 font-bold mb-1.5">Izoh <span className="text-red-500">*</span></label>
             <textarea
               value={note}
@@ -200,6 +236,7 @@ export default function DocumentReturnDetailPage() {
           <CheckCircle size={20} className="text-emerald-600 shrink-0" />
           <p className="text-sm font-bold text-emerald-700">
             Bu order allaqachon qaytarilgan deb belgilangan ({order.returnedGoodsBy?.fullName}, {order.returnedGoodsAt ? format(new Date(order.returnedGoodsAt), 'dd.MM.yyyy HH:mm') : ''})
+            {order.returnedAmount != null && ` — ${order.returnedAmount.toLocaleString()} so'm qaytarilgan`}
           </p>
         </div>
       )}

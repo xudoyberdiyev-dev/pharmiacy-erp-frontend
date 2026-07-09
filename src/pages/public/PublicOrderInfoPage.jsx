@@ -104,6 +104,9 @@ export default function PublicOrderInfoPage() {
                 </h3>
                 <Row icon={User2} label="Qayd etdi" value={order.returnedGoodsBy} />
                 <Row icon={Clock} label="Sana" value={fmt(order.returnedGoodsAt)} />
+                {order.returnedAmount != null && (
+                  <Row icon={Package} label="Qaytarilgan summa" value={`${order.returnedAmount.toLocaleString()} so'm`} />
+                )}
                 <Row icon={Package} label="Izoh" value={order.returnedGoodsNote} />
               </div>
             )}
