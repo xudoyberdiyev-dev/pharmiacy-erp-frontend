@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { pickerAPI } from '../../api';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import {
   CheckCircle2, Clock, FileSpreadsheet, Package,
-  AlertTriangle, TrendingUp, Zap
+  AlertTriangle, TrendingUp, Zap, RotateCcw
 } from 'lucide-react';
 
 // ── Countdown hook ────────────────────────────────────────────────────────
@@ -74,7 +75,7 @@ function TimerDisplay({ deadline, totalMinutes }) {
 }
 
 // ── Order card ────────────────────────────────────────────────────────────
-function MineCard({ order }) {
+function MineCard({ order, blocked }) {
   const qc = useQueryClient();
   const isOverdue = order.pickingDeadline && new Date(order.pickingDeadline) < new Date();
   const dur = order.pickingDuration || 0;
@@ -150,10 +151,11 @@ function MineCard({ order }) {
         )}
         <button
           onClick={() => completeMut.mutate()}
-          disabled={completeMut.isPending}
+          disabled={completeMut.isPending || blocked}
+          title={blocked ? 'Avval markingdan qaytgan orderni yakunlang' : undefined}
           className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-bold text-white
             bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700
-            shadow-md shadow-green-200 hover:shadow-lg transition-all disabled:opacity-60"
+            shadow-md shadow-green-200 hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {completeMut.isPending
             ? <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saqlanmoqda...</>
@@ -198,6 +200,13 @@ export default function PickerMinePage() {
     refetchInterval: 15000,
     select: r => r.data.data || [],
   });
+  const { data: returned = [] } = useQuery({
+    queryKey: ['picker-returned'],
+    queryFn: pickerAPI.getReturned,
+    refetchInterval: 15000,
+    select: r => r.data.data || [],
+  });
+  const hasReturned = returned.length > 0;
 
   return (
     <div className="space-y-5">
@@ -205,6 +214,25 @@ export default function PickerMinePage() {
         <h1 className="text-xl font-black text-gray-900 tracking-tight">Mening orderlarim</h1>
         <p className="text-sm text-gray-400 mt-0.5 font-medium">Men qabul qilgan va yig'ayotgan orderlar</p>
       </div>
+
+      {hasReturned && (
+        <Link
+          to="/picker/returned"
+          className="flex items-center gap-3 px-4 py-3.5 rounded-2xl border-2 border-amber-300 bg-amber-50 hover:bg-amber-100 transition-colors"
+        >
+          <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+            <RotateCcw size={16} className="text-amber-600" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-black text-amber-800">
+              Sizda markingdan qaytgan {returned.length} ta order bor
+            </p>
+            <p className="text-xs text-amber-600 font-medium">
+              Yangi orderlarni yakunlashdan oldin avval shularni yakunlang →
+            </p>
+          </div>
+        </Link>
+      )}
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -228,7 +256,7 @@ export default function PickerMinePage() {
         <>
           <StatsRow orders={orders} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {orders.map(o => <MineCard key={o.id} order={o} />)}
+            {orders.map(o => <MineCard key={o.id} order={o} blocked={hasReturned} />)}
           </div>
         </>
       )}

@@ -26,6 +26,7 @@ import PickerAvailablePage from './pages/picker/PickerAvailablePage';
 import PickerMinePage from './pages/picker/PickerMinePage';
 import PickerLatePage from './pages/picker/PickerLatePage';
 import PickerEtirozliPage from './pages/picker/PickerEtirozliPage';
+import PickerReturnedPage from './pages/picker/PickerReturnedPage';
 import MarkerLayout from './components/layout/MarkerLayout';
 import MarkerAvailablePage from './pages/marker/MarkerAvailablePage';
 import MarkerMinePage from './pages/marker/MarkerMinePage';
@@ -137,6 +138,7 @@ function AppRoutes() {
       <Route path="/picker" element={<ProtectedRoute roles={['PICKER']}><PickerLayout /></ProtectedRoute>}>
         <Route index element={<PickerAvailablePage />} />
         <Route path="mine" element={<PickerMinePage />} />
+        <Route path="returned" element={<PickerReturnedPage />} />
         <Route path="late" element={<PickerLatePage />} />
         <Route path="etirozli" element={<PickerEtirozliPage />} />
       </Route>

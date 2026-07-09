@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { pickerAPI } from '../../api';
 import {
   Package, Zap, Calendar, AlertCircle,
-  Activity, ChevronDown, LogOut, User
+  Activity, ChevronDown, LogOut, User, RotateCcw
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
@@ -60,16 +60,24 @@ export default function PickerLayout() {
     refetchInterval: 30000,
     select: r => r.data.data || [],
   });
+  const { data: returned } = useQuery({
+    queryKey: ['picker-returned'],
+    queryFn: pickerAPI.getReturned,
+    refetchInterval: 15000,
+    select: r => r.data.data || [],
+  });
 
   const lateCount     = lateData?.data?.length || 0;
   // faqat hali javob berilmagan (PENDING) etirozlarni sanaymiz
   const etirozliCount = etirozli?.filter(o => (o.etirozlar || []).some(e => e.status === 'PENDING')).length || 0;
   const mineCount     = mine?.length || 0;
   const availCount    = available?.length || 0;
+  const returnedCount = returned?.length || 0;
 
   const NAV = [
     { to: '/picker',           end: true, label: 'Mavjud orderlar', icon: Package,      badge: availCount,    badgeColor: 'blue'  },
     { to: '/picker/mine',      end: false, label: 'Mening orderlarim', icon: Zap,        badge: mineCount,     badgeColor: 'green' },
+    { to: '/picker/returned',  end: false, label: 'Markingdan qaytganlar', icon: RotateCcw, badge: returnedCount, badgeColor: 'amber' },
     { to: '/picker/late',      end: false, label: 'Tarix',           icon: Calendar,     badge: lateCount,    badgeColor: 'red'   },
     { to: '/picker/etirozli',  end: false, label: 'Etirozli',        icon: AlertCircle,  badge: etirozliCount, badgeColor: 'amber' },
   ];

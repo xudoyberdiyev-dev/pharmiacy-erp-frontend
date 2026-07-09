@@ -3,6 +3,7 @@ import api from './axios';
 // ===== AUTH =====
 export const authAPI = {
   login: (data) => api.post('/auth/login', data),
+  qrLogin: (data) => api.post('/auth/qr-login', data),
   me: () => api.get('/auth/me'),
   changePassword: (data) => api.put('/auth/change-password', data),
 };
@@ -49,6 +50,7 @@ export const pickerAPI = {
   getStats: () => api.get('/picker/stats'),
   getAvailable: () => api.get('/picker/orders/available'),
   getMine: () => api.get('/picker/orders/mine'),
+  getReturned: () => api.get('/picker/orders/returned'),
   getLate: (params) => api.get('/picker/orders/late', { params }),
   getHistory: (params) => api.get('/picker/orders/late', { params }),
   getEtirozli: () => api.get('/picker/orders/etirozli'),
@@ -70,6 +72,7 @@ export const markerAPI = {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
   completeNoFile: (id) => api.patch(`/marker/orders/${id}/complete`),
+  returnToPicking: (id, reason) => api.patch(`/marker/orders/${id}/return-to-picking`, { reason }),
   raiseEtirov: (id, data) => api.post(`/marker/orders/${id}/etirov`, data),
   openEtirovWindow: (id) => api.patch(`/marker/orders/${id}/etirov/open`),
   closeEtirovWindow: (id) => api.patch(`/marker/orders/${id}/etirov/close`),
@@ -120,6 +123,7 @@ export const userAPI = {
   update: (id, data) => api.put(`/users/${id}`, data),
   toggleActive: (id) => api.patch(`/users/${id}/toggle`),
   regenerateQr: (id) => api.post(`/users/${id}/regenerate-qr`),
+  getPenalties: (id) => api.get(`/users/${id}/penalties`),
 };
 
 // ===== VEHICLES =====

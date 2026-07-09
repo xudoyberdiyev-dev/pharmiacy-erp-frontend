@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import {
   CheckCircle2, Clock, Upload, ArrowRight, AlertCircle,
-  AlertTriangle, Zap, Package, TrendingUp, X, FileSpreadsheet, User, File
+  AlertTriangle, Zap, Package, TrendingUp, X, FileSpreadsheet, User, File, RotateCcw
 } from 'lucide-react';
 
 // ── Etirov types ──────────────────────────────────────────────────────────────
@@ -209,6 +209,69 @@ function EtirovModal({ order, window: etirovWindow, onClose, onDone }) {
   );
 }
 
+// ── Pikingga qaytarish modali (sababi so'raladi) ──────────────────────────────
+function ReturnToPickingModal({ order, onClose, onDone }) {
+  const [reason, setReason] = useState('');
+
+  const mutation = useMutation({
+    mutationFn: () => markerAPI.returnToPicking(order.id, reason),
+    onSuccess: (res) => {
+      toast.success(res.data.message || 'Order picking bo\'limiga qaytarildi');
+      onDone();
+      onClose();
+    },
+    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <h3 className="font-black text-gray-900">Orderni pikingga qaytarish</h3>
+            <p className="text-xs text-gray-400 mt-0.5">#{order.invoiceNumber} · {order.client?.orgName}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors">
+            <X size={16} className="text-gray-400" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-2.5">
+          <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider">Qaytarish sababi</p>
+          <textarea
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            placeholder="Masalan: mahsulot to'liq yig'ilmagan, miqdori noto'g'ri..."
+            rows={4}
+            className="w-full px-3.5 py-3 rounded-xl border-2 border-gray-200 focus:border-amber-400 outline-none text-sm resize-none transition-colors"
+          />
+          <p className="text-[11px] text-gray-400">
+            Order aynan shu orderni yig'gan picker'ning "Markingdan qaytganlar" sahifasiga tushadi va
+            picker'ga 5 jarima bali beriladi.
+          </p>
+        </div>
+
+        <div className="px-5 pb-5 flex gap-3">
+          <button onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">
+            Bekor qilish
+          </button>
+          <button
+            onClick={() => mutation.mutate()}
+            disabled={!reason.trim() || mutation.isPending}
+            className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-bold
+              hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+          >
+            {mutation.isPending
+              ? <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Qaytarilmoqda...</>
+              : <><RotateCcw size={14} /> Qaytarish</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Order card ────────────────────────────────────────────────────────────────
 function MineCard({ order }) {
   const qc = useQueryClient();
@@ -217,6 +280,8 @@ function MineCard({ order }) {
   const [openingEtirov, setOpeningEtirov] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [done, setDone] = useState(false);
+  const [returnedToPicking, setReturnedToPicking] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
   const isOverdue = order.markingDeadline && new Date(order.markingDeadline) < new Date();
 
   // Tugma bosilganda (haqiqiy foydalanuvchi harakati) bir martalik 30s
@@ -285,6 +350,18 @@ function MineCard({ order }) {
     );
   }
 
+  if (returnedToPicking) {
+    return (
+      <div className="bg-white rounded-2xl border-2 border-amber-300 shadow-sm flex flex-col items-center justify-center py-12 gap-3">
+        <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center">
+          <RotateCcw size={26} className="text-amber-500" />
+        </div>
+        <p className="text-sm font-black text-amber-700">Picking bo'limiga qaytarildi!</p>
+        <p className="text-xs text-gray-400">#{order.invoiceNumber}</p>
+      </div>
+    );
+  }
+
   return (
     <>
       {etirovWindow && (
@@ -293,6 +370,17 @@ function MineCard({ order }) {
           window={etirovWindow}
           onClose={() => setEtirovWindow(null)}
           onDone={() => qc.invalidateQueries(['marker-mine'])}
+        />
+      )}
+      {showReturnModal && (
+        <ReturnToPickingModal
+          order={order}
+          onClose={() => setShowReturnModal(false)}
+          onDone={() => {
+            setReturnedToPicking(true);
+            qc.invalidateQueries(['marker-mine']);
+            qc.invalidateQueries(['marker-available']);
+          }}
         />
       )}
 
@@ -430,6 +518,15 @@ function MineCard({ order }) {
           >
             <AlertCircle size={13} />
             {order.etirovWindowUsed ? 'Etiroz imkoniyati ishlatilgan' : openingEtirov ? 'Ochilmoqda...' : 'Etirozni bildirish'}
+          </button>
+
+          <button
+            onClick={() => setShowReturnModal(true)}
+            disabled={completeMut.isPending}
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold
+              border-2 border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <RotateCcw size={13} /> Pikingga qaytarish
           </button>
         </div>
       </div>
