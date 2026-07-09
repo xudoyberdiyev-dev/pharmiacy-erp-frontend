@@ -104,6 +104,7 @@ export const documentAPI = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   downloadReturnReport: (id) => api.get(`/document/orders/${id}/return-report`, { responseType: 'blob' }),
+  cancelOrder: (id, reason) => api.patch(`/document/orders/${id}/cancel`, { reason }),
 };
 
 // ===== PUBLIC (login talab qilmaydi — QR skan uchun) =====

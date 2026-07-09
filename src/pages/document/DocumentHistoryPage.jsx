@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentAPI } from '../../api';
 import StatusBadge from '../../components/shared/StatusBadge';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import {
   History, Search, X, RefreshCw, Building2, FileCheck2,
-  Undo2, FileDown, AlertTriangle, CalendarDays
+  Undo2, FileDown, AlertTriangle, CalendarDays, Ban
 } from 'lucide-react';
+
+const NON_CANCELLABLE_STATUSES = ['DELIVERED', 'CANCELLED'];
 
 function EmptyState() {
   return (
@@ -22,8 +24,9 @@ function EmptyState() {
   );
 }
 
-function HistoryRow({ o, onDownload, downloading }) {
+function HistoryRow({ o, onDownload, downloading, onCancel, cancelling }) {
   const navigate = useNavigate();
+  const canCancel = !NON_CANCELLABLE_STATUSES.includes(o.status);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow p-4 flex items-center gap-4 flex-wrap">
@@ -70,6 +73,16 @@ function HistoryRow({ o, onDownload, downloading }) {
             <Undo2 size={14} /> Qaytarilgan mavjud
           </button>
         )}
+        {canCancel && (
+          <button
+            onClick={() => onCancel(o)}
+            disabled={cancelling === o.id}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-gray-500
+              bg-gray-50 border border-gray-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-50"
+          >
+            <Ban size={14} /> {cancelling === o.id ? 'Bekor qilinmoqda...' : 'Bekor qilish'}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -80,6 +93,7 @@ export default function DocumentHistoryPage() {
   const [search, setSearch] = useState('');
   const [downloading, setDownloading] = useState(null);
   const [dateFilter, setDateFilter] = useState('');
+  const [cancellingId, setCancellingId] = useState(null);
 
   const { data: orders = [], isLoading, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ['document', 'history', dateFilter],
@@ -87,6 +101,22 @@ export default function DocumentHistoryPage() {
     select: r => r.data.data || [],
     refetchInterval: 20000,
   });
+
+  const cancelMutation = useMutation({
+    mutationFn: (id) => documentAPI.cancelOrder(id),
+    onSuccess: () => {
+      toast.success('Order bekor qilindi');
+      qc.invalidateQueries(['document']);
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Xato yuz berdi'),
+    onSettled: () => setCancellingId(null),
+  });
+
+  const handleCancel = (o) => {
+    if (!window.confirm(`#${o.invoiceNumber} orderni butunlay bekor qilmoqchimisiz? Bu amalni ortga qaytarib bo'lmaydi.`)) return;
+    setCancellingId(o.id);
+    cancelMutation.mutate(o.id);
+  };
 
   const filtered = orders.filter(o => {
     if (!search.trim()) return true;
@@ -186,7 +216,16 @@ export default function DocumentHistoryPage() {
         </div>
       ) : (
         <div className="space-y-2.5">
-          {filtered.map(o => <HistoryRow key={o.id} o={o} onDownload={handleDownload} downloading={downloading} />)}
+          {filtered.map(o => (
+            <HistoryRow
+              key={o.id}
+              o={o}
+              onDownload={handleDownload}
+              downloading={downloading}
+              onCancel={handleCancel}
+              cancelling={cancellingId}
+            />
+          ))}
         </div>
       )}
     </div>

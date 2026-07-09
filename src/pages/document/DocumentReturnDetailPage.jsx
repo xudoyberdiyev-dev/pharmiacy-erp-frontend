@@ -42,15 +42,15 @@ export default function DocumentReturnDetailPage() {
   }, [order?.returnedGoodsNote]);
 
   const submitMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: ({ wasAlreadyReturned }) => {
       const fd = new FormData();
       fd.append('returnedGoodsNote', note);
       if (returnedAmount !== '') fd.append('returnedAmount', returnedAmount);
       if (newExcel) fd.append('markedExcel', newExcel);
-      return documentAPI.submitReturn(id, fd);
+      return documentAPI.submitReturn(id, fd).then(res => ({ res, wasAlreadyReturned }));
     },
-    onSuccess: () => {
-      toast.success('Qaytarilgan tovar qayd etildi');
+    onSuccess: ({ wasAlreadyReturned }) => {
+      toast.success(wasAlreadyReturned ? 'Ma\'lumot yangilandi' : 'Qaytarilgan tovar qayd etildi');
       qc.invalidateQueries(['document']);
       navigate('/document/history');
     },
@@ -70,7 +70,7 @@ export default function DocumentReturnDetailPage() {
       if (parsedReturnedAmount > order.totalAmount)
         return toast.error("Qaytarilgan summa faktura summasidan katta bo'lishi mumkin emas");
     }
-    submitMutation.mutate();
+    submitMutation.mutate({ wasAlreadyReturned: order.hasReturnedGoods });
   };
 
   if (isLoading) {
