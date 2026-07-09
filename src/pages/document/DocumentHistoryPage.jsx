@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import {
   History, Search, X, RefreshCw, Building2, FileCheck2,
-  Undo2, FileDown, AlertTriangle
+  Undo2, FileDown, AlertTriangle, CalendarDays
 } from 'lucide-react';
 
 function EmptyState() {
@@ -79,10 +79,11 @@ export default function DocumentHistoryPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [downloading, setDownloading] = useState(null);
+  const [dateFilter, setDateFilter] = useState('');
 
   const { data: orders = [], isLoading, isFetching, dataUpdatedAt } = useQuery({
-    queryKey: ['document', 'history'],
-    queryFn: () => documentAPI.getHistory(),
+    queryKey: ['document', 'history', dateFilter],
+    queryFn: () => documentAPI.getHistory(dateFilter),
     select: r => r.data.data || [],
     refetchInterval: 20000,
   });
@@ -137,9 +138,9 @@ export default function DocumentHistoryPage() {
         </button>
       </div>
 
-      {/* Search */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-        <div className="relative">
+      {/* Search + date filter */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
           <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             value={search}
@@ -151,6 +152,22 @@ export default function DocumentHistoryPage() {
           />
           {search && (
             <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors">
+              <X size={12} className="text-gray-500" />
+            </button>
+          )}
+        </div>
+        <div className="relative sm:w-56">
+          <CalendarDays size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <input
+            type="date"
+            value={dateFilter}
+            onChange={e => setDateFilter(e.target.value)}
+            className="w-full pl-11 pr-9 py-3 bg-gray-50 border border-transparent rounded-xl text-sm
+              focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:border-indigo-100
+              transition-all text-gray-700"
+          />
+          {dateFilter && (
+            <button onClick={() => setDateFilter('')} className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors">
               <X size={12} className="text-gray-500" />
             </button>
           )}
