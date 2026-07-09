@@ -226,7 +226,8 @@ export default function DocumentReturnDetailPage() {
               bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700
               shadow-md shadow-red-200 transition-all disabled:opacity-50"
           >
-            <Undo2 size={16} /> {submitMutation.isPending ? 'Saqlanmoqda...' : 'Qaytarilgan'}
+            <Undo2 size={16} />
+            {submitMutation.isPending ? 'Saqlanmoqda...' : order.hasReturnedGoods ? 'Yana qaytarish' : 'Qaytarilgan'}
           </button>
         </div>
       </div>

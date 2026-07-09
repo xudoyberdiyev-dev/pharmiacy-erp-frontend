@@ -53,8 +53,20 @@ function HistoryRow({ o, onDownload, downloading, onCancel, cancelling }) {
         </p>
       </div>
 
+      <div className="text-right shrink-0">
+        {o.originalAmount != null && (
+          <p className="text-[11px] text-gray-400 line-through leading-tight">
+            {o.originalAmount.toLocaleString()}
+          </p>
+        )}
+        <p className={`text-sm font-black leading-tight ${o.originalAmount != null ? 'text-emerald-600' : 'text-gray-900'}`}>
+          {o.totalAmount?.toLocaleString()}
+        </p>
+        <p className="text-[11px] text-gray-400">so'm</p>
+      </div>
+
       <div className="flex items-center gap-2 shrink-0">
-        {o.hasReturnedGoods ? (
+        {o.hasReturnedGoods && (
           <button
             onClick={() => onDownload(o)}
             disabled={downloading === o.id}
@@ -64,15 +76,14 @@ function HistoryRow({ o, onDownload, downloading, onCancel, cancelling }) {
           >
             <FileDown size={14} /> {downloading === o.id ? 'Yuklanmoqda...' : 'Wordga yuklash'}
           </button>
-        ) : (
-          <button
-            onClick={() => navigate(`/document/orders/${o.id}/return`)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-indigo-700
-              bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 transition-colors"
-          >
-            <Undo2 size={14} /> Qaytarilgan mavjud
-          </button>
         )}
+        <button
+          onClick={() => navigate(`/document/orders/${o.id}/return`)}
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-indigo-700
+            bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 transition-colors"
+        >
+          <Undo2 size={14} /> {o.hasReturnedGoods ? 'Yana qaytarish' : 'Qaytarilgan mavjud'}
+        </button>
         {canCancel && (
           <button
             onClick={() => onCancel(o)}

@@ -5,7 +5,7 @@ import { documentAPI } from '../../api';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import {
-  Undo2, Search, X, RefreshCw, Building2, FileDown, User2, MessageSquare
+  Undo2, Search, X, RefreshCw, Building2, FileDown, User2, MessageSquare, Banknote, Pencil
 } from 'lucide-react';
 
 function EmptyState() {
@@ -33,18 +33,36 @@ function ReturnedRow({ o, onDownload, downloading }) {
           <span className="font-mono text-sm font-black text-gray-900">{o.invoiceNumber}</span>
           <p className="text-sm text-gray-500 truncate mt-0.5">{o.client?.orgName}</p>
         </div>
-        <button
-          onClick={() => onDownload(o)}
-          disabled={downloading === o.id}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white
-            bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700
-            shadow-sm transition-all disabled:opacity-50 shrink-0"
-        >
-          <FileDown size={14} /> {downloading === o.id ? 'Yuklanmoqda...' : 'Wordga yuklash'}
-        </button>
+        <div className="text-right shrink-0">
+          {o.originalAmount != null && (
+            <p className="text-[11px] text-gray-400 line-through leading-tight">
+              {o.originalAmount.toLocaleString()}
+            </p>
+          )}
+          <p className="text-sm font-black text-emerald-600 leading-tight">{o.totalAmount?.toLocaleString()}</p>
+          <p className="text-[11px] text-gray-400">so'm</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => navigate(`/document/orders/${o.id}/return`)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-indigo-700
+              bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 transition-colors"
+          >
+            <Pencil size={14} /> Yana qaytarish
+          </button>
+          <button
+            onClick={() => onDownload(o)}
+            disabled={downloading === o.id}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white
+              bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700
+              shadow-sm transition-all disabled:opacity-50"
+          >
+            <FileDown size={14} /> {downloading === o.id ? 'Yuklanmoqda...' : 'Wordga yuklash'}
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pl-14">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pl-14">
         <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
           <User2 size={13} className="text-gray-400 shrink-0" />
           <div className="min-w-0">
@@ -52,6 +70,15 @@ function ReturnedRow({ o, onDownload, downloading }) {
             <p className="text-xs font-bold text-gray-800 truncate">{o.returnedGoodsBy?.fullName || '—'}</p>
           </div>
         </div>
+        {o.returnedAmount != null && (
+          <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+            <Banknote size={13} className="text-gray-400 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Qaytarilgan summa</p>
+              <p className="text-xs font-bold text-gray-800 truncate">{o.returnedAmount.toLocaleString()} so'm</p>
+            </div>
+          </div>
+        )}
         <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
           <MessageSquare size={13} className="text-gray-400 shrink-0" />
           <div className="min-w-0">
