@@ -43,42 +43,50 @@ function Label({ order, box }) {
         background: '#fff', display: 'flex', flexDirection: 'column',
       }}
     >
-      <div style={{ padding: '0.28cm 0.32cm', borderBottom: '1px solid #E5E7EB' }} className="overflow-hidden">
-        <p className="text-[14px] font-black text-gray-900 leading-tight truncate">
+      <div style={{ padding: '0.26cm 0.3cm', borderBottom: '1px solid #E5E7EB' }} className="overflow-hidden">
+        <p className="text-[18px] font-black text-gray-900 leading-tight truncate">
           {order.client?.orgName}
         </p>
-        <p className="text-[12px] text-gray-500 leading-tight truncate mt-0.5">
+        <p className="text-[14px] text-gray-500 leading-tight truncate mt-0.5">
           {order.client?.address || '—'}
         </p>
       </div>
 
-      <div
-        style={{ padding: '0.28cm 0.32cm', borderBottom: '1px solid #E5E7EB' }}
-        className="flex-1 flex flex-col justify-center gap-2"
-      >
-        <div className="flex items-start justify-between">
-          <span className="text-xl font-black text-gray-900 leading-none">{box.total}/{box.index}</span>
-          <div className="text-right">
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Faktura</p>
-            <p className="text-[12px] font-bold text-gray-800 leading-tight">{order.invoiceNumber}</p>
-          </div>
+      <div style={{ padding: '0.22cm 0.3cm', borderBottom: '1px solid #E5E7EB' }} className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Faktura</p>
+          <p className="text-[16px] font-black text-gray-900 leading-tight truncate">{order.invoiceNumber}</p>
         </div>
+        <div className="min-w-0 text-right">
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Shartnoma</p>
+          <p className="text-[16px] font-black text-gray-900 leading-tight truncate">{order.contractNumber || '—'}</p>
+        </div>
+      </div>
+
+      <div
+        style={{ padding: '0.22cm 0.3cm', borderBottom: '1px solid #E5E7EB' }}
+        className="flex-1 flex items-center justify-between"
+      >
         <span
-          style={{ background: color.bg, color: color.text, border: `1px solid ${color.border}` }}
-          className="self-start text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md"
+          style={{ background: color.bg, color: color.text, border: `1.5px solid ${color.border}` }}
+          className="text-[15px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg"
         >
           {BOX_TYPE_LABELS[box.type] || box.type}
         </span>
+        <div className="text-right">
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Soni</p>
+          <span className="text-[30px] font-black text-gray-900 leading-none">{box.index}/{box.total}</span>
+        </div>
       </div>
 
-      <div style={{ padding: '0.24cm 0.32cm' }} className="flex items-center justify-between">
+      <div style={{ padding: '0.2cm 0.3cm' }} className="flex items-center justify-between">
         <div>
-          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Sana</p>
-          <p className="text-[12px] font-bold text-gray-800">{date}</p>
+          <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Sana</p>
+          <p className="text-[13px] font-bold text-gray-700">{date}</p>
         </div>
         <div className="text-right">
-          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Vaqt</p>
-          <p className="text-[12px] font-bold text-gray-800">{time}</p>
+          <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Vaqt</p>
+          <p className="text-[13px] font-bold text-gray-700">{time}</p>
         </div>
       </div>
     </div>
