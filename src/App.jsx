@@ -12,6 +12,7 @@ import ClientsPage from './pages/admin/ClientsPage';
 import OrdersPage from './pages/admin/OrdersPage';
 import OrderDetailPage from './pages/admin/OrderDetailPage';
 import UsersPage from './pages/admin/UsersPage';
+import EmployeeDetailPage from './pages/admin/EmployeeDetailPage';
 import VehiclesPage from './pages/admin/VehiclesPage';
 import OrdersApprovalPage from './pages/admin/OrdersApprovalPage';
 import OverdueOrdersPage from './pages/admin/OverdueOrdersPage';
@@ -57,6 +58,7 @@ import SuperAdminStats from './pages/superadmin/SuperAdminStats';
 import SuperAdminMonitoring from './pages/superadmin/SuperAdminMonitoring';
 import SuperAdminActivity from './pages/superadmin/SuperAdminActivity';
 import SuperAdminAdminsPage from './pages/superadmin/SuperAdminAdminsPage';
+import EmployeePerformancePage from './pages/superadmin/EmployeePerformancePage';
 import SuperAdminSalesPage from './pages/superadmin/SuperAdminSalesPage';
 import SuperAdminRegionsPage from './pages/superadmin/SuperAdminRegionsPage';
 import SuperAdminAlertsPage from './pages/superadmin/SuperAdminAlertsPage';
@@ -119,6 +121,7 @@ function AppRoutes() {
         <Route path="orders/:id" element={<OrderDetailPage />} />
         <Route path="vehicles" element={<VehiclesPage />} />
         <Route path="users" element={<UsersPage />} />
+        <Route path="users/:id" element={<EmployeeDetailPage />} />
         <Route path="approvals" element={<OrdersApprovalPage />} />
         <Route path="overdue" element={<OverdueOrdersPage />} />
         <Route path="confirmation-history" element={<ConfirmationHistoryPage />} />
@@ -188,6 +191,8 @@ function AppRoutes() {
       <Route path="/superadmin" element={<ProtectedRoute roles={['SUPER_ADMIN']}><AdminHeaderLayout /></ProtectedRoute>}>
         <Route index element={<SuperAdminStats />} />
         <Route path="admins" element={<SuperAdminAdminsPage />} />
+        <Route path="employee-performance" element={<EmployeePerformancePage />} />
+        <Route path="employee-performance/:id" element={<EmployeeDetailPage />} />
         <Route path="sales" element={<SuperAdminSalesPage />} />
         <Route path="regions" element={<SuperAdminRegionsPage />} />
         <Route path="monitoring" element={<SuperAdminMonitoring />} />

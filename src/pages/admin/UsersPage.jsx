@@ -1,8 +1,8 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userAPI } from '../../api';
 import toast from 'react-hot-toast';
-import { format } from 'date-fns';
 import { Plus, UserCheck, UserX, RefreshCw, X, QrCode, Users, Download, Pencil, Eye, EyeOff, AlertOctagon } from 'lucide-react';
 import Pagination from '../../components/shared/Pagination';
 import SearchBar from '../../components/shared/SearchBar';
@@ -158,60 +158,12 @@ function QrModal({ user, onClose }) {
   );
 }
 
-function PenaltiesModal({ user, onClose }) {
-  const { data, isLoading } = useQuery({
-    queryKey: ['user-penalties', user.id],
-    queryFn: () => userAPI.getPenalties(user.id),
-    select: r => r.data,
-  });
-
-  const penalties = data?.data || [];
-  const total = data?.total ?? 0;
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[85vh] flex flex-col">
-        <div className="flex items-center justify-between p-6 border-b shrink-0">
-          <div>
-            <h2 className="font-semibold text-lg">{user.fullName}</h2>
-            <p className="text-xs text-red-500 font-bold mt-0.5">Jami: {total} jarima bali</p>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-        </div>
-        <div className="overflow-y-auto flex-1 p-4 space-y-2">
-          {isLoading ? (
-            <div className="space-y-2">
-              {[1, 2].map(i => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}
-            </div>
-          ) : penalties.length === 0 ? (
-            <p className="text-center text-gray-400 text-sm py-10">Jarima yo'q</p>
-          ) : (
-            penalties.map(p => (
-              <div key={p.id} className="p-3 bg-red-50 rounded-xl border border-red-100">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-black text-red-600">-{p.points} ball</span>
-                  <span className="text-[11px] text-gray-400">{format(new Date(p.createdAt), 'dd.MM.yyyy HH:mm')}</span>
-                </div>
-                <p className="text-sm text-gray-800 font-medium break-words">{p.reason}</p>
-                <div className="flex items-center gap-2 mt-1.5 text-[11px] text-gray-400">
-                  {p.order?.invoiceNumber && <span>Buyurtma: {p.order.invoiceNumber}</span>}
-                  {p.triggeredBy?.fullName && <span>· Kim berdi: {p.triggeredBy.fullName}</span>}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function UsersPage() {
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [qrUser, setQrUser] = useState(null);
-  const [penaltyUser, setPenaltyUser] = useState(null);
   const [roleFilter, setRoleFilter] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -348,7 +300,8 @@ export default function UsersPage() {
                   <td className="px-6 py-3">
                     {PENALTY_ROLES.includes(u.role) ? (
                       <button
-                        onClick={() => setPenaltyUser(u)}
+                        onClick={() => navigate(`/admin/users/${u.id}`)}
+                        title="Samaradorlikni ko'rish"
                         className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold transition-colors ${
                           u.penaltyPoints > 0
                             ? 'bg-red-100 text-red-700 hover:bg-red-200'
@@ -413,7 +366,6 @@ export default function UsersPage() {
       {showModal && <UserModal onClose={() => setShowModal(false)} />}
       {editingUser && <UserModal user={editingUser} onClose={() => setEditingUser(null)} />}
       {qrUser && <QrModal user={qrUser} onClose={() => setQrUser(null)} />}
-      {penaltyUser && <PenaltiesModal user={penaltyUser} onClose={() => setPenaltyUser(null)} />}
     </div>
   );
 }

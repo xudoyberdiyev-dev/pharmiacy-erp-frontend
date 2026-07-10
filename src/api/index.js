@@ -44,6 +44,7 @@ export const orderAPI = {
   updateLocation: (data) => api.post('/orders/location', data),
   getConfirmationHistory: (params) => api.get('/orders/confirmation-history', { params }),
   getAccountantHistory: (params) => api.get('/orders/accountant-history', { params }),
+  adjustLateness: (id, data) => api.post(`/orders/${id}/lateness-adjustment`, data),
 };
 
 // ===== PICKER =====
@@ -125,6 +126,9 @@ export const userAPI = {
   toggleActive: (id) => api.patch(`/users/${id}/toggle`),
   regenerateQr: (id) => api.post(`/users/${id}/regenerate-qr`),
   getPenalties: (id) => api.get(`/users/${id}/penalties`),
+  getPerformance: (id, params) => api.get(`/users/${id}/performance`, { params }),
+  voidPenalty: (id, reason) => api.patch(`/penalties/${id}/void`, { reason }),
+  voidEtirov: (id, reason) => api.patch(`/etirozlar/${id}/void`, { reason }),
 };
 
 // ===== VEHICLES =====
@@ -147,6 +151,7 @@ export const statsAPI = {
   getDriverLocations: () => api.get('/stats/driver-locations'),
   getOrdersDetail: (params) => api.get('/stats/orders-detail', { params }),
   getTopClients: (params) => api.get('/stats/top-clients', { params }),
+  getEmployeePerformance: (params) => api.get('/stats/employee-performance', { params }),
 };
 
 // ===== NOTIFICATIONS =====

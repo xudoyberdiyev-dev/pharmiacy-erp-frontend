@@ -5,7 +5,7 @@ import { statsAPI } from '../../api';
 import {
   LayoutDashboard, Users, Package, Truck, ClipboardCheck, AlertTriangle,
   History, BarChart3, ClipboardList, ShieldCheck, ChevronDown, LogOut,
-  UserCog, TrendingUp, MapPinned, Bell as BellIcon, Map,
+  UserCog, TrendingUp, MapPinned, Bell as BellIcon, Map, Gauge,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import NotificationBell from './NotificationBell';
@@ -40,6 +40,7 @@ const ADMIN_NAV = [
 const SUPER_ADMIN_NAV = [
   { to: '/superadmin', end: true, label: 'Statistika', icon: BarChart3 },
   { to: '/superadmin/admins', end: false, label: 'Adminlar', icon: UserCog },
+  { to: '/superadmin/employee-performance', end: false, label: 'Xodimlar samaradorligi', icon: Gauge },
   { to: '/superadmin/sales', end: false, label: 'Sotuv statistikasi', icon: TrendingUp },
   { to: '/superadmin/regions', end: false, label: 'Hudud tahlili', icon: MapPinned },
   { to: '/superadmin/monitoring', end: false, label: 'Monitoring', icon: LayoutDashboard },
