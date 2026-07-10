@@ -130,12 +130,10 @@ export default function PickerReturnedPage() {
     <div className="space-y-5">
       <div>
         <h1 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center">
-            <RotateCcw size={16} className="text-amber-600" />
-          </div>
+          
           Markingdan qaytganlar
         </h1>
-        <p className="text-sm text-gray-400 mt-0.5 ml-10 font-medium">
+        <p className="text-sm text-gray-400 mt-0.5  font-medium">
           Marker qaytargan orderlar — qayta yig'ib yuboring (vaqt hisoblanmaydi)
         </p>
       </div>

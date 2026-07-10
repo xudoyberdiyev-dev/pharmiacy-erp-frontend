@@ -52,9 +52,9 @@ export default function AdminDashboard() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard label="Jami orderlar" value={statsRes?.totalOrders} icon={Package} color="bg-blue-600" />
-        <StatCard label="Klientlar" value={statsRes?.totalClients} icon={Users} color="bg-purple-600" />
-        <StatCard label="Bugungi orderlar" value={statsRes?.todayOrders} icon={Clock} color="bg-amber-500" />
+        <StatCard label="Jami Buyurtmalar" value={statsRes?.totalOrders} icon={Package} color="bg-blue-600" />
+        <StatCard label="Mijozlar" value={statsRes?.totalClients} icon={Users} color="bg-purple-600" />
+        <StatCard label="Bugungi Buyurtmalar" value={statsRes?.todayOrders} icon={Clock} color="bg-amber-500" />
         <StatCard label="Yetkazildi" value={statsRes?.completedOrders} icon={CheckCircle} color="bg-green-600" />
         <StatCard
           label="48 soatda tasdiqlanmagan"
@@ -69,7 +69,7 @@ export default function AdminDashboard() {
       {/* Recent orders */}
       <div className="card p-0 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900">So'nggi orderlar</h2>
+          <h2 className="font-semibold text-gray-900">So'nggi buyurtmalar</h2>
           <button onClick={() => navigate('/admin/orders')} className="text-blue-600 text-sm hover:underline">
             Hammasini ko'rish
           </button>
@@ -79,7 +79,7 @@ export default function AdminDashboard() {
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase tracking-wide bg-gray-50">
                 <th className="px-6 py-3">Faktura</th>
-                <th className="px-6 py-3">Klient</th>
+                <th className="px-6 py-3">Mijoz</th>
                 <th className="px-6 py-3">Summa</th>
                 <th className="px-6 py-3">Status</th>
                 <th className="px-6 py-3">Sana</th>

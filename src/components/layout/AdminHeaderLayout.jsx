@@ -25,8 +25,8 @@ function Badge({ count, color = 'red' }) {
 
 const ADMIN_NAV = [
   { to: '/admin', end: true, label: 'Bosh sahifa', icon: LayoutDashboard },
-  { to: '/admin/clients', end: false, label: 'Klientlar', icon: Users },
-  { to: '/admin/orders', end: false, label: 'Orderlar', icon: Package },
+  { to: '/admin/clients', end: false, label: 'Mijozlar', icon: Users },
+  { to: '/admin/orders', end: false, label: 'Buyurtmalar', icon: Package },
   { to: '/admin/approvals', end: false, label: 'Tasdiqlash', icon: ClipboardCheck, badgeKey: 'pending' },
   { to: '/admin/overdue', end: false, label: "Muddati o'tgan", icon: AlertTriangle, badgeKey: 'overdue' },
   { to: '/admin/confirmation-history', end: false, label: 'Tasdiqlash tarixi', icon: History },

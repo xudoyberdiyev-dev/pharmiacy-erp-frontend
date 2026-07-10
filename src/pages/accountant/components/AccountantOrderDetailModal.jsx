@@ -4,7 +4,7 @@ import { FILE_BASE_URL } from '../../../api/axios';
 import toast from 'react-hot-toast';
 import Modal from '../../../components/shared/Modal';
 import StatusBadge from '../../../components/shared/StatusBadge';
-import { CheckCircle2, FileSpreadsheet, Image, Clock } from 'lucide-react';
+import { CheckCircle2, FileSpreadsheet, Image, Clock, AlertTriangle, Undo2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 function InfoRow({ label, value }) {
@@ -44,7 +44,41 @@ export default function AccountantOrderDetailModal({ order, step, onClose }) {
             <CheckCircle2 size={12} /> Admin tasdiqlagan
           </span>
         )}
+        {order.originalAmount != null && (
+          <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">
+            <AlertTriangle size={12} /> Narx o'zgartirilgan
+          </span>
+        )}
+        {order.hasReturnedGoods && (
+          <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-red-100 text-red-700">
+            <Undo2 size={12} /> Tovar qaytarilgan
+          </span>
+        )}
       </div>
+
+      {/* Hujjatchi tomonidan qilingan o'zgarishlar haqida to'liq ma'lumot */}
+      {(order.originalAmount != null || order.hasReturnedGoods) && (
+        <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-2">
+          <p className="text-xs font-black text-amber-700 uppercase tracking-wide">Hujjatchi tomonidan o'zgartirilgan</p>
+          {order.originalAmount != null && (
+            <p className="text-sm text-amber-800">
+              Summa: <span className="line-through text-amber-500">{order.originalAmount.toLocaleString()} so'm</span>
+              {' → '}
+              <span className="font-bold">{order.totalAmount?.toLocaleString()} so'm</span>
+            </p>
+          )}
+          {order.hasReturnedGoods && (
+            <div className="text-sm text-amber-800 space-y-1">
+              <p>
+                Tovar qaytarilgan{order.returnedAmount ? ` (${order.returnedAmount.toLocaleString()} so'mlik)` : ''}
+                {order.returnedGoodsAt ? ` — ${format(new Date(order.returnedGoodsAt), 'dd.MM.yyyy HH:mm')}` : ''}
+                {order.returnedGoodsBy?.fullName ? `, ${order.returnedGoodsBy.fullName}` : ''}
+              </p>
+              {order.returnedGoodsNote && <p className="italic">"{order.returnedGoodsNote}"</p>}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3 p-4 bg-gray-50 rounded-2xl mb-4">
         <InfoRow label="Mijoz" value={order.client?.orgName} />
@@ -88,6 +122,16 @@ export default function AccountantOrderDetailModal({ order, step, onClose }) {
           </a>
         ) : (
           <p className="text-xs text-gray-400 px-1">Marking Excel fayli yuklanmagan</p>
+        )}
+        {order.returnedGoodsExcelUrl && (
+          <a
+            href={`${FILE_BASE_URL}${order.returnedGoodsExcelUrl}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-2 bg-red-50 hover:bg-red-100 transition-colors rounded-xl px-3.5 py-2.5 text-sm font-bold text-red-700"
+          >
+            <Undo2 size={16} /> Tovar qaytarish hujjatini yuklab olish
+          </a>
         )}
         {order.deliveryPhotoUrls?.map((url, i) => (
           <a

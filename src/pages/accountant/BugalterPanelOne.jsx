@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { orderAPI } from '../../api';
 import AccountantOrderDetailModal from './components/AccountantOrderDetailModal';
+import OrderChangeBadges from './components/OrderChangeBadges';
 import { FileCheck, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -59,7 +60,10 @@ export default function BugalterPanelOne() {
             <tbody className="divide-y divide-gray-100">
               {orders.map((o) => (
                 <tr key={o.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-3 font-mono font-bold text-sm text-gray-900">{o.invoiceNumber}</td>
+                  <td className="px-6 py-3 font-mono font-bold text-sm text-gray-900">
+                    {o.invoiceNumber}
+                    <OrderChangeBadges order={o} />
+                  </td>
                   <td className="px-6 py-3 text-sm text-gray-700">{o.client?.orgName}</td>
                   <td className="px-6 py-3 text-sm text-gray-500">{o.contractNumber}</td>
                   <td className="px-6 py-3 text-sm font-bold text-gray-800">{o.totalAmount?.toLocaleString()} so'm</td>

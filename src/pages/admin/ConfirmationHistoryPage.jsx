@@ -78,7 +78,7 @@ export default function ConfirmationHistoryPage() {
             </div>
             Tasdiqlash tarixi
           </h1>
-          <p className="text-sm text-gray-400 mt-0.5 ml-10 font-medium">Admin tomonidan tasdiqlangan orderlar</p>
+          <p className="text-sm text-gray-400 mt-0.5 ml-10 font-medium">Admin tomonidan tasdiqlangan buyurtmalar</p>
         </div>
         <label className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm cursor-pointer hover:border-blue-300 transition-colors">
           <Calendar size={14} className="text-blue-500" />
@@ -112,7 +112,7 @@ export default function ConfirmationHistoryPage() {
           <div className="w-14 h-14 mx-auto bg-blue-50 rounded-2xl flex items-center justify-center mb-3">
             <History size={24} className="text-blue-200" />
           </div>
-          <p className="text-gray-400 text-sm font-semibold">Bu kunda tasdiqlangan orderlar yo'q</p>
+          <p className="text-gray-400 text-sm font-semibold">Bu kunda tasdiqlangan buyurtmalar yo'q</p>
           <p className="text-gray-300 text-xs mt-1">{format(new Date(date + 'T00:00:00'), 'dd.MM.yyyy')}</p>
         </div>
       ) : (

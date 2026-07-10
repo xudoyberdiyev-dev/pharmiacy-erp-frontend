@@ -9,7 +9,7 @@ export default function OverdueOrdersPage() {
           <AlertTriangle size={20} className="text-red-600" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold">Muddati o'tgan orderlar</h1>
+          <h1 className="text-2xl font-bold">Muddati o'tgan buyurtmalar</h1>
           <p className="text-gray-500 text-sm mt-0.5">
             48 soatdan beri tasdiqlanmagan buyurtmalar — tezroq ko'rib chiqilishi kerak.
           </p>

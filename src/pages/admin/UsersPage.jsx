@@ -3,8 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userAPI } from '../../api';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
-import { Plus, UserCheck, UserX, RefreshCw, X, QrCode, Search, Users, Download, Pencil, Eye, EyeOff, AlertOctagon } from 'lucide-react';
+import { Plus, UserCheck, UserX, RefreshCw, X, QrCode, Users, Download, Pencil, Eye, EyeOff, AlertOctagon } from 'lucide-react';
 import Pagination from '../../components/shared/Pagination';
+import SearchBar from '../../components/shared/SearchBar';
+import PhoneInput from '../../components/shared/PhoneInput';
 
 const PENALTY_ROLES = ['PICKER', 'MARKER', 'CHECKER'];
 
@@ -64,7 +66,7 @@ function UserModal({ user, onClose }) {
   });
 
   const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
-  const canSubmit = form.fullName.trim() && form.phone.trim() && (isEdit || form.password.trim());
+  const canSubmit = form.fullName.trim() && form.phone.length === 13 && (isEdit || form.password.trim());
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -80,7 +82,7 @@ function UserModal({ user, onClose }) {
           </div>
           <div>
             <label className="label">Telefon *</label>
-            <input className="input" placeholder="+998901234567" value={form.phone} onChange={set('phone')} />
+            <PhoneInput value={form.phone} onChange={v => setForm(p => ({ ...p, phone: v }))} />
           </div>
           <div>
             <label className="label">
@@ -274,20 +276,11 @@ export default function UsersPage() {
 
       {/* Search + role filter */}
       <div className="space-y-3">
-        <div className="relative">
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Ism yoki telefon bo'yicha qidirish..."
-            className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-100 rounded-xl text-sm bg-white focus:outline-none focus:border-blue-400 transition-all"
-          />
-          {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-              <X size={14} />
-            </button>
-          )}
-        </div>
+        <SearchBar
+          value={search}
+          onChange={v => { setSearch(v); setPage(1); }}
+          placeholder="Ism yoki telefon bo'yicha qidirish..."
+        />
         <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => { setRoleFilter(''); setPage(1); }}
@@ -322,12 +315,13 @@ export default function UsersPage() {
                 <th className="px-6 py-3">Telefon</th>
                 <th className="px-6 py-3">Lavozim</th>
                 <th className="px-6 py-3">Holat</th>
+                <th className="px-6 py-3">Jarima</th>
                 <th className="px-6 py-3">Amallar</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {users.length === 0 && (
-                <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-400">Xodimlar topilmadi</td></tr>
+                <tr><td colSpan={6} className="px-6 py-10 text-center text-gray-400">Xodimlar topilmadi</td></tr>
               )}
               {users.map(u => (
                 <tr key={u.id} className="hover:bg-gray-50 transition-colors">
@@ -350,6 +344,22 @@ export default function UsersPage() {
                       {u.isActive ? <UserCheck size={12} /> : <UserX size={12} />}
                       {u.isActive ? 'Faol' : 'Bloklangan'}
                     </span>
+                  </td>
+                  <td className="px-6 py-3">
+                    {PENALTY_ROLES.includes(u.role) ? (
+                      <button
+                        onClick={() => setPenaltyUser(u)}
+                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold transition-colors ${
+                          u.penaltyPoints > 0
+                            ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        }`}
+                      >
+                        <AlertOctagon size={11} /> {u.penaltyPoints || 0} ball
+                      </button>
+                    ) : (
+                      <span className="text-xs text-gray-300">—</span>
+                    )}
                   </td>
                   <td className="px-6 py-3">
                     <div className="flex items-center gap-2">
@@ -403,6 +413,7 @@ export default function UsersPage() {
       {showModal && <UserModal onClose={() => setShowModal(false)} />}
       {editingUser && <UserModal user={editingUser} onClose={() => setEditingUser(null)} />}
       {qrUser && <QrModal user={qrUser} onClose={() => setQrUser(null)} />}
+      {penaltyUser && <PenaltiesModal user={penaltyUser} onClose={() => setPenaltyUser(null)} />}
     </div>
   );
 }

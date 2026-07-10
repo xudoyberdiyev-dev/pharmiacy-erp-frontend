@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderAPI } from '../../api';
 import StatusBadge from '../../components/shared/StatusBadge';
 import toast from 'react-hot-toast';
-import { ArrowLeft, MapPin, Camera, CheckCircle, Navigation, X, Package, Banknote } from 'lucide-react';
+import { ArrowLeft, MapPin, Camera, CheckCircle, Navigation, X, Package, Banknote, AlertCircle } from 'lucide-react';
 
 const MAX_PHOTOS = 4;
 
@@ -18,6 +18,11 @@ export default function DriverOrderDetail() {
     queryKey: ['order', id],
     queryFn: () => orderAPI.getOne(id),
     select: r => r.data.data,
+    // Sahifa ochiq turgan payt orderning haqiqiy holati fonda yangilanib
+    // turadi — aks holda eskirgan (masalan boshqa sessiyada allaqachon
+    // yetkazilgan) holat asosida "Yetkazdim" bosilsa, backend "IN_TRANSIT
+    // statusida emas" deb rad etardi.
+    refetchInterval: 15000,
   });
 
   const deliverMutation = useMutation({
@@ -32,7 +37,14 @@ export default function DriverOrderDetail() {
       qc.invalidateQueries(['order', id]);
       navigate('/driver');
     },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onError: e => {
+      toast.error(e.response?.data?.message || 'Xato');
+      // Holat bilan bog'liq xato bo'lsa (masalan order boshqa joyda
+      // allaqachon yetkazilgan) — darhol qayta yuklab haqiqiy holatni
+      // ko'rsatamiz, shunda foydalanuvchi eskirgan formaga qarab qayta
+      // urinib, xatoni takrorlamaydi.
+      qc.invalidateQueries(['order', id]);
+    },
   });
 
   const openMaps = () => {
@@ -129,7 +141,7 @@ export default function DriverOrderDetail() {
                 <label className="aspect-square rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-1 cursor-pointer active:bg-gray-50">
                   <Camera size={18} className="text-gray-400" />
                   <span className="text-[10px] text-gray-400 font-bold">{photos.length}/{MAX_PHOTOS}</span>
-                  <input type="file" accept="image/*" capture="environment" multiple className="hidden"
+                  <input type="file" accept="image/*" multiple className="hidden"
                     onChange={e => { addPhotos(e.target.files); e.target.value = ''; }} />
                 </label>
               )}
@@ -149,7 +161,14 @@ export default function DriverOrderDetail() {
             <CheckCircle size={20} className="text-green-600 shrink-0" />
             <p className="text-sm font-bold text-green-700">Bu order yetkazib berilgan</p>
           </div>
-        ) : null}
+        ) : (
+          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-center gap-3">
+            <AlertCircle size={20} className="text-amber-600 shrink-0" />
+            <p className="text-sm font-bold text-amber-700">
+              Bu orderning holati o'zgargan ({order.status}) — yetkazib berish endi mumkin emas
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

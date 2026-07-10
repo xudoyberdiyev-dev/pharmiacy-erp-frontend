@@ -3,8 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { orderAPI } from '../../api';
 import StatusBadge from '../../components/shared/StatusBadge';
 import Pagination from '../../components/shared/Pagination';
+import SearchBar from '../../components/shared/SearchBar';
 import { useNavigate } from 'react-router-dom';
-import { Eye, Calendar, Search, X } from 'lucide-react';
+import { Eye, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 
 const STATUSES = ['', 'NEW', 'PICKING', 'MARKING', 'CHECKING', 'LOADING', 'IN_TRANSIT', 'DELIVERED'];
@@ -33,7 +34,7 @@ export default function OrdersPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold">Orderlar</h1>
+        <h1 className="text-2xl font-bold">Buyurtmalar</h1>
         <label className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm cursor-pointer hover:border-blue-300 transition-colors">
           <Calendar size={14} className="text-blue-500" />
           <input
@@ -47,20 +48,11 @@ export default function OrdersPage() {
       </div>
 
       {/* Search */}
-      <div className="relative">
-        <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(1); }}
-          placeholder="Faktura yoki klient nomi bo'yicha qidirish..."
-          className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-100 rounded-xl text-sm bg-white focus:outline-none focus:border-blue-400 transition-all"
-        />
-        {search && (
-          <button onClick={() => setSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-            <X size={14} />
-          </button>
-        )}
-      </div>
+      <SearchBar
+        value={search}
+        onChange={v => { setSearch(v); setPage(1); }}
+        placeholder="Faktura yoki klient nomi bo'yicha qidirish..."
+      />
 
       {/* Status filter */}
       <div className="flex gap-2 flex-wrap">
@@ -98,7 +90,7 @@ export default function OrdersPage() {
                 <tbody className="divide-y divide-gray-100">
                   {orders.length === 0 && (
                     <tr><td colSpan={7} className="px-6 py-10 text-center text-gray-400">
-                      {date === today() ? 'Bugun uchun orderlar topilmadi' : 'Bu kunda orderlar topilmadi'}
+                      {date === today() ? 'Bugun uchun buyurtmalar topilmadi' : 'Bu kunda buyurtmalar topilmadi'}
                     </td></tr>
                   )}
                   {orders.map(order => (

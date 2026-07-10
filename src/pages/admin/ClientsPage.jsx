@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { clientAPI } from '../../api';
 import toast from 'react-hot-toast';
-import { Plus, Search, MapPin, Phone, Building2, X, Pencil, Power, Users } from 'lucide-react';
+import { Plus, MapPin, Phone, Building2, X, Pencil, Power, Users } from 'lucide-react';
 import Pagination from '../../components/shared/Pagination';
+import SearchBar from '../../components/shared/SearchBar';
+import PhoneInput from '../../components/shared/PhoneInput';
 import { REGIONS, regionLabel } from '../../utils/regions';
 
 const EMPTY_FORM = { orgName: '', inn: '', phone: '', address: '', region: '', longitude: '', latitude: '' };
@@ -15,8 +17,8 @@ function ClientModal({ client, onClose }) {
     client
       ? {
           orgName: client.orgName,
-          inn: client.inn,
-          phone: client.phone,
+          inn: client.inn || '',
+          phone: client.phone || '',
           address: client.address,
           region: client.region || '',
           longitude: client.longitude,
@@ -28,7 +30,7 @@ function ClientModal({ client, onClose }) {
   const mutation = useMutation({
     mutationFn: () => (isEdit ? clientAPI.update(client.id, form) : clientAPI.create(form)),
     onSuccess: () => {
-      toast.success(isEdit ? 'Klient yangilandi!' : 'Klient qo\'shildi!');
+      toast.success(isEdit ? 'Mijoz yangilandi!' : 'Mijoz qo\'shildi!');
       qc.invalidateQueries({ queryKey: ['clients'] });
       onClose();
     },
@@ -41,7 +43,7 @@ function ClientModal({ client, onClose }) {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
         <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="font-semibold text-lg">{isEdit ? 'Klientni tahrirlash' : 'Yangi klient qo\'shish'}</h2>
+          <h2 className="font-semibold text-lg">{isEdit ? 'Mijozni tahrirlash' : 'Yangi mijozy qo\'shish'}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
         </div>
         <div className="p-6 space-y-4">
@@ -51,13 +53,20 @@ function ClientModal({ client, onClose }) {
               <input className="input" placeholder="MChJ Farmatsiya" value={form.orgName} onChange={set('orgName')} />
             </div>
             <div>
-              <label className="label">INN *</label>
-              <input className="input" placeholder="123456789" value={form.inn} onChange={set('inn')} />
+              <label className="label">INN <span className="text-gray-400 font-normal">(ixtiyoriy)</span></label>
+              <input
+                className="input"
+                placeholder="123456789"
+                inputMode="numeric"
+                maxLength={9}
+                value={form.inn}
+                onChange={e => setForm(p => ({ ...p, inn: e.target.value.replace(/\D/g, '').slice(0, 9) }))}
+              />
             </div>
           </div>
           <div>
-            <label className="label">Telefon *</label>
-            <input className="input" placeholder="+998901234567" value={form.phone} onChange={set('phone')} />
+            <label className="label">Telefon <span className="text-gray-400 font-normal">(ixtiyoriy)</span></label>
+            <PhoneInput value={form.phone} onChange={v => setForm(p => ({ ...p, phone: v }))} />
           </div>
           <div>
             <label className="label">Manzil *</label>
@@ -136,13 +145,13 @@ export default function ClientsPage() {
           <div className="w-9 h-9 bg-blue-100 rounded-2xl flex items-center justify-center">
             <Users size={18} className="text-blue-600" />
           </div>
-          Klientlar
+          Mijozlar
         </h1>
         <button
           onClick={() => setModalClient(null)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md shadow-blue-200 hover:shadow-lg transition-all"
         >
-          <Plus size={16} strokeWidth={2.5} /> Klient qo'shish
+          <Plus size={16} strokeWidth={2.5} /> Mijoz qo'shish
         </button>
       </div>
 
@@ -162,21 +171,14 @@ export default function ClientsPage() {
 
       {/* Search + filter */}
       <div className="flex gap-3">
-        <div className="relative flex-1">
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Nom, INN yoki telefon bo'yicha qidirish..."
-            className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-100 rounded-xl text-sm bg-white focus:outline-none focus:border-blue-400 transition-all"
-          />
-          {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-              <X size={14} />
-            </button>
-          )}
-        </div>
-        <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
+        <SearchBar
+          value={search}
+          onChange={v => { setSearch(v); setPage(1); }}
+          placeholder="Nom, INN yoki telefon bo'yicha qidirish..."
+          wrapped={false}
+          className="flex-1"
+        />
+        <div className="flex bg-gray-100 rounded-xl p-1 gap-1 self-start">
           {[
             { value: '', label: 'Barchasi' },
             { value: 'true', label: 'Faol' },
@@ -214,7 +216,7 @@ export default function ClientsPage() {
         <>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {clients.length === 0 && (
-              <div className="col-span-3 text-center py-12 text-gray-400">Klientlar topilmadi</div>
+              <div className="col-span-3 text-center py-12 text-gray-400">Mijozlar topilmadi</div>
             )}
             {clients.map(client => (
               <div key={client.id} className={`bg-white rounded-2xl border-2 p-5 shadow-sm transition-all hover:shadow-md ${client.isActive ? 'border-gray-100' : 'border-gray-200 opacity-60'}`}>
@@ -224,7 +226,7 @@ export default function ClientsPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-gray-900 truncate">{client.orgName}</h3>
-                    <p className="text-xs text-gray-500">INN: {client.inn}</p>
+                    <p className="text-xs text-gray-500">INN: {client.inn || '—'}</p>
                   </div>
                   <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium flex-shrink-0 ${
                     client.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
@@ -235,7 +237,7 @@ export default function ClientsPage() {
                 <div className="mt-4 space-y-2">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Phone size={14} className="text-gray-400" />
-                    {client.phone}
+                    {client.phone || '—'}
                   </div>
                   <div className="flex items-start gap-2 text-sm text-gray-600">
                     <MapPin size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />

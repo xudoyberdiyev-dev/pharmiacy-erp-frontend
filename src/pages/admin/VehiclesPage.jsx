@@ -5,9 +5,10 @@ import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import {
   Truck, Plus, Pencil, Trash2, ToggleLeft, ToggleRight,
-  Search, X, Check, AlertTriangle, Car
+  X, Check, AlertTriangle, Car
 } from 'lucide-react';
 import Pagination from '../../components/shared/Pagination';
+import SearchBar from '../../components/shared/SearchBar';
 
 const inp = "w-full px-3.5 py-2.5 border-2 border-gray-100 rounded-xl text-sm font-medium focus:outline-none focus:border-blue-400 bg-gray-50 focus:bg-white transition-all";
 
@@ -21,8 +22,7 @@ function VehicleModal({ vehicle, onClose, onSave }) {
 
   const validate = () => {
     const e = {};
-    if (!form.model.trim())       e.model       = 'Model nomi kiritilmagan';
-    if (!form.plateNumber.trim()) e.plateNumber = 'Davlat raqami kiritilmagan';
+    if (!form.model.trim()) e.model = 'Model nomi kiritilmagan';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -30,7 +30,7 @@ function VehicleModal({ vehicle, onClose, onSave }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!validate()) return;
-    onSave({ model: form.model.trim(), plateNumber: form.plateNumber.trim().toUpperCase() });
+    onSave({ model: form.model.trim(), plateNumber: form.plateNumber.trim().toUpperCase() || null });
   };
 
   return (
@@ -43,7 +43,7 @@ function VehicleModal({ vehicle, onClose, onSave }) {
             </div>
             <div>
               <h2 className="font-black text-gray-900">{vehicle ? 'Mashinani tahrirlash' : 'Yangi mashina'}</h2>
-              <p className="text-xs text-gray-400">{vehicle ? vehicle.plateNumber : 'Ma\'lumotlarni kiriting'}</p>
+              <p className="text-xs text-gray-400">{vehicle ? (vehicle.plateNumber || vehicle.model) : 'Ma\'lumotlarni kiriting'}</p>
             </div>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors">
@@ -67,7 +67,7 @@ function VehicleModal({ vehicle, onClose, onSave }) {
 
           <div>
             <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5">
-              Davlat raqami *
+              Davlat raqami <span className="normal-case font-medium text-gray-300">(ixtiyoriy)</span>
             </label>
             <input
               value={form.plateNumber}
@@ -106,7 +106,7 @@ function DeleteModal({ vehicle, onClose, onConfirm }) {
           </div>
           <h2 className="font-black text-gray-900 text-lg">Mashinani o'chirish</h2>
           <p className="text-gray-500 text-sm mt-1">
-            <span className="font-bold text-gray-700">{vehicle.plateNumber}</span> — {vehicle.model}
+            <span className="font-bold text-gray-700">{vehicle.plateNumber || '—'}</span> — {vehicle.model}
           </p>
           <p className="text-xs text-red-500 mt-2">Bu amalni qaytarib bo'lmaydi</p>
         </div>
@@ -139,7 +139,7 @@ function VehicleCard({ vehicle, canEdit, onEdit, onToggle, onDelete }) {
             <Car size={22} className={vehicle.isActive ? 'text-blue-600' : 'text-gray-400'} />
           </div>
           <div>
-            <p className="font-mono font-black text-gray-900 text-base tracking-wider">{vehicle.plateNumber}</p>
+            <p className="font-mono font-black text-gray-900 text-base tracking-wider">{vehicle.plateNumber || '—'}</p>
             <p className="text-sm text-gray-500 font-medium">{vehicle.model}</p>
           </div>
         </div>
@@ -281,21 +281,14 @@ export default function VehiclesPage() {
 
       {/* Search + filter */}
       <div className="flex gap-3">
-        <div className="relative flex-1">
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Model yoki davlat raqami bo'yicha qidirish..."
-            className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-100 rounded-xl text-sm bg-white focus:outline-none focus:border-blue-400 transition-all"
-          />
-          {search && (
-            <button onClick={() => { setSearch(''); setPage(1); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-              <X size={14} />
-            </button>
-          )}
-        </div>
-        <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
+        <SearchBar
+          value={search}
+          onChange={v => { setSearch(v); setPage(1); }}
+          placeholder="Model yoki davlat raqami bo'yicha qidirish..."
+          wrapped={false}
+          className="flex-1"
+        />
+        <div className="flex bg-gray-100 rounded-xl p-1 gap-1 self-start">
           {[
             { key: 'all',      label: 'Barchasi' },
             { key: 'active',   label: 'Faol'     },

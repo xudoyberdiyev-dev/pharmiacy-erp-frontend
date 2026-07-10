@@ -43,6 +43,7 @@ export const orderAPI = {
   accountantConfirm: (id) => api.patch(`/orders/${id}/accountant-confirm`),
   updateLocation: (data) => api.post('/orders/location', data),
   getConfirmationHistory: (params) => api.get('/orders/confirmation-history', { params }),
+  getAccountantHistory: (params) => api.get('/orders/accountant-history', { params }),
 };
 
 // ===== PICKER =====

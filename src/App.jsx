@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
-import MainLayout from './components/layout/MainLayout';
+import AccountantLayout from './components/layout/AccountantLayout';
 import AdminHeaderLayout from './components/layout/AdminHeaderLayout';
 import OperatorLayout from './components/layout/OperatorLayout';
 import LoginPage from './pages/auth/LoginPage';
@@ -52,6 +52,7 @@ import DriverOrderDetail from './pages/driver/DriverOrderDetail';
 import DriverProfile from './pages/driver/DriverProfile';
 import BugalterPanelOne from './pages/accountant/BugalterPanelOne';
 import BugalterPanelTvo from './pages/accountant/BugalterPanelTvo';
+import AccountantHistoryPage from './pages/accountant/AccountantHistoryPage';
 import SuperAdminStats from './pages/superadmin/SuperAdminStats';
 import SuperAdminMonitoring from './pages/superadmin/SuperAdminMonitoring';
 import SuperAdminActivity from './pages/superadmin/SuperAdminActivity';
@@ -173,12 +174,14 @@ function AppRoutes() {
       </Route>
 
       {/* ACCOUNTANT 1 */}
-      <Route path="/accountant1" element={<ProtectedRoute roles={['ACCOUNTANT1']}><MainLayout /></ProtectedRoute>}>
+      <Route path="/accountant1" element={<ProtectedRoute roles={['ACCOUNTANT1']}><AccountantLayout /></ProtectedRoute>}>
         <Route index element={<BugalterPanelOne />} />
+        <Route path="history" element={<AccountantHistoryPage />} />
       </Route>
       {/* ACCOUNTANT 2 */}
-      <Route path="/accountant2" element={<ProtectedRoute roles={['ACCOUNTANT2']}><MainLayout /></ProtectedRoute>}>
+      <Route path="/accountant2" element={<ProtectedRoute roles={['ACCOUNTANT2']}><AccountantLayout /></ProtectedRoute>}>
         <Route index element={<BugalterPanelTvo />} />
+        <Route path="history" element={<AccountantHistoryPage />} />
       </Route>
 
       {/* SUPER ADMIN */}

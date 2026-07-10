@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderAPI } from '../../api';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
-import { AlertTriangle, Clock, Truck, CheckCircle2, MapPin, Package, Search, X } from 'lucide-react';
+import { AlertTriangle, Clock, Truck, CheckCircle2, MapPin, Package } from 'lucide-react';
 import Pagination from '../shared/Pagination';
+import SearchBar from '../shared/SearchBar';
 
 const OVERDUE_HOURS = 48;
 
@@ -87,24 +88,15 @@ export default function OrderApprovalTable({ overdueOnly = false }) {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
   const limit = 20;
 
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setDebouncedSearch(search.trim());
-      setPage(1);
-    }, 350);
-    return () => clearTimeout(t);
-  }, [search]);
-
   const { data, isLoading } = useQuery({
-    queryKey: ['orders', 'pending-approval', overdueOnly, page, debouncedSearch],
+    queryKey: ['orders', 'pending-approval', overdueOnly, page, search],
     queryFn: () => orderAPI.getAll({
       status: 'DELIVERED',
       adminConfirmed: false,
       overdueOnly: overdueOnly || undefined,
-      search: debouncedSearch || undefined,
+      search: search || undefined,
       page,
       limit,
     }),
@@ -125,27 +117,11 @@ export default function OrderApprovalTable({ overdueOnly = false }) {
   const orders = data?.data || [];
 
   const searchBar = (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-      <div className="relative">
-        <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="INN, faktura, shartnoma yoki tashkilot nomi..."
-          className="w-full pl-11 pr-10 py-3 bg-gray-50 border border-transparent rounded-xl text-sm
-            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-blue-100
-            transition-all placeholder:text-gray-400"
-        />
-        {search && (
-          <button
-            onClick={() => setSearch('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
-          >
-            <X size={12} className="text-gray-500" />
-          </button>
-        )}
-      </div>
-    </div>
+    <SearchBar
+      value={search}
+      onChange={(v) => { setSearch(v); setPage(1); }}
+      placeholder="INN, faktura, shartnoma yoki tashkilot nomi..."
+    />
   );
 
   if (isLoading) {
@@ -174,9 +150,9 @@ export default function OrderApprovalTable({ overdueOnly = false }) {
             <CheckCircle2 size={24} className="text-green-400" />
           </div>
           <p className="text-gray-400 text-sm font-semibold">
-            {debouncedSearch
-              ? 'Qidiruvga mos order topilmadi'
-              : overdueOnly ? 'Muddati o\'tgan order yo\'q' : 'Tasdiqlash kutilayotgan order yo\'q'}
+            {search
+              ? 'Qidiruvga mos buyurtmalar topilmadi'
+              : overdueOnly ? 'Muddati o\'tgan buyurtmalar yo\'q' : 'Tasdiqlash kutilayotgan buyurtmalar yo\'q'}
           </p>
         </div>
       </div>
