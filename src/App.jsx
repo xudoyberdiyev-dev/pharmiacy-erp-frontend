@@ -151,6 +151,7 @@ function AppRoutes() {
         <Route index element={<MarkerAvailablePage />} />
         <Route path="mine" element={<MarkerMinePage />} />
         <Route path="returned" element={<MarkerReturnedPage />} />
+        <Route path="etirozli" element={<MarkerEtirozliPage />} />
         <Route path="history" element={<MarkerHistoryPage />} />
       </Route>
       {/* CHECKER */}

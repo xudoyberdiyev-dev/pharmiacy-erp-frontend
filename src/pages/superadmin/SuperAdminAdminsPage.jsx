@@ -101,8 +101,8 @@ export default function SuperAdminAdminsPage() {
 
   const admins = data?.data || [];
   const pagination = data?.pagination || {};
-  const activeCount = admins.filter((a) => a.isActive).length;
-  const blockedCount = admins.filter((a) => !a.isActive).length;
+  const activeCount = pagination.activeTotal ?? admins.filter((a) => a.isActive).length;
+  const blockedCount = pagination.blockedTotal ?? admins.filter((a) => !a.isActive).length;
 
   return (
     <div className="space-y-5">

@@ -192,8 +192,8 @@ export default function UsersPage() {
 
   const users = data?.data || [];
   const pagination = data?.pagination || {};
-  const activeCount = users.filter(u => u.isActive).length;
-  const blockedCount = users.filter(u => !u.isActive).length;
+  const activeCount = pagination.activeTotal ?? users.filter(u => u.isActive).length;
+  const blockedCount = pagination.blockedTotal ?? users.filter(u => !u.isActive).length;
 
   return (
     <div className="space-y-5">
@@ -215,7 +215,7 @@ export default function UsersPage() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Sahifadagilar', value: pagination.total ?? users.length, color: 'text-blue-600', bg: 'bg-blue-50' },
+          { label: 'Jami xodimlar', value: pagination.total ?? users.length, color: 'text-blue-600', bg: 'bg-blue-50' },
           { label: 'Faol', value: activeCount, color: 'text-green-600', bg: 'bg-green-50' },
           { label: 'Bloklangan', value: blockedCount, color: 'text-red-500', bg: 'bg-red-50' },
         ].map(s => (

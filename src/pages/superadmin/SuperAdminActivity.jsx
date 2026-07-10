@@ -60,6 +60,12 @@ const ACTION_META = {
 
   ETIROV_RAISED: { label: 'Etiroz bildirildi', cat: 'warning' },
   ETIROV_SUBMITTED: { label: 'Etiroz yuborildi', cat: 'warning' },
+
+  RETURNED_TO_MARKING: { label: "Checker Marker'ga qaytardi (jarima)", cat: 'warning' },
+  RETURNED_TO_PICKING: { label: "Marker Picker'ga qaytardi (jarima)", cat: 'warning' },
+  PICKING_RESUBMITTED: { label: 'Picking qayta topshirildi', cat: 'progress' },
+  MARKING_RESUBMITTED: { label: 'Marking qayta topshirildi', cat: 'progress' },
+  GOODS_RETURNED: { label: 'Tovar qaytarish hujjati yuklandi', cat: 'update' },
 };
 
 const ROLE_LABELS = {

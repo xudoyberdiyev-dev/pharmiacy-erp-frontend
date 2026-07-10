@@ -154,23 +154,29 @@ export default function DocumentReturnDetailPage() {
         </div>
       </div>
 
-      {/* Marking excel + return form */}
+      {/* Marking excel (ma'lumot uchun) + tovar qaytarish hujjati */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-5 py-3.5 border-b border-gray-50 flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
             <FileSpreadsheet size={13} className="text-amber-600" />
           </div>
-          <h2 className="font-bold text-gray-800 text-sm">Marking Excel</h2>
+          <h2 className="font-bold text-gray-800 text-sm">Tovar qaytarish hujjati</h2>
         </div>
         <div className="p-5 space-y-4">
-          {order.markedExcelUrl && !newExcel && (
+          {order.markedExcelUrl && (
             <a href={`${FILE_BASE_URL}${order.markedExcelUrl}`} target="_blank" rel="noreferrer"
+              className="flex items-center gap-2.5 p-3.5 bg-purple-50 border border-purple-200 rounded-xl text-sm text-purple-700 hover:bg-purple-100 transition-colors w-fit">
+              <FileSpreadsheet size={16} /> Asl marking excelni ko'rish (o'zgarmaydi)
+            </a>
+          )}
+          {order.returnedGoodsExcelUrl && !newExcel && (
+            <a href={`${FILE_BASE_URL}${order.returnedGoodsExcelUrl}`} target="_blank" rel="noreferrer"
               className="flex items-center gap-2.5 p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700 hover:bg-amber-100 transition-colors w-fit">
-              <FileSpreadsheet size={16} /> Joriy marking excelni ko'rish
+              <FileSpreadsheet size={16} /> Joriy qaytarish hujjatini ko'rish
             </a>
           )}
           <div>
-            <label className="block text-xs text-gray-400 font-bold mb-1.5">Yangi marking excel yuklash (ixtiyoriy — mavjudini almashtiradi)</label>
+            <label className="block text-xs text-gray-400 font-bold mb-1.5">Tovar qaytarish hujjatini yuklash (ixtiyoriy — asl marking excelga tegmaydi)</label>
             {newExcel ? (
               <div className="flex items-center gap-3 p-3.5 bg-green-50 border border-green-200 rounded-xl w-fit">
                 <FileSpreadsheet size={16} className="text-green-600 shrink-0" />
