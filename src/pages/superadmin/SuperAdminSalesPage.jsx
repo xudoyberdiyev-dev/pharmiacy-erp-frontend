@@ -119,7 +119,7 @@ export default function SuperAdminSalesPage() {
       </div>
 
       {/* KPI qatori — o'sish/pasayish oldingi shu uzunlikdagi davrga solishtirilgan */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-blue-50 rounded-2xl p-4">
           <div className="flex items-center justify-between gap-2">
             <p className="text-3xl font-black text-blue-600">{totalOrders}</p>
@@ -143,7 +143,7 @@ export default function SuperAdminSalesPage() {
       {/* Savdo dinamikasi — order soni + summa birgalikda */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <h2 className="font-black text-gray-900 text-sm mb-1">Savdo dinamikasi</h2>
-        <p className="text-xs text-gray-400 mb-3">Order soni (ustunlar) va savdo summasi (chiziq) vaqt bo'yicha</p>
+        <p className="text-xs text-gray-400 mb-3">Buyurtma soni (ustunlar) va savdo summasi (chiziq) vaqt bo'yicha</p>
         {isLoading ? (
           <div className="h-80 flex items-center justify-center text-gray-400 text-sm">Yuklanmoqda...</div>
         ) : buckets.every((b) => b.orderCount === 0) ? (

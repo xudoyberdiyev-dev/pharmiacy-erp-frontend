@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { clientAPI, orderAPI, userAPI } from '../../api';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
 import {
   ArrowLeft, ArrowRight, Check, Upload, X, Search,
   Building2, Clock, User, FileSpreadsheet, ChevronDown,
@@ -231,8 +232,8 @@ export default function OperatorCreateOrder() {
       fd.append('productsExcel', excel);
       return orderAPI.create(fd);
     },
-    onSuccess: () => { toast.success('Order yaratildi!'); navigate('/operator/orders'); },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onSuccess: () => { toast.success('Buyurtma yaratildi!'); navigate('/operator/orders'); },
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   const handleAmountChange = (e) => {
@@ -430,7 +431,7 @@ export default function OperatorCreateOrder() {
             >
               {mutation.isPending
                 ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Yaratilmoqda...</>
-                : <><Check size={15} strokeWidth={2.5} /> Order yaratish</>}
+                : <><Check size={15} strokeWidth={2.5} /> Buyurtma yaratish</>}
             </button>
           </div>
         </div>

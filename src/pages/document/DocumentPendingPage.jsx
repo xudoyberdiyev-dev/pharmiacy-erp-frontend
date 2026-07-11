@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { documentAPI } from '../../api';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
 import { format } from 'date-fns';
 import {
   FileSpreadsheet, Search, X, CheckSquare, Square,
@@ -59,7 +60,7 @@ export default function DocumentPendingPage() {
       qc.invalidateQueries(['document']);
       navigate('/document/documented');
     },
-    onError: (e) => toast.error(e.response?.data?.message || 'Xato yuz berdi'),
+    onError: (e) => toast.error(getErrorMessage(e)),
   });
 
   const amountMutation = useMutation({
@@ -69,7 +70,7 @@ export default function DocumentPendingPage() {
       setEditingId(null);
       qc.invalidateQueries(['document', 'pending']);
     },
-    onError: (e) => toast.error(e.response?.data?.message || 'Xato yuz berdi'),
+    onError: (e) => toast.error(getErrorMessage(e)),
   });
 
   const startEditAmount = (o) => {

@@ -4,7 +4,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentAPI } from '../../api';
 import { FILE_BASE_URL } from '../../api/axios';
 import StatusBadge from '../../components/shared/StatusBadge';
+import NotFoundState from '../../components/shared/NotFoundState';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
 import { format } from 'date-fns';
 import {
   ArrowLeft, Building2, FileSpreadsheet, Upload, X, Undo2,
@@ -31,7 +33,7 @@ export default function DocumentReturnDetailPage() {
   const [newExcel, setNewExcel] = useState(null);
   const [returnedAmount, setReturnedAmount] = useState('');
 
-  const { data: order, isLoading } = useQuery({
+  const { data: order, isLoading, error } = useQuery({
     queryKey: ['document', 'order', id],
     queryFn: () => documentAPI.getOrderFull(id),
     select: r => r.data.data,
@@ -54,7 +56,7 @@ export default function DocumentReturnDetailPage() {
       qc.invalidateQueries(['document']);
       navigate('/document/history');
     },
-    onError: (e) => toast.error(e.response?.data?.message || 'Xato yuz berdi'),
+    onError: (e) => toast.error(getErrorMessage(e)),
   });
 
   const parsedReturnedAmount = returnedAmount !== '' ? parseFloat(returnedAmount) : null;
@@ -80,7 +82,7 @@ export default function DocumentReturnDetailPage() {
       </div>
     );
   }
-  if (!order) return <div className="text-center py-20 text-gray-400">Order topilmadi</div>;
+  if (!order) return <NotFoundState error={error} backTo="/document/returned" />;
 
   return (
     <div className="max-w-3xl mx-auto space-y-5 pb-8">
@@ -140,7 +142,7 @@ export default function DocumentReturnDetailPage() {
           <h2 className="font-bold text-gray-800 text-sm">Jarayon ishtirokchilari</h2>
         </div>
         <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <InfoCard label="Order yaratuvchi" value={order.createdBy?.fullName} />
+          <InfoCard label="Buyurtma yaratuvchi" value={order.createdBy?.fullName} />
           <InfoCard label="Picker" value={order.assignedPicker?.fullName}
             sub={order.pickingDoneAt ? format(new Date(order.pickingDoneAt), 'dd.MM.yyyy HH:mm') : null} />
           <InfoCard label="Marker" value={order.marker?.fullName}

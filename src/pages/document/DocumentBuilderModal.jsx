@@ -125,7 +125,7 @@ export default function DocumentBuilderModal({ orders, onClose, onConfirm, loadi
               <CheckRow checked={footer.checker} onToggle={() => toggleFooter('checker')}
                 icon={ClipboardCheck} label="Tekshiruvchi" sub={checkerNames || '—'} />
               <CheckRow checked={footer.creator} onToggle={() => toggleFooter('creator')}
-                icon={UserCog} label="Order yaratuvchi" sub={creatorNames || '—'} />
+                icon={UserCog} label="Buyurtma yaratuvchi" sub={creatorNames || '—'} />
             </div>
           </div>
 

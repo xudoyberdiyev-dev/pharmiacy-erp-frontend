@@ -323,7 +323,7 @@ export default function OperatorDashboard() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50/80">
-                  <th className="text-left text-[11px] font-bold text-gray-400 uppercase tracking-widest px-5 py-3">Order #</th>
+                  <th className="text-left text-[11px] font-bold text-gray-400 uppercase tracking-widest px-5 py-3">Buyurtma #</th>
                   <th className="text-left text-[11px] font-bold text-gray-400 uppercase tracking-widest px-5 py-3">Klient</th>
                   <th className="text-left text-[11px] font-bold text-gray-400 uppercase tracking-widest px-5 py-3">Summa</th>
                   <th className="text-left text-[11px] font-bold text-gray-400 uppercase tracking-widest px-5 py-3">Status</th>

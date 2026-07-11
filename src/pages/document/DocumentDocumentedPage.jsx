@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentAPI } from '../../api';
 import toast from 'react-hot-toast';
+import { DEFAULT_ERROR_MESSAGE, getErrorMessage } from '../../lib/errors';
 import { format } from 'date-fns';
 import {
   FileCheck2, Search, X, CheckSquare, Square, MinusSquare,
@@ -184,7 +185,7 @@ export default function DocumentDocumentedPage() {
       const msg = e.response?.data instanceof Blob
         ? JSON.parse(await e.response.data.text()).message
         : e.response?.data?.message;
-      toast.error(msg || 'Xato yuz berdi');
+      toast.error(msg || DEFAULT_ERROR_MESSAGE);
     },
   });
 
@@ -195,7 +196,7 @@ export default function DocumentDocumentedPage() {
       setSelected([]);
       qc.invalidateQueries(['document']);
     },
-    onError: (e) => toast.error(e.response?.data?.message || 'Xato yuz berdi'),
+    onError: (e) => toast.error(getErrorMessage(e)),
   });
 
   const toggle = (id) => setSelected(p => p.includes(id) ? p.filter(i => i !== id) : [...p, id]);

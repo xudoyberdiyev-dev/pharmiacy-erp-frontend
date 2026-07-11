@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { clientAPI } from '../../api';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
 import { Plus, MapPin, Phone, Building2, X, Pencil, Power, Users } from 'lucide-react';
 import Pagination from '../../components/shared/Pagination';
 import SearchBar from '../../components/shared/SearchBar';
@@ -34,7 +35,7 @@ function ClientModal({ client, onClose }) {
       qc.invalidateQueries({ queryKey: ['clients'] });
       onClose();
     },
-    onError: (e) => toast.error(e.response?.data?.message || 'Xato yuz berdi'),
+    onError: (e) => toast.error(getErrorMessage(e)),
   });
 
   const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
@@ -130,7 +131,7 @@ export default function ClientsPage() {
       toast.success('Holat o\'zgartirildi!');
       qc.invalidateQueries({ queryKey: ['clients'] });
     },
-    onError: (e) => toast.error(e.response?.data?.message || 'Xato'),
+    onError: (e) => toast.error(getErrorMessage(e)),
   });
 
   const clients = data?.data || [];
@@ -156,7 +157,7 @@ export default function ClientsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: 'Sahifadagilar', value: pagination.total ?? clients.length, color: 'text-blue-600', bg: 'bg-blue-50' },
           { label: 'Faol', value: activeCount, color: 'text-green-600', bg: 'bg-green-50' },

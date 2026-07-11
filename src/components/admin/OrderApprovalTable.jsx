@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderAPI } from '../../api';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
 import { format } from 'date-fns';
 import { AlertTriangle, Clock, Truck, CheckCircle2, MapPin, Package } from 'lucide-react';
 import Pagination from '../shared/Pagination';
@@ -107,11 +108,11 @@ export default function OrderApprovalTable({ overdueOnly = false }) {
   const confirmMutation = useMutation({
     mutationFn: (id) => orderAPI.adminConfirm(id),
     onSuccess: () => {
-      toast.success('Order tasdiqlandi!');
+      toast.success('Buyurtma tasdiqlandi!');
       qc.invalidateQueries({ queryKey: ['orders'] });
       qc.invalidateQueries({ queryKey: ['stats'] });
     },
-    onError: (e) => toast.error(e.response?.data?.message || 'Xato yuz berdi'),
+    onError: (e) => toast.error(getErrorMessage(e)),
   });
 
   const orders = data?.data || [];

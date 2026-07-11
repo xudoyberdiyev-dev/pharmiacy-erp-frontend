@@ -25,6 +25,8 @@ export const useAuthStore = create(
         localStorage.removeItem('erp_user');
       },
 
+      updateUser: (patch) => set(s => ({ user: { ...s.user, ...patch } })),
+
       fetchMe: async () => {
         try {
           set({ loading: true });

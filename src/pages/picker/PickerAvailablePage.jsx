@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { pickerAPI } from '../../api';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
 import { format } from 'date-fns';
 import {
   Package, FileSpreadsheet, Clock, Check,
@@ -30,10 +31,10 @@ function OrderCard({ order, onAccepted }) {
   const mutation = useMutation({
     mutationFn: () => pickerAPI.accept(order.id),
     onSuccess: () => {
-      toast.success('Order qabul qilindi! Picking boshlandi.');
+      toast.success('Buyurtma qabul qilindi! Picking boshlandi.');
       onAccepted(order.id);
     },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   return (
@@ -66,7 +67,7 @@ function OrderCard({ order, onAccepted }) {
         </div>
 
         {/* Doc numbers */}
-        <div className="grid grid-cols-3 gap-1.5 mb-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 mb-3">
           {[
             { label: 'Shartnoma', val: order.contractNumber },
             { label: 'Faktura',   val: order.invoiceNumber },
@@ -155,9 +156,9 @@ export default function PickerAvailablePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-black text-gray-900 tracking-tight">Mavjud orderlar</h1>
+          <h1 className="text-xl font-black text-gray-900 tracking-tight">Mavjud buyurtmalar</h1>
           <p className="text-sm text-gray-400 mt-0.5 font-medium">
-            {visible.length} ta order · oxirgi yangilanish {format(new Date(dataUpdatedAt), 'HH:mm:ss')}
+            {visible.length} ta buyurtma · oxirgi yangilanish {format(new Date(dataUpdatedAt), 'HH:mm:ss')}
           </p>
         </div>
         <button
@@ -205,8 +206,8 @@ export default function PickerAvailablePage() {
           <div className="w-16 h-16 mx-auto bg-gray-50 rounded-2xl flex items-center justify-center mb-4">
             <Package size={28} className="text-gray-200" />
           </div>
-          <p className="text-gray-400 text-sm font-semibold">Mavjud orderlar yo'q</p>
-          <p className="text-gray-300 text-xs mt-1">Yangi orderlar avtomatik ko'rinadi</p>
+          <p className="text-gray-400 text-sm font-semibold">Mavjud buyurtmalar yo'q</p>
+          <p className="text-gray-300 text-xs mt-1">Yangi buyurtmalar avtomatik ko'rinadi</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

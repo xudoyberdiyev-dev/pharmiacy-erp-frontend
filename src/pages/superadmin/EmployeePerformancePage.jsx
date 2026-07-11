@@ -37,7 +37,7 @@ function EmployeeCard({ employee, onClick }) {
       </div>
       <div className="grid grid-cols-4 gap-1.5">
         {[
-          { icon: Package, label: 'Order', val: employee.totalOrders },
+          { icon: Package, label: 'Buyurtma', val: employee.totalOrders },
           { icon: Clock, label: 'Kech', val: employee.lateCount },
           { icon: AlertOctagon, label: 'Jarima', val: employee.totalPenaltyPoints },
           { icon: MessageSquare, label: 'Etiroz', val: employee.etirovCount },
@@ -83,7 +83,7 @@ export default function EmployeePerformancePage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="bg-green-50 rounded-2xl p-4 flex items-center gap-3">
           <TrendingUp size={18} className="text-green-600" />
           <div><p className="text-2xl font-black text-green-700">{goodCount}</p><p className="text-[11px] text-gray-500 font-medium">A'lo</p></div>

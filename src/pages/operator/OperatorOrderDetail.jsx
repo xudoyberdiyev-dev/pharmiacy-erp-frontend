@@ -6,6 +6,8 @@ import { FILE_BASE_URL } from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
+import NotFoundState from '../../components/shared/NotFoundState';
 import {
   ArrowLeft, Pencil, X, Check, Save, Upload,
   FileSpreadsheet, Clock, User, Building2, AlertTriangle,
@@ -90,7 +92,7 @@ export default function OperatorOrderDetail() {
   const [editForm, setEditForm] = useState({});
   const [newExcel, setNewExcel] = useState(null);
 
-  const { data: order, isLoading } = useQuery({
+  const { data: order, isLoading, error } = useQuery({
     queryKey: ['order', id],
     queryFn: () => orderAPI.getOne(id),
     select: r => r.data.data,
@@ -124,14 +126,14 @@ export default function OperatorOrderDetail() {
       if (newExcel) fd.append('productsExcel', newExcel);
       return orderAPI.update(id, fd);
     },
-    onSuccess: () => { toast.success('Order yangilandi'); qc.invalidateQueries(['order', id]); setEditing(false); },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onSuccess: () => { toast.success('Buyurtma yangilandi'); qc.invalidateQueries(['order', id]); setEditing(false); },
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   const cancelMutation = useMutation({
     mutationFn: () => orderAPI.cancel(id, 'Operator tomonidan bekor qilindi'),
-    onSuccess: () => { toast.success('Order bekor qilindi'); navigate('/operator/orders'); },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onSuccess: () => { toast.success('Buyurtma bekor qilindi'); navigate('/operator/orders'); },
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   const setE = k => e => setEditForm(p => ({ ...p, [k]: e.target.value }));
@@ -141,7 +143,7 @@ export default function OperatorOrderDetail() {
       <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
     </div>
   );
-  if (!order) return <div className="text-center py-20 text-gray-400">Order topilmadi</div>;
+  if (!order) return <NotFoundState error={error} backTo="/operator/orders" />;
 
   const canEdit   = order.createdById === user?.id;
   const canCancel = order.status === 'NEW' && order.createdById === user?.id;

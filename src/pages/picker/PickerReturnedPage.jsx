@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { pickerAPI } from '../../api';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
 import { format } from 'date-fns';
 import {
   CheckCircle2, RotateCcw, User, MessageSquare, Package, FileSpreadsheet,
@@ -23,7 +24,7 @@ function ReturnedCard({ order }) {
         qc.invalidateQueries(['picker-available']);
       }, 1200);
     },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   if (done) {

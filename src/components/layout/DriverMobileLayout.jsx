@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { DriverLocationProvider, useDriverLocation } from '../../context/DriverLocationContext';
 import { useQuery } from '@tanstack/react-query';
 import { orderAPI } from '../../api';
 import { Package, User, Smartphone } from 'lucide-react';
@@ -34,57 +35,32 @@ function DesktopBlockedScreen() {
   );
 }
 
-// Haydovchi ilovaga kirgan bo'lsa, brauzer joylashuvini so'rab, uning faol
-// (IN_TRANSIT) orderlariga davriy GPS yuboradi — shu orqali SuperAdmin
-// "Haydovchilar xaritasi" sahifasida real vaqtda ko'rinadi.
-function useShareLocation(enabled) {
-  const watchIdRef = useRef(null);
+// Haydovchi "Yetkazyapman" tugmasini bosgan (deliveryStartedAt bor) orderlariga
+// DriverLocationProvider'dan kelayotgan joylashuvni davriy yuboradi — shu
+// orqali SuperAdmin "Haydovchilar xaritasi" sahifasida real vaqtda ko'rinadi.
+// Tugma bosilmagan IN_TRANSIT orderlar uchun GPS yuborilmaydi.
+function useShareLocation() {
+  const { position } = useDriverLocation();
 
-  const { data: activeOrders } = useQuery({
+  const { data: startedOrders } = useQuery({
     queryKey: ['driver-active-orders-for-location'],
     queryFn: () => orderAPI.getAll({ status: 'IN_TRANSIT', limit: 50 }),
-    select: r => r.data.data || [],
-    enabled,
-    refetchInterval: 60000,
+    select: r => (r.data.data || []).filter(o => o.deliveryStartedAt),
+    refetchInterval: 30000,
   });
 
   useEffect(() => {
-    if (!enabled || !navigator.geolocation) return undefined;
-
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        (activeOrders || []).forEach(order => {
-          orderAPI.updateLocation({ orderId: order.id, latitude, longitude }).catch(() => {});
-        });
-      },
-      () => {},
-      { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 }
-    );
-
-    return () => {
-      if (watchIdRef.current != null) navigator.geolocation.clearWatch(watchIdRef.current);
-    };
-  }, [enabled, activeOrders]);
+    if (!position || !startedOrders?.length) return;
+    startedOrders.forEach(order => {
+      orderAPI.updateLocation({ orderId: order.id, latitude: position.latitude, longitude: position.longitude }).catch(() => {});
+    });
+  }, [position, startedOrders]);
 }
 
-export default function DriverMobileLayout() {
-  const { user } = useAuth();
-  const location = useLocation();
-  const [allowed, setAllowed] = useState(() => isMobileDevice());
-
-  useEffect(() => {
-    const onResize = () => setAllowed(isMobileDevice());
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
-
-  useShareLocation(allowed);
-
-  if (!allowed) return <DesktopBlockedScreen />;
+function DriverMobileLayoutInner({ user, isDetailPage }) {
+  useShareLocation();
 
   const initials = user?.fullName?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || '?';
-  const isDetailPage = /^\/driver\/orders\//.test(location.pathname);
 
   const TABS = [
     { to: '/driver', end: true, label: 'Buyurtmalar', icon: Package },
@@ -133,5 +109,27 @@ export default function DriverMobileLayout() {
         </nav>
       )}
     </div>
+  );
+}
+
+export default function DriverMobileLayout() {
+  const { user } = useAuth();
+  const location = useLocation();
+  const [allowed, setAllowed] = useState(() => isMobileDevice());
+
+  useEffect(() => {
+    const onResize = () => setAllowed(isMobileDevice());
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  if (!allowed) return <DesktopBlockedScreen />;
+
+  const isDetailPage = /^\/driver\/orders\//.test(location.pathname);
+
+  return (
+    <DriverLocationProvider enabled={allowed}>
+      <DriverMobileLayoutInner user={user} isDetailPage={isDetailPage} />
+    </DriverLocationProvider>
   );
 }

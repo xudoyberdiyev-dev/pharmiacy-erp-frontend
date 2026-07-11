@@ -92,7 +92,7 @@ export default function ConfirmationHistoryPage() {
         </label>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <StatCard icon={Package} label="Jami tasdiqlangan" value={stats.total} color="text-blue-600" bg="bg-blue-50" />
         <StatCard icon={CheckCircle2} label="O'z vaqtida (48s ichida)" value={stats.onTimeCount} color="text-green-600" bg="bg-green-50" />
         <StatCard icon={AlertTriangle} label="Kechikib tasdiqlangan" value={stats.lateCount} color="text-red-600" bg="bg-red-50" />

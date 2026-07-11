@@ -141,7 +141,7 @@ export default function DocumentReturnedPage() {
             <div className="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center">
               <Undo2 size={16} className="text-red-600" />
             </div>
-            Qaytgan orderlar
+            Qaytgan buyurtmalar
           </h1>
           <p className="text-sm text-gray-400 mt-0.5 ml-10 font-medium">
             {filtered.length} ta order · {dataUpdatedAt ? format(new Date(dataUpdatedAt), 'HH:mm:ss') : '—'}

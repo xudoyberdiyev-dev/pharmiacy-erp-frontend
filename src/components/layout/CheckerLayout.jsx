@@ -45,8 +45,8 @@ export default function CheckerLayout() {
   });
 
   const NAV = [
-    { to: '/checker',         end: true,  label: 'Mavjud orderlar',   icon: ClipboardCheck, badge: available?.length || 0, badgeColor: 'sky'   },
-    { to: '/checker/mine',    end: false, label: 'Mening orderlarim', icon: Zap,            badge: mine?.length || 0,      badgeColor: 'green' },
+    { to: '/checker',         end: true,  label: 'Mavjud buyurtmalar',   icon: ClipboardCheck, badge: available?.length || 0, badgeColor: 'sky'   },
+    { to: '/checker/mine',    end: false, label: 'Mening buyurtmalarim', icon: Zap,            badge: mine?.length || 0,      badgeColor: 'green' },
     { to: '/checker/history', end: false, label: 'Tarix',             icon: Clock,          badge: 0,                     badgeColor: 'sky'   },
   ];
 

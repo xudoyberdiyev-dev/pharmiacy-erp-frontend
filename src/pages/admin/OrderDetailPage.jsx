@@ -3,7 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderAPI } from '../../api';
 import { FILE_BASE_URL } from '../../api/axios';
 import StatusBadge from '../../components/shared/StatusBadge';
+import NotFoundState from '../../components/shared/NotFoundState';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
 import { ArrowLeft, CheckCircle, Clock, User, Truck, Package, FileText, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -34,7 +36,7 @@ export default function OrderDetailPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['order', id],
     queryFn: () => orderAPI.getOne(id),
     select: r => r.data.data,
@@ -42,8 +44,8 @@ export default function OrderDetailPage() {
 
   const confirmMutation = useMutation({
     mutationFn: () => orderAPI.adminConfirm(id),
-    onSuccess: () => { toast.success('Order tasdiqlandi!'); qc.invalidateQueries(['order', id]); },
-    onError: (e) => toast.error(e.response?.data?.message || 'Xato'),
+    onSuccess: () => { toast.success('Buyurtma tasdiqlandi!'); qc.invalidateQueries(['order', id]); },
+    onError: (e) => toast.error(getErrorMessage(e)),
   });
 
   if (isLoading) return (
@@ -52,11 +54,7 @@ export default function OrderDetailPage() {
     </div>
   );
 
-  if (!data) return (
-    <div className="flex items-center justify-center py-20">
-      <div className="text-gray-400">Order topilmadi</div>
-    </div>
-  );
+  if (!data) return <NotFoundState error={error} />;
 
   const o = data;
 
@@ -152,7 +150,7 @@ export default function OrderDetailPage() {
             {o.markedExcelUrl && (
               <a href={`${FILE_BASE_URL}${o.markedExcelUrl}`} target="_blank" rel="noreferrer"
                 className="flex items-center gap-2 px-4 py-2 bg-purple-50 text-purple-700 rounded-lg text-sm hover:bg-purple-100 transition-colors">
-                📋 Marked Excel
+                📋 Belgilangan Excel
               </a>
             )}
             {o.deliveryPhotoUrls?.map((url, i) => (

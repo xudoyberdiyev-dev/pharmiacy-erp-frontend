@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userAPI, orderAPI } from '../../api';
 import StatusBadge from '../../components/shared/StatusBadge';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
 import { format } from 'date-fns';
 import {
   ArrowLeft, Package, Clock, AlertTriangle, AlertOctagon, CheckCircle2,
@@ -69,7 +70,7 @@ function AdjustLatenessModal({ order, userId, stage, onClose, onDone }) {
       userId, stage, adjustedLateMinutes: parseInt(minutes) || 0, reason: reason.trim(),
     }),
     onSuccess: () => { toast.success('Kechikish vaqti tuzatildi'); onDone(); onClose(); },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   return (
@@ -151,12 +152,12 @@ function OrderCard({ order, userId, stage }) {
   const voidPenaltyMut = useMutation({
     mutationFn: (reason) => userAPI.voidPenalty(voidTarget.item.id, reason),
     onSuccess: () => { toast.success('Jarima bekor qilindi'); invalidate(); setVoidTarget(null); },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onError: e => toast.error(getErrorMessage(e)),
   });
   const voidEtirovMut = useMutation({
     mutationFn: (reason) => userAPI.voidEtirov(voidTarget.item.id, reason),
     onSuccess: () => { toast.success('Etiroz bekor qilindi'); invalidate(); setVoidTarget(null); },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   return (

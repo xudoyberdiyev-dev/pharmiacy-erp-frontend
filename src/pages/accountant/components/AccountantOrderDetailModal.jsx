@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderAPI } from '../../../api';
 import { FILE_BASE_URL } from '../../../api/axios';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../../lib/errors';
 import Modal from '../../../components/shared/Modal';
 import StatusBadge from '../../../components/shared/StatusBadge';
 import { CheckCircle2, FileSpreadsheet, Image, Clock, AlertTriangle, Undo2 } from 'lucide-react';
@@ -26,11 +27,11 @@ export default function AccountantOrderDetailModal({ order, step, onClose }) {
       qc.invalidateQueries({ queryKey: ['orders', 'accountant'] });
       onClose();
     },
-    onError: (e) => toast.error(e.response?.data?.message || 'Xato yuz berdi'),
+    onError: (e) => toast.error(getErrorMessage(e)),
   });
 
   return (
-    <Modal title={`Order ${order.invoiceNumber}`} onClose={onClose} wide>
+    <Modal title={`Buyurtma ${order.invoiceNumber}`} onClose={onClose} wide>
       <div className="flex items-center gap-2 flex-wrap mb-4">
         <StatusBadge status={order.status} />
         <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full ${order.acct1Confirmed ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
@@ -80,7 +81,7 @@ export default function AccountantOrderDetailModal({ order, step, onClose }) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 p-4 bg-gray-50 rounded-2xl mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-gray-50 rounded-2xl mb-4">
         <InfoRow label="Mijoz" value={order.client?.orgName} />
         <InfoRow label="Manzil" value={order.client?.address} />
         <InfoRow label="Shartnoma" value={order.contractNumber} />
@@ -106,10 +107,10 @@ export default function AccountantOrderDetailModal({ order, step, onClose }) {
             rel="noreferrer"
             className="flex items-center gap-2 bg-green-50 hover:bg-green-100 transition-colors rounded-xl px-3.5 py-2.5 text-sm font-bold text-green-700"
           >
-            <FileSpreadsheet size={16} /> Order Excel faylini yuklab olish
+            <FileSpreadsheet size={16} /> Buyurtma Excel faylini yuklab olish
           </a>
         ) : (
-          <p className="text-xs text-gray-400 px-1">Order Excel fayli yuklanmagan</p>
+          <p className="text-xs text-gray-400 px-1">Buyurtma Excel fayli yuklanmagan</p>
         )}
         {order.markedExcelUrl ? (
           <a

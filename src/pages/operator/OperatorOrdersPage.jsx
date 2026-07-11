@@ -5,6 +5,7 @@ import { orderAPI } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
 import {
   Plus, Search, Eye, Pencil, Trash2,
   Package, X, AlertTriangle, ArrowRight,
@@ -52,10 +53,10 @@ function CancelModal({ order, onClose, onConfirm, loading }) {
         <div className="p-5 space-y-4">
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-sm text-amber-800 flex gap-2.5">
             <AlertTriangle size={16} className="shrink-0 mt-0.5 text-amber-500" />
-            <span>Order bekor qilinadi, lekin <strong>tarixda saqlanib qoladi</strong>. Faqat NEW statusdagi orderlarni bekor qilish mumkin.</span>
+            <span>Buyurtma bekor qilinadi, lekin <strong>tarixda saqlanib qoladi</strong>. Faqat NEW statusdagi buyurtmalarni bekor qilish mumkin.</span>
           </div>
           <div className="bg-gray-50 rounded-xl p-3.5 space-y-1">
-            <p className="text-xs text-gray-400">Order</p>
+            <p className="text-xs text-gray-400">Buyurtma</p>
             <p className="font-mono font-bold text-gray-900">#{order.invoiceNumber}</p>
             <p className="text-sm text-gray-600">{order.client?.orgName}</p>
           </div>
@@ -109,12 +110,12 @@ export default function OperatorOrdersPage() {
   const cancelMut = useMutation({
     mutationFn: ({ id, reason }) => orderAPI.cancel(id, reason),
     onSuccess: () => {
-      toast.success('Order bekor qilindi');
+      toast.success('Buyurtma bekor qilindi');
       qc.invalidateQueries(['op-orders']);
       qc.invalidateQueries(['operator-orders']);
       setCancel(null);
     },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   const orders = data?.data || [];
@@ -170,7 +171,7 @@ export default function OperatorOrdersPage() {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Order #, klient nomi, faktura, shartnoma raqami..."
+            placeholder="Buyurtma #, klient nomi, faktura, shartnoma raqami..."
             className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-transparent rounded-xl text-sm
               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-blue-100
               transition-all placeholder:text-gray-400"

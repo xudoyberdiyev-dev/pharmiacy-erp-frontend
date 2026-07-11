@@ -1,14 +1,71 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useQuery } from '@tanstack/react-query';
-import { statsAPI } from '../../api';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { statsAPI, userAPI } from '../../api';
+import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
 import {
   LayoutDashboard, Users, Package, Truck, ClipboardCheck, AlertTriangle,
   History, BarChart3, ClipboardList, ShieldCheck, ChevronDown, LogOut,
-  UserCog, TrendingUp, MapPinned, Bell as BellIcon, Map, Gauge,
+  UserCog, TrendingUp, MapPinned, Bell as BellIcon, Map, Gauge, Pencil, X,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import NotificationBell from './NotificationBell';
+
+function ProfileEditModal({ user, onClose }) {
+  const { updateUser } = useAuth();
+  const [form, setForm] = useState({ fullName: user?.fullName || '', phone: user?.phone || '', password: '' });
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      const data = { fullName: form.fullName, phone: form.phone };
+      if (form.password) data.password = form.password;
+      return userAPI.updateMe(data);
+    },
+    onSuccess: (res) => {
+      toast.success('Profil yangilandi!');
+      updateUser(res.data.data);
+      onClose();
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
+  const canSubmit = form.fullName.trim() && form.phone.trim();
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <h2 className="font-black text-gray-900">Profilni tahrirlash</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="label">To'liq ism *</label>
+            <input className="input" value={form.fullName} onChange={set('fullName')} />
+          </div>
+          <div>
+            <label className="label">Telefon *</label>
+            <input className="input" value={form.phone} onChange={set('phone')} />
+          </div>
+          <div>
+            <label className="label">
+              Yangi parol <span className="text-gray-400 font-normal">(o'zgartirmasangiz bo'sh qoldiring)</span>
+            </label>
+            <input className="input" type="password" placeholder="••••••••" value={form.password} onChange={set('password')} />
+          </div>
+        </div>
+        <div className="flex gap-3 p-6 border-t border-gray-100">
+          <button onClick={onClose} className="btn-secondary flex-1">Bekor qilish</button>
+          <button onClick={() => mutation.mutate()} disabled={mutation.isPending || !canSubmit} className="btn-primary flex-1 disabled:opacity-50">
+            {mutation.isPending ? 'Saqlanmoqda...' : 'Saqlash'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Badge({ count, color = 'red' }) {
   if (!count) return null;
@@ -53,6 +110,7 @@ export default function AdminHeaderLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [dropOpen, setDropOpen] = useState(false);
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
   const dropRef = useRef(null);
 
   useEffect(() => {
@@ -141,6 +199,14 @@ export default function AdminHeaderLayout() {
                   <p className="text-[13px] font-semibold text-gray-900">{user?.fullName}</p>
                   <p className="text-[11px] text-gray-400">{user?.phone}</p>
                 </div>
+                {isSuperAdmin && (
+                  <button
+                    onClick={() => { setShowProfileEdit(true); setDropOpen(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] text-gray-600 hover:bg-gray-50 transition-colors"
+                  >
+                    <Pencil size={14} /> Profilni tahrirlash
+                  </button>
+                )}
                 <div className="mx-3 border-t border-gray-100 my-1" />
                 <button
                   onClick={() => { logout(); navigate('/login'); }}
@@ -157,6 +223,8 @@ export default function AdminHeaderLayout() {
       <main className="flex-1 max-w-screen-2xl mx-auto w-full px-4 py-6">
         <Outlet />
       </main>
+
+      {showProfileEdit && <ProfileEditModal user={user} onClose={() => setShowProfileEdit(false)} />}
     </div>
   );
 }

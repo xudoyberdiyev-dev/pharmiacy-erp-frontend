@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { statsAPI } from '../../api';
 import { MapContainer, TileLayer, CircleMarker, Marker, Polyline, Popup, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -7,6 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import Modal from '../../components/shared/Modal';
 import { Map, Truck, ChevronRight, AlertTriangle, CheckCircle2, Phone } from 'lucide-react';
 import { format } from 'date-fns';
+import socket from '../../lib/socket';
 
 const carIcon = L.divIcon({
   html: '<div style="font-size:24px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.55))">🚚</div>',
@@ -77,7 +78,7 @@ function OrderDetailModal({ order, onClose }) {
   const { traveled, remaining } = road ? splitRouteAtCurrent(road, current) : { traveled: [], remaining: [] };
 
   return (
-    <Modal title={`Order ${order.invoiceNumber}`} onClose={onClose} wide>
+    <Modal title={`Buyurtma ${order.invoiceNumber}`} onClose={onClose} wide>
       {hasTracking && destination?.latitude ? (
         <>
           <div className="relative rounded-2xl overflow-hidden border border-gray-100 mb-3" style={{ height: 380 }}>
@@ -135,7 +136,7 @@ function OrderDetailModal({ order, onClose }) {
       )}
 
       {/* To'liq order ma'lumoti */}
-      <div className="grid grid-cols-2 gap-3 p-4 bg-gray-50 rounded-2xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-gray-50 rounded-2xl">
         <InfoRow label="Mijoz" value={order.client?.orgName} />
         <InfoRow label="Manzil" value={order.client?.address} />
         <InfoRow label="Shartnoma" value={order.contractNumber} />
@@ -177,18 +178,37 @@ function OrderDetailModal({ order, onClose }) {
 }
 
 export default function SuperAdminDriversMapPage() {
-  const [selected, setSelected] = useState(null);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ['driver-locations'],
     queryFn: () => statsAPI.getDriverLocations(),
     select: (r) => r.data.data,
-    refetchInterval: 15000,
+    // Endi asosiy yangilanish socket orqali (pastdagi useEffect) — bu poll
+    // faqat socket uzilib qolgan holatlar uchun zaxira sifatida qoladi.
+    refetchInterval: 30000,
   });
+
+  // Haydovchi GPS yuborganda yoki "Yetkazyapman"ni bosganda — darhol qayta
+  // yuklab xaritani jonli holatga keltiramiz (NotificationBell.jsx dagi bilan
+  // bir xil obuna naqshi).
+  useEffect(() => {
+    const onUpdate = () => qc.invalidateQueries({ queryKey: ['driver-locations'] });
+    socket.on('driver:location:update', onUpdate);
+    socket.on('order:delivery:started', onUpdate);
+    return () => {
+      socket.off('driver:location:update', onUpdate);
+      socket.off('order:delivery:started', onUpdate);
+    };
+  }, [qc]);
 
   const orders = data || [];
   const onRoad = orders.filter((o) => o.tracking).length;
   const notStarted = orders.length - onRoad;
+  // selectedOrderId'dan jonli olinadi — modal ochiq turganda ham `data`
+  // yangilansa (socket orqali), xaritadagi belgi darhol harakatlanadi.
+  const selected = selectedOrderId ? orders.find((o) => o.orderId === selectedOrderId) : null;
 
   return (
     <div className="space-y-5">
@@ -202,7 +222,7 @@ export default function SuperAdminDriversMapPage() {
         <p className="text-xs text-gray-400 mt-1 ml-12">Haydovchiga biriktirilgan barcha faol orderlar — bosing va batafsil kuzating</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-orange-50 rounded-2xl p-4">
           <p className="text-3xl font-black text-orange-600">{orders.length}</p>
           <p className="text-xs text-gray-500 font-medium mt-0.5">Jami faol yetkazib berish</p>
@@ -231,7 +251,7 @@ export default function SuperAdminDriversMapPage() {
           {orders.map((o) => (
             <button
               key={o.orderId}
-              onClick={() => setSelected(o)}
+              onClick={() => setSelectedOrderId(o.orderId)}
               className="w-full bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-4 text-left hover:shadow-md hover:border-blue-200 transition-all"
             >
               <div className="w-11 h-11 bg-orange-100 rounded-2xl flex items-center justify-center shrink-0">
@@ -250,6 +270,10 @@ export default function SuperAdminDriversMapPage() {
                     </div>
                     <span className="text-xs font-bold text-gray-500 shrink-0">{o.tracking.percentComplete}% · {o.tracking.remainingDistanceKm} km qoldi</span>
                   </div>
+                ) : o.deliveryStarted ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full mt-1.5">
+                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" /> GPS kutilmoqda...
+                  </span>
                 ) : (
                   <span className="inline-flex items-center text-xs font-bold text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full mt-1.5">
                     Hali yo'lga chiqmagan
@@ -262,7 +286,7 @@ export default function SuperAdminDriversMapPage() {
         </div>
       )}
 
-      {selected && <OrderDetailModal order={selected} onClose={() => setSelected(null)} />}
+      {selected && <OrderDetailModal order={selected} onClose={() => setSelectedOrderId(null)} />}
     </div>
   );
 }

@@ -2,19 +2,36 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderAPI } from '../../api';
+import { useDriverLocation } from '../../context/DriverLocationContext';
 import StatusBadge from '../../components/shared/StatusBadge';
+import NotFoundState from '../../components/shared/NotFoundState';
 import toast from 'react-hot-toast';
-import { ArrowLeft, MapPin, Camera, CheckCircle, Navigation, X, Package, Banknote, AlertCircle } from 'lucide-react';
+import { getErrorMessage } from '../../lib/errors';
+import { ArrowLeft, MapPin, Camera, CheckCircle, Navigation, X, Package, Banknote, AlertCircle, Truck } from 'lucide-react';
 
 const MAX_PHOTOS = 4;
+
+// Backend statsController.js dagi getDriverLocations bilan bir xil formula —
+// driver o'zining hozirgi joylashuvidan mijozgacha taxminiy masofa/ETA'ni
+// ko'rishi uchun (o'rtacha 35 km/soat tezlik).
+const AVERAGE_SPEED_KMH = 35;
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const toRad = (v) => (v * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 export default function DriverOrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [photos, setPhotos] = useState([]);
+  const { position } = useDriverLocation();
 
-  const { data: order, isLoading } = useQuery({
+  const { data: order, isLoading, error } = useQuery({
     queryKey: ['order', id],
     queryFn: () => orderAPI.getOne(id),
     select: r => r.data.data,
@@ -38,13 +55,22 @@ export default function DriverOrderDetail() {
       navigate('/driver');
     },
     onError: e => {
-      toast.error(e.response?.data?.message || 'Xato');
+      toast.error(getErrorMessage(e));
       // Holat bilan bog'liq xato bo'lsa (masalan order boshqa joyda
       // allaqachon yetkazilgan) — darhol qayta yuklab haqiqiy holatni
       // ko'rsatamiz, shunda foydalanuvchi eskirgan formaga qarab qayta
       // urinib, xatoni takrorlamaydi.
       qc.invalidateQueries(['order', id]);
     },
+  });
+
+  const startDeliveryMutation = useMutation({
+    mutationFn: () => orderAPI.startDelivery(id),
+    onSuccess: () => {
+      toast.success('Yetkazish boshlandi — joylashuvingiz kuzatilmoqda');
+      qc.invalidateQueries(['order', id]);
+    },
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   const openMaps = () => {
@@ -71,7 +97,7 @@ export default function DriverOrderDetail() {
       </div>
     );
   }
-  if (!order) return <div className="text-center py-20 text-gray-400">Order topilmadi</div>;
+  if (!order) return <NotFoundState error={error} backTo="/driver" />;
 
   const isActive = order.status === 'IN_TRANSIT';
 
@@ -122,6 +148,39 @@ export default function DriverOrderDetail() {
           className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-2xl py-3.5 text-sm font-bold text-gray-700 active:bg-gray-50">
           <Navigation size={17} className="text-[#3B5BFD]" /> Xaritada ochish
         </button>
+
+        {isActive && !order.deliveryStartedAt && (
+          <button
+            onClick={() => startDeliveryMutation.mutate()}
+            disabled={startDeliveryMutation.isPending}
+            className="w-full flex items-center justify-center gap-2 bg-[#3B5BFD] disabled:opacity-60 text-white rounded-2xl py-3.5 text-sm font-bold active:opacity-90 transition-colors"
+          >
+            <Truck size={18} /> {startDeliveryMutation.isPending ? 'Boshlanmoqda...' : 'Yetkazyapman — joylashuvni ulashish'}
+          </button>
+        )}
+
+        {isActive && order.deliveryStartedAt && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-4">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shrink-0" />
+              <p className="text-sm font-bold text-green-700">GPS faol — joylashuvingiz ko'rinmoqda</p>
+            </div>
+            {(() => {
+              const clientLat = order.client?.latitude;
+              const clientLon = order.client?.longitude;
+              if (!position || clientLat == null || clientLon == null) {
+                return <p className="text-xs text-gray-400 mt-2">Masofa hisoblanmoqda...</p>;
+              }
+              const km = haversineKm(position.latitude, position.longitude, clientLat, clientLon);
+              const etaMin = Math.round((km / AVERAGE_SPEED_KMH) * 60);
+              return (
+                <p className="text-xs text-gray-500 mt-2">
+                  ~{Math.round(km * 10) / 10} km qoldi · ~{etaMin} daqiqada yetib borasiz
+                </p>
+              );
+            })()}
+          </div>
+        )}
 
         {isActive ? (
           <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-4">

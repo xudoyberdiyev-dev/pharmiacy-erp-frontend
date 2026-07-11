@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { checkerAPI } from '../../api';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
 import { format } from 'date-fns';
 import {
   CheckCircle2, Clock, AlertTriangle, Zap, Package,
@@ -145,14 +146,14 @@ function DetailModal({ order, index, onClose, onComplete }) {
       ? checkerAPI.complete(order.id, { boxes: rows.filter(r => r.count > 0) })
       : checkerAPI.complete(order.id, { boxCount: simpleCount }),
     onSuccess: (res) => {
-      toast.success(res.data.message || 'Order tasdiqlandi!');
+      toast.success(res.data.message || 'Buyurtma tasdiqlandi!');
       onComplete();
       onClose();
       qc.invalidateQueries(['checker-mine']);
       qc.invalidateQueries(['checker-available']);
       if (mode === 'print') navigate(`/checker/print/${order.id}`);
     },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   const handleConfirm = () => {
@@ -174,7 +175,7 @@ function DetailModal({ order, index, onClose, onComplete }) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
           <div>
-            <h3 className="font-black text-gray-900">Order tafsilotlari</h3>
+            <h3 className="font-black text-gray-900">Buyurtma tafsilotlari</h3>
             <p className="text-xs text-gray-400 mt-0.5">#{index + 1} · {order.client?.orgName}</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center">
@@ -194,7 +195,7 @@ function DetailModal({ order, index, onClose, onComplete }) {
           </div>
 
           {/* Doc numbers */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {[
               { label: 'Shartnoma', val: order.contractNumber },
               { label: 'Faktura',   val: order.invoiceNumber  },
@@ -358,11 +359,11 @@ function ReturnToMarkingModal({ order, onClose, onDone }) {
   const mutation = useMutation({
     mutationFn: () => checkerAPI.returnToMarking(order.id, reason),
     onSuccess: (res) => {
-      toast.success(res.data.message || 'Order marking bo\'limiga qaytarildi');
+      toast.success(res.data.message || 'Buyurtma marking bo\'limiga qaytarildi');
       onDone();
       onClose();
     },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   return (
@@ -388,7 +389,7 @@ function ReturnToMarkingModal({ order, onClose, onDone }) {
             className="w-full px-3.5 py-3 rounded-xl border-2 border-gray-200 focus:border-amber-400 outline-none text-sm resize-none transition-colors"
           />
           <p className="text-[11px] text-gray-400">
-            Order aynan shu order uchun marklagan markerning "Qaytgan orderlar" sahifasiga tushadi.
+            Bu buyurtma aynan shu buyurtma uchun marklagan markerning "Qaytgan buyurtmalar" sahifasiga tushadi.
           </p>
         </div>
 
@@ -560,7 +561,7 @@ function MineCard({ order, index }) {
 function StatsRow({ orders }) {
   const overdue = orders.filter(o => o.checkingDeadline && new Date(o.checkingDeadline) < new Date()).length;
   return (
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       {[
         { label: 'Jami',         val: orders.length,       icon: Package,      color: 'text-sky-600',   bg: 'bg-sky-50'   },
         { label: 'O\'z vaqtida', val: orders.length - overdue, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50' },
@@ -591,7 +592,7 @@ export default function CheckerMinePage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-black text-gray-900 tracking-tight">Mening orderlarim</h1>
+        <h1 className="text-xl font-black text-gray-900 tracking-tight">Mening buyurtmalarim</h1>
         <p className="text-sm text-gray-400 mt-0.5 font-medium">Men qabul qilgan va tekshirayotgan orderlar</p>
       </div>
 
@@ -611,7 +612,7 @@ export default function CheckerMinePage() {
             <Zap size={28} className="text-sky-300" />
           </div>
           <p className="text-gray-500 text-sm font-semibold">Hozircha biriktrilgan order yo'q</p>
-          <p className="text-gray-300 text-xs mt-1">Mavjud orderlardan birini qabul qiling</p>
+          <p className="text-gray-300 text-xs mt-1">Mavjud buyurtmalardan birini qabul qiling</p>
         </div>
       ) : (
         <>

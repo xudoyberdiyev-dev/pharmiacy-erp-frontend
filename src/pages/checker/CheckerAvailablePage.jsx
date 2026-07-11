@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { checkerAPI } from '../../api';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
 import { format } from 'date-fns';
 import { ClipboardCheck, Clock, Check, RefreshCw, User } from 'lucide-react';
 
@@ -20,10 +21,10 @@ function OrderCard({ order, index, onAccepted }) {
   const mutation = useMutation({
     mutationFn: () => checkerAPI.accept(order.id),
     onSuccess: () => {
-      toast.success('Order qabul qilindi! Checking boshlandi.');
+      toast.success('Buyurtma qabul qilindi! Checking boshlandi.');
       onAccepted(order.id);
     },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   return (
@@ -76,7 +77,7 @@ function OrderCard({ order, index, onAccepted }) {
         </div>
 
         {/* Doc numbers */}
-        <div className="grid grid-cols-3 gap-1.5 mb-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 mb-3">
           {[
             { label: 'Shartnoma', val: order.contractNumber },
             { label: 'Faktura',   val: order.invoiceNumber },
@@ -148,7 +149,7 @@ export default function CheckerAvailablePage() {
             <div className="w-8 h-8 rounded-xl bg-sky-100 flex items-center justify-center">
               <ClipboardCheck size={16} className="text-sky-600" />
             </div>
-            Mavjud orderlar
+            Mavjud buyurtmalar
           </h1>
           <p className="text-sm text-gray-400 mt-0.5 ml-10 font-medium">
             {visible.length} ta order · {dataUpdatedAt ? format(new Date(dataUpdatedAt), 'HH:mm:ss') : '—'}

@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { markerAPI } from '../../api';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
 import { format } from 'date-fns';
 import {
   CheckCircle2, RotateCcw, User, FileSpreadsheet, Upload,
@@ -20,7 +21,7 @@ function ReturnedCard({ order }) {
     onSuccess: () => {
       setDone(true);
       setTimeout(() => {
-        toast.success('Order qayta yuborildi! Checking bo\'limiga o\'tdi.');
+        toast.success('Buyurtma qayta yuborildi! Checking bo\'limiga o\'tdi.');
         qc.invalidateQueries(['marker-returned']);
         qc.invalidateQueries(['marker-mine']);
         qc.invalidateQueries(['marker-available']);
@@ -29,7 +30,7 @@ function ReturnedCard({ order }) {
     onError: e => {
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
-      toast.error(e.response?.data?.message || 'Xato');
+      toast.error(getErrorMessage(e));
     },
   });
 
@@ -191,7 +192,7 @@ export default function MarkerReturnedPage() {
           <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center">
             <RotateCcw size={16} className="text-amber-600" />
           </div>
-          Qaytgan orderlar
+          Qaytgan buyurtmalar
         </h1>
         <p className="text-sm text-gray-400 mt-0.5 ml-10 font-medium">
           Checker qaytargan orderlar — Excelni tuzatib qayta yuboring (vaqt hisoblanmaydi)

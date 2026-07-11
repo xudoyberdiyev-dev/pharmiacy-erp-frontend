@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/useAuthStore';
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const { user, login, logout, fetchMe, loading } = useAuthStore();
+  const { user, login, logout, fetchMe, updateUser, loading } = useAuthStore();
 
   useEffect(() => {
     const token = localStorage.getItem('erp_token');
@@ -16,7 +16,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser, loading }}>
       {children}
     </AuthContext.Provider>
   );

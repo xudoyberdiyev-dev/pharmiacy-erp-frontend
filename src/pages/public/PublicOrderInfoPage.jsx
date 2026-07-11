@@ -57,8 +57,8 @@ export default function PublicOrderInfoPage() {
         {isError && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-16 text-center px-6">
             <AlertTriangle size={28} className="text-red-300 mx-auto mb-3" />
-            <p className="text-sm font-bold text-gray-700">Order topilmadi</p>
-            <p className="text-xs text-gray-400 mt-1">Havola noto'g'ri yoki order o'chirilgan bo'lishi mumkin</p>
+            <p className="text-sm font-bold text-gray-700">Buyurtma topilmadi</p>
+            <p className="text-xs text-gray-400 mt-1">Havola noto'g'ri yoki buyurtma o'chirilgan bo'lishi mumkin</p>
           </div>
         )}
 
@@ -87,7 +87,7 @@ export default function PublicOrderInfoPage() {
 
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h3 className="text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Jarayon</h3>
-              <Row icon={User2} label="Order yaratuvchi" value={order.createdBy} />
+              <Row icon={User2} label="Buyurtma yaratuvchi" value={order.createdBy} />
               <Row icon={CheckCircle2} label="Picker" value={order.assignedPicker} sub={fmt(order.pickingDoneAt)} />
               <Row icon={CheckCircle2} label="Marker" value={order.marker} sub={fmt(order.markingDoneAt)} />
               <Row icon={CheckCircle2} label="Checker" value={order.checker} sub={fmt(order.checkingDoneAt)} />

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { markerAPI } from '../../api';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
 import { format } from 'date-fns';
 import {
   CheckCircle2, Clock, Upload, ArrowRight, AlertCircle,
@@ -128,7 +129,7 @@ function EtirovModal({ order, window: etirovWindow, onClose, onDone }) {
       onDone();
       onClose();
     },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   const timeUp = secondsLeft <= 0;
@@ -216,11 +217,11 @@ function ReturnToPickingModal({ order, onClose, onDone }) {
   const mutation = useMutation({
     mutationFn: () => markerAPI.returnToPicking(order.id, reason),
     onSuccess: (res) => {
-      toast.success(res.data.message || 'Order picking bo\'limiga qaytarildi');
+      toast.success(res.data.message || 'Buyurtma picking bo\'limiga qaytarildi');
       onDone();
       onClose();
     },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   return (
@@ -246,7 +247,7 @@ function ReturnToPickingModal({ order, onClose, onDone }) {
             className="w-full px-3.5 py-3 rounded-xl border-2 border-gray-200 focus:border-amber-400 outline-none text-sm resize-none transition-colors"
           />
           <p className="text-[11px] text-gray-400">
-            Order aynan shu orderni yig'gan picker'ning "Markingdan qaytganlar" sahifasiga tushadi va
+            Bu buyurtma aynan shu buyurtmani yig'gan picker'ning "Markingdan qaytganlar" sahifasiga tushadi va
             picker'ga 5 jarima bali beriladi.
           </p>
         </div>
@@ -305,7 +306,7 @@ function MineCard({ order }) {
       const hasFile = [...formData.keys()].length > 0;
       setDone(true);
       setTimeout(() => {
-        toast.success(hasFile ? 'Marking fayli yuklandi! Checking bo\'limiga o\'tdi.' : 'Order checking bo\'limiga o\'tdi.');
+        toast.success(hasFile ? 'Marking fayli yuklandi! Checking bo\'limiga o\'tdi.' : 'Buyurtma checking bo\'limiga o\'tdi.');
         qc.invalidateQueries(['marker-mine']);
         qc.invalidateQueries(['marker-available']);
       }, 1200);
@@ -313,7 +314,7 @@ function MineCard({ order }) {
     onError: e => {
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
-      toast.error(e.response?.data?.message || 'Xato');
+      toast.error(getErrorMessage(e));
     },
   });
 
@@ -538,7 +539,7 @@ function StatsRow({ orders }) {
   const overdue = orders.filter(o => o.markingDeadline && new Date(o.markingDeadline) < new Date()).length;
   const onTime  = orders.length - overdue;
   return (
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       {[
         { label: 'Jami',          val: orders.length, icon: Package,      color: 'text-purple-600', bg: 'bg-purple-50' },
         { label: 'O\'z vaqtida',  val: onTime,        icon: TrendingUp,   color: 'text-green-600',  bg: 'bg-green-50'  },
@@ -569,8 +570,8 @@ export default function MarkerMinePage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-black text-gray-900 tracking-tight">Mening orderlarim</h1>
-        <p className="text-sm text-gray-400 mt-0.5 font-medium">Men qabul qilgan va marklayotgan orderlar</p>
+        <h1 className="text-xl font-black text-gray-900 tracking-tight">Mening buyurtmalarim</h1>
+        <p className="text-sm text-gray-400 mt-0.5 font-medium">Men qabul qilgan va marklayotgan buyurtmalar</p>
       </div>
 
       {isLoading ? (
@@ -588,8 +589,8 @@ export default function MarkerMinePage() {
           <div className="w-16 h-16 mx-auto bg-purple-50 rounded-2xl flex items-center justify-center mb-4">
             <Zap size={28} className="text-purple-300" />
           </div>
-          <p className="text-gray-500 text-sm font-semibold">Hozircha biriktrilgan order yo'q</p>
-          <p className="text-gray-300 text-xs mt-1">Mavjud orderlardan birini qabul qiling</p>
+          <p className="text-gray-500 text-sm font-semibold">Hozircha biriktirilgan buyurtma yo'q</p>
+          <p className="text-gray-300 text-xs mt-1">Mavjud buyurtmalardan birini qabul qiling</p>
         </div>
       ) : (
         <>

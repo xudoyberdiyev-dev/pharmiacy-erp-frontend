@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { pickerAPI } from '../../api';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
 import { format } from 'date-fns';
 import {
   CheckCircle2, Clock, FileSpreadsheet, Package,
@@ -88,7 +89,7 @@ function MineCard({ order, blocked }) {
       qc.invalidateQueries(['picker-available']);
       qc.invalidateQueries(['picker-late-active']);
     },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   return (
@@ -172,7 +173,7 @@ function StatsRow({ orders }) {
   const onTime   = orders.length - overdue;
 
   return (
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       {[
         { label: 'Jami',       val: orders.length, icon: Package,     color: 'text-blue-600',  bg: 'bg-blue-50'  },
         { label: 'O\'z vaqtida', val: onTime,      icon: TrendingUp,  color: 'text-green-600', bg: 'bg-green-50' },
@@ -211,8 +212,8 @@ export default function PickerMinePage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-black text-gray-900 tracking-tight">Mening orderlarim</h1>
-        <p className="text-sm text-gray-400 mt-0.5 font-medium">Men qabul qilgan va yig'ayotgan orderlar</p>
+        <h1 className="text-xl font-black text-gray-900 tracking-tight">Mening buyurtmalarim</h1>
+        <p className="text-sm text-gray-400 mt-0.5 font-medium">Men qabul qilgan va yig'ayotgan buyurtmalar</p>
       </div>
 
       {hasReturned && (
@@ -225,10 +226,10 @@ export default function PickerMinePage() {
           </div>
           <div className="min-w-0">
             <p className="text-sm font-black text-amber-800">
-              Sizda markingdan qaytgan {returned.length} ta order bor
+              Sizda markingdan qaytgan {returned.length} ta buyurtma bor
             </p>
             <p className="text-xs text-amber-600 font-medium">
-              Yangi orderlarni yakunlashdan oldin avval shularni yakunlang →
+              Yangi buyurtmalarni yakunlashdan oldin avval shularni yakunlang →
             </p>
           </div>
         </Link>
@@ -249,8 +250,8 @@ export default function PickerMinePage() {
           <div className="w-16 h-16 mx-auto bg-teal-50 rounded-2xl flex items-center justify-center mb-4">
             <Zap size={28} className="text-teal-300" />
           </div>
-          <p className="text-gray-500 text-sm font-semibold">Hozircha biriktrilgan order yo'q</p>
-          <p className="text-gray-300 text-xs mt-1">Mavjud orderlardan birini qabul qiling</p>
+          <p className="text-gray-500 text-sm font-semibold">Hozircha biriktirilgan buyurtma yo'q</p>
+          <p className="text-gray-300 text-xs mt-1">Mavjud buyurtmalardan birini qabul qiling</p>
         </div>
       ) : (
         <>

@@ -60,9 +60,9 @@ export default function MarkerLayout() {
   const etirozliCount = etirozli?.filter(o => (o.etirozlar || []).some(e => e.status === 'PENDING')).length || 0;
 
   const NAV = [
-    { to: '/marker',          end: true,  label: 'Mavjud orderlar',   icon: Package,      badge: available?.length || 0, badgeColor: 'purple' },
-    { to: '/marker/mine',     end: false, label: 'Mening orderlarim', icon: Zap,          badge: mine?.length || 0,      badgeColor: 'green'  },
-    { to: '/marker/returned', end: false, label: 'Qaytgan orderlar',  icon: RotateCcw,    badge: returned?.length || 0,  badgeColor: 'amber'  },
+    { to: '/marker',          end: true,  label: 'Mavjud buyurtmalar',   icon: Package,      badge: available?.length || 0, badgeColor: 'purple' },
+    { to: '/marker/mine',     end: false, label: 'Mening buyurtmalarim', icon: Zap,          badge: mine?.length || 0,      badgeColor: 'green'  },
+    { to: '/marker/returned', end: false, label: 'Qaytgan buyurtmalar',  icon: RotateCcw,    badge: returned?.length || 0,  badgeColor: 'amber'  },
     { to: '/marker/etirozli', end: false, label: 'Etirozli',          icon: AlertCircle,  badge: etirozliCount,          badgeColor: 'amber'  },
     { to: '/marker/history',  end: false, label: 'Tarix',             icon: Clock,        badge: 0,                     badgeColor: 'purple' },
   ];

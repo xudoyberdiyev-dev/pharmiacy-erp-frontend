@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { vehicleAPI } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
 import {
   Truck, Plus, Pencil, Trash2, ToggleLeft, ToggleRight,
   X, Check, AlertTriangle, Car
@@ -218,25 +219,25 @@ export default function VehiclesPage() {
   const createMut = useMutation({
     mutationFn: vehicleAPI.create,
     onSuccess: () => { toast.success('Mashina qo\'shildi'); setModal(null); invalidate(); },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   const updateMut = useMutation({
     mutationFn: ({ id, data }) => vehicleAPI.update(id, data),
     onSuccess: () => { toast.success('Saqlandi'); setModal(null); invalidate(); },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   const toggleMut = useMutation({
     mutationFn: vehicleAPI.toggleActive,
     onSuccess: () => { invalidate(); },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   const deleteMut = useMutation({
     mutationFn: vehicleAPI.remove,
     onSuccess: () => { toast.success("O'chirildi"); setDeleteTarget(null); invalidate(); },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   const active   = vehicles.filter(v => v.isActive).length;
@@ -266,7 +267,7 @@ export default function VehiclesPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: 'Jami',    value: pagination.total ?? vehicles.length, color: 'text-blue-600',  bg: 'bg-blue-50'  },
           { label: 'Faol',    value: active,              color: 'text-green-600', bg: 'bg-green-50' },

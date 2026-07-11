@@ -8,8 +8,8 @@ import { useState, useRef, useEffect } from 'react';
 
 const NAV_LINKS = [
   { to: '/operator',            label: 'Dashboard',   icon: LayoutDashboard, end: true },
-  { to: '/operator/orders',     label: 'Orderlar',    icon: Package },
-  { to: '/operator/orders/new', label: 'Yangi order', icon: PlusCircle, highlight: true },
+  { to: '/operator/orders',     label: 'Buyurtmalar',    icon: Package },
+  { to: '/operator/orders/new', label: 'Yangi buyurtma', icon: PlusCircle, highlight: true },
 ];
 
 export default function OperatorLayout() {

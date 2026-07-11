@@ -1,8 +1,8 @@
 const STATUS_MAP = {
   NEW:        { label: 'Yangi',        cls: 'badge-new' },
-  PICKING:    { label: 'Picking',      cls: 'badge-picking' },
-  MARKING:    { label: 'Marking',      cls: 'badge-marking' },
-  CHECKING:   { label: 'Cheking',      cls: 'badge-checking' },
+  PICKING:    { label: "Yig'ilmoqda",  cls: 'badge-picking' },
+  MARKING:    { label: 'Markalash',    cls: 'badge-marking' },
+  CHECKING:   { label: 'Tekshiruv',    cls: 'badge-checking' },
   LOADING:    { label: 'Yuklanmoqda',   cls: 'badge-loading' },
   IN_TRANSIT: { label: "Yo'lda",       cls: 'badge-in_transit' },
   DELIVERED:  { label: 'Yetkazildi',   cls: 'badge-delivered' },

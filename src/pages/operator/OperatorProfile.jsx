@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { authAPI } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
 import { User, Lock, Eye, EyeOff, Check, Shield, Phone, BadgeCheck } from 'lucide-react';
 
 const inp = "w-full px-3.5 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl text-sm font-medium focus:outline-none focus:border-blue-400 focus:bg-white transition-all pr-11";
@@ -16,7 +17,7 @@ export default function OperatorProfile() {
   const changePw = useMutation({
     mutationFn: () => authAPI.changePassword({ oldPassword: pw.oldPassword, newPassword: pw.newPassword }),
     onSuccess: () => { toast.success('Parol o\'zgartirildi'); setPw({ oldPassword: '', newPassword: '', confirmPassword: '' }); },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   const handleSubmit = (e) => {

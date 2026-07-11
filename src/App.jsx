@@ -7,6 +7,7 @@ import AccountantLayout from './components/layout/AccountantLayout';
 import AdminHeaderLayout from './components/layout/AdminHeaderLayout';
 import OperatorLayout from './components/layout/OperatorLayout';
 import LoginPage from './pages/auth/LoginPage';
+import NotFoundPage from './pages/NotFoundPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import ClientsPage from './pages/admin/ClientsPage';
 import OrdersPage from './pages/admin/OrdersPage';
@@ -63,6 +64,8 @@ import SuperAdminSalesPage from './pages/superadmin/SuperAdminSalesPage';
 import SuperAdminRegionsPage from './pages/superadmin/SuperAdminRegionsPage';
 import SuperAdminAlertsPage from './pages/superadmin/SuperAdminAlertsPage';
 import SuperAdminDriversMapPage from './pages/superadmin/SuperAdminDriversMapPage';
+import SystemOwnerLayout from './components/layout/SystemOwnerLayout';
+import SystemOwnerPage from './pages/systemowner/SystemOwnerPage';
 
 const qc = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30000 } }
@@ -95,6 +98,7 @@ function ProtectedRoute({ children, roles }) {
 }
 
 const ROOT_REDIRECTS = {
+  SYSTEM_OWNER: '/system-owner',
   ADMIN: '/admin', SUPER_ADMIN: '/superadmin',
   OPERATOR: '/operator',
   PICKER: '/picker', MARKER: '/marker',
@@ -202,7 +206,12 @@ function AppRoutes() {
         <Route path="activity" element={<SuperAdminActivity />} />
       </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* SYSTEM OWNER */}
+      <Route path="/system-owner" element={<ProtectedRoute roles={['SYSTEM_OWNER']}><SystemOwnerLayout /></ProtectedRoute>}>
+        <Route index element={<SystemOwnerPage />} />
+      </Route>
+
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }

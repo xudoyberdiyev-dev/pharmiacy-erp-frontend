@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { pickerAPI } from '../../api';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
 import { AlertCircle, Clock, FileSpreadsheet, CheckCircle2, XCircle, X } from 'lucide-react';
 
 const ETIROV_TYPE_LABELS = {
@@ -40,7 +41,7 @@ function RejectModal({ etirov, onClose, onDone }) {
       onDone();
       onClose();
     },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   const canSubmit = selected.length > 0 || comment.trim().length > 0;
@@ -126,7 +127,7 @@ function EtirovActions({ etirov, onDone }) {
       onDone();
       qc.invalidateQueries(['picker-etirozli']);
     },
-    onError: e => toast.error(e.response?.data?.message || 'Xato'),
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   if (etirov.status !== 'PENDING') return null;

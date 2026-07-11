@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userAPI } from '../../api';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
 import { UserCog, Plus, X, UserCheck, UserX, Search, Pencil } from 'lucide-react';
 import Pagination from '../../components/shared/Pagination';
 
@@ -28,7 +29,7 @@ function AdminModal({ admin, onClose }) {
       qc.invalidateQueries({ queryKey: ['admins'] });
       onClose();
     },
-    onError: (e) => toast.error(e.response?.data?.message || 'Xato yuz berdi'),
+    onError: (e) => toast.error(getErrorMessage(e)),
   });
 
   const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
@@ -96,7 +97,7 @@ export default function SuperAdminAdminsPage() {
   const toggleMutation = useMutation({
     mutationFn: (id) => userAPI.toggleActive(id),
     onSuccess: () => { toast.success('Holat o\'zgartirildi!'); qc.invalidateQueries({ queryKey: ['admins'] }); },
-    onError: (e) => toast.error(e.response?.data?.message || 'Xato'),
+    onError: (e) => toast.error(getErrorMessage(e)),
   });
 
   const admins = data?.data || [];
@@ -122,7 +123,7 @@ export default function SuperAdminAdminsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: 'Jami adminlar', value: pagination.total ?? admins.length, color: 'text-blue-600', bg: 'bg-blue-50' },
           { label: 'Faol', value: activeCount, color: 'text-green-600', bg: 'bg-green-50' },
@@ -162,7 +163,7 @@ export default function SuperAdminAdminsPage() {
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase tracking-wide bg-gray-50">

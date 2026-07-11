@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { orderAPI } from '../../api';
 import { ArrowLeft, Printer, Building2, MapPin, FileSpreadsheet, Package } from 'lucide-react';
+import NotFoundState from '../../components/shared/NotFoundState';
 
 const BOX_TYPE_LABELS = { SBOR: 'Sbor', ORIGINAL: 'Original', XALTA: 'Xalta' };
 const BOX_TYPE_COLORS = {
@@ -97,7 +98,7 @@ export default function CheckerPrintPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const { data: order, isLoading } = useQuery({
+  const { data: order, isLoading, error } = useQuery({
     queryKey: ['order', id],
     queryFn: () => orderAPI.getOne(id),
     select: r => r.data.data,
@@ -113,7 +114,7 @@ export default function CheckerPrintPage() {
   }
 
   if (!order) {
-    return <div className="py-20 text-center text-gray-400">Order topilmadi</div>;
+    return <NotFoundState error={error} backTo="/checker/mine" />;
   }
 
   const labels = buildLabels(order.boxBreakdown);

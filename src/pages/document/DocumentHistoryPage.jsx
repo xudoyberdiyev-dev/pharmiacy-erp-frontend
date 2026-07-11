@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentAPI } from '../../api';
 import StatusBadge from '../../components/shared/StatusBadge';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
 import { format } from 'date-fns';
 import {
   History, Search, X, RefreshCw, Building2, FileCheck2,
@@ -116,10 +117,10 @@ export default function DocumentHistoryPage() {
   const cancelMutation = useMutation({
     mutationFn: (id) => documentAPI.cancelOrder(id),
     onSuccess: () => {
-      toast.success('Order bekor qilindi');
+      toast.success('Buyurtma bekor qilindi');
       qc.invalidateQueries(['document']);
     },
-    onError: (e) => toast.error(e.response?.data?.message || 'Xato yuz berdi'),
+    onError: (e) => toast.error(getErrorMessage(e)),
     onSettled: () => setCancellingId(null),
   });
 

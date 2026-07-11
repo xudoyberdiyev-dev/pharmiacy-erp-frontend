@@ -22,16 +22,16 @@ const CATEGORY_META = {
 };
 
 const ACTION_META = {
-  ORDER_CREATED: { label: 'Order yaratildi', cat: 'create' },
+  ORDER_CREATED: { label: 'Buyurtma yaratildi', cat: 'create' },
   CLIENT_CREATED: { label: "Klient qo'shildi", cat: 'create' },
   USER_CREATED: { label: "Xodim qo'shildi", cat: 'create' },
   VEHICLE_CREATED: { label: "Mashina qo'shildi", cat: 'create' },
 
-  ORDER_UPDATED: { label: 'Order tahrirlandi', cat: 'update' },
+  ORDER_UPDATED: { label: 'Buyurtma tahrirlandi', cat: 'update' },
   CLIENT_UPDATED: { label: 'Klient tahrirlandi', cat: 'update' },
   VEHICLE_UPDATED: { label: 'Mashina tahrirlandi', cat: 'update' },
 
-  ORDER_CANCELLED: { label: 'Order bekor qilindi', cat: 'delete' },
+  ORDER_CANCELLED: { label: 'Buyurtma bekor qilindi', cat: 'delete' },
   CLIENT_DEACTIVATED: { label: "Klient o'chirildi", cat: 'delete' },
   USER_BLOCKED: { label: 'Xodim bloklandi', cat: 'delete' },
   VEHICLE_DEACTIVATED: { label: 'Mashina bloklandi', cat: 'delete' },
@@ -49,6 +49,7 @@ const ACTION_META = {
   CHECKING_STARTED: { label: 'Cheking boshlandi', cat: 'progress' },
   CHECKING_COMPLETED: { label: 'Cheking yakunlandi', cat: 'progress' },
   DRIVER_ASSIGNED: { label: 'Haydovchi biriktirildi', cat: 'progress' },
+  DELIVERY_STARTED: { label: 'Haydovchi yetkazishni boshladi', cat: 'progress' },
   TRIP_ASSIGNED: { label: 'Reys biriktirildi', cat: 'progress' },
   DOCUMENT_ISSUED: { label: 'Hujjat chiqarildi', cat: 'progress' },
   DELIVERED: { label: 'Yetkazildi', cat: 'success' },

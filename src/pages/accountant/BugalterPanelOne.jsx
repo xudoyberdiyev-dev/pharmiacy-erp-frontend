@@ -45,7 +45,7 @@ export default function BugalterPanelOne() {
           <p className="text-gray-400 text-sm font-semibold">1-tasdiqlash uchun order yo'q</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase tracking-wide bg-gray-50">

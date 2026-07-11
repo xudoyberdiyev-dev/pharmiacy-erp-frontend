@@ -13,8 +13,8 @@ const ROLE_MENUS = {
   OPERATOR: [
     { to: '/operator', icon: LayoutDashboard, label: 'Bosh sahifa' },
     { to: '/operator/clients', icon: Users, label: 'Klientlar' },
-    { to: '/operator/orders', icon: Package, label: 'Orderlar' },
-    { to: '/operator/orders/new', icon: ClipboardList, label: 'Yangi order' },
+    { to: '/operator/orders', icon: Package, label: 'Buyurtmalar' },
+    { to: '/operator/orders/new', icon: ClipboardList, label: 'Yangi buyurtma' },
   ],
   PICKER: [
     { to: '/picker', icon: ClipboardList, label: 'Picking panel' },
@@ -26,7 +26,7 @@ const ROLE_MENUS = {
     { to: '/checker', icon: CheckSquare, label: 'Cheking panel' },
   ],
   DRIVER: [
-    { to: '/driver', icon: Truck, label: 'Mening orderlarim' },
+    { to: '/driver', icon: Truck, label: 'Mening buyurtmalarim' },
   ],
   ACCOUNTANT1: [
     { to: '/accountant1', icon: FileText, label: '1-tasdiqlash' },

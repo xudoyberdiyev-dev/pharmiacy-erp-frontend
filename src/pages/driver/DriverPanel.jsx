@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { orderAPI } from '../../api';
 import StatusBadge from '../../components/shared/StatusBadge';
 import { MapPin, ChevronRight } from 'lucide-react';
+import { isToday } from 'date-fns';
 
 export default function DriverPanel() {
   const navigate = useNavigate();
@@ -17,10 +18,27 @@ export default function DriverPanel() {
   const orders = data || [];
   const active = orders.filter(o => o.status === 'IN_TRANSIT');
   const done = orders.filter(o => o.status === 'DELIVERED');
+  const deliveredToday = done.filter(o => o.deliveredAt && isToday(new Date(o.deliveredAt))).length;
 
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-black text-gray-900">Mening buyurtmalarim</h1>
+
+      {/* Kichik statistika */}
+      <div className="grid grid-cols-3 gap-2.5">
+        <div className="bg-orange-50 rounded-2xl p-3 text-center">
+          <p className="text-2xl font-black text-orange-600">{active.length}</p>
+          <p className="text-[10px] text-gray-500 font-bold mt-0.5">Faol</p>
+        </div>
+        <div className="bg-green-50 rounded-2xl p-3 text-center">
+          <p className="text-2xl font-black text-green-600">{deliveredToday}</p>
+          <p className="text-[10px] text-gray-500 font-bold mt-0.5">Bugun yetkazilgan</p>
+        </div>
+        <div className="bg-blue-50 rounded-2xl p-3 text-center">
+          <p className="text-2xl font-black text-blue-600">{done.length}</p>
+          <p className="text-[10px] text-gray-500 font-bold mt-0.5">Jami yetkazilgan</p>
+        </div>
+      </div>
 
       {/* Faol orderlar */}
       <div>

@@ -210,7 +210,7 @@ export default function SuperAdminRegionsPage() {
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-black text-gray-900">{selected.orderCount}</p>
-                  <p className="text-[11px] text-gray-400">Order soni</p>
+                  <p className="text-[11px] text-gray-400">Buyurtma soni</p>
                 </div>
                 <div className="text-center">
                   <p className="text-lg font-black text-green-600">{selected.totalAmount.toLocaleString()}</p>

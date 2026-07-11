@@ -75,8 +75,8 @@ export default function PickerLayout() {
   const returnedCount = returned?.length || 0;
 
   const NAV = [
-    { to: '/picker',           end: true, label: 'Mavjud orderlar', icon: Package,      badge: availCount,    badgeColor: 'blue'  },
-    { to: '/picker/mine',      end: false, label: 'Mening orderlarim', icon: Zap,        badge: mineCount,     badgeColor: 'green' },
+    { to: '/picker',           end: true, label: 'Mavjud buyurtmalar', icon: Package,      badge: availCount,    badgeColor: 'blue'  },
+    { to: '/picker/mine',      end: false, label: 'Mening buyurtmalarim', icon: Zap,        badge: mineCount,     badgeColor: 'green' },
     { to: '/picker/returned',  end: false, label: 'Markingdan qaytganlar', icon: RotateCcw, badge: returnedCount, badgeColor: 'amber' },
     { to: '/picker/late',      end: false, label: 'Tarix',           icon: Calendar,     badge: lateCount,    badgeColor: 'red'   },
     { to: '/picker/etirozli',  end: false, label: 'Etirozli',        icon: AlertCircle,  badge: etirozliCount, badgeColor: 'amber' },
