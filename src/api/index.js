@@ -3,6 +3,7 @@ import api from './axios';
 // ===== AUTH =====
 export const authAPI = {
   login: (data) => api.post('/auth/login', data),
+  verifyOtp: (data) => api.post('/auth/verify-otp', data),
   qrLogin: (data) => api.post('/auth/qr-login', data),
   me: () => api.get('/auth/me'),
   changePassword: (data) => api.put('/auth/change-password', data),
@@ -126,6 +127,7 @@ export const userAPI = {
   update: (id, data) => api.put(`/users/${id}`, data),
   updateMe: (data) => api.patch('/users/me', data),
   toggleActive: (id) => api.patch(`/users/${id}/toggle`),
+  getCascadeImpact: () => api.get('/users/cascade-impact'),
   regenerateQr: (id) => api.post(`/users/${id}/regenerate-qr`),
   getPenalties: (id) => api.get(`/users/${id}/penalties`),
   getPerformance: (id, params) => api.get(`/users/${id}/performance`, { params }),
@@ -154,6 +156,13 @@ export const statsAPI = {
   getOrdersDetail: (params) => api.get('/stats/orders-detail', { params }),
   getTopClients: (params) => api.get('/stats/top-clients', { params }),
   getEmployeePerformance: (params) => api.get('/stats/employee-performance', { params }),
+};
+
+// ===== SYSTEM OWNER: DATA RETENTION =====
+export const dataRetentionAPI = {
+  getPurgePreview: (params) => api.get('/system-owner/orders-purge-preview', { params }),
+  exportOrders: (params) => api.get('/system-owner/orders-export', { params, responseType: 'blob' }),
+  purgeOrders: (data) => api.delete('/system-owner/orders-purge', { data }),
 };
 
 // ===== NOTIFICATIONS =====

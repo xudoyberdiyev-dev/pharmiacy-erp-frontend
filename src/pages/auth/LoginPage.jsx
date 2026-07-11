@@ -3,13 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { authAPI } from '../../api';
 import { useAuthStore } from '../../store/useAuthStore';
+import { getErrorMessage } from '../../lib/errors';
 import toast from 'react-hot-toast';
 import {
   Eye, EyeOff, Phone, Lock, QrCode, ArrowLeft,
-  Scan, CheckCircle, Zap
+  Scan, CheckCircle, Zap, ShieldCheck, KeyRound
 } from 'lucide-react';
 
 const ROLE_REDIRECTS = {
+  SYSTEM_OWNER: '/system-owner',
   ADMIN: '/admin', SUPER_ADMIN: '/superadmin',
   OPERATOR: '/operator',
   PICKER: '/picker', MARKER: '/marker',
@@ -18,6 +20,117 @@ const ROLE_REDIRECTS = {
   DOCUMENT: '/document',
 };
 
+const OTP_RESEND_SECONDS = 30;
+
+// ─── SYSTEM_OWNER uchun ikkinchi bosqich — Telegram orqali kelgan kod ─────
+function OtpForm({ userId, onBack }) {
+  const { verifyOtp, login } = useAuth();
+  const navigate = useNavigate();
+  const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [resendSeconds, setResendSeconds] = useState(OTP_RESEND_SECONDS);
+
+  useEffect(() => {
+    if (resendSeconds <= 0) return undefined;
+    const t = setInterval(() => setResendSeconds((s) => s - 1), 1000);
+    return () => clearInterval(t);
+  }, [resendSeconds]);
+
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    if (code.trim().length !== 6) return toast.error('6 xonali kodni to\'liq kiriting');
+    setLoading(true);
+    try {
+      const user = await verifyOtp(userId, code.trim());
+      toast.success(`Xush kelibsiz, ${user.fullName}!`);
+      navigate(ROLE_REDIRECTS[user.role] || '/');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (resendSeconds > 0) return;
+    try {
+      await login(onBack.phone, onBack.password);
+      toast.success('Yangi kod yuborildi');
+      setResendSeconds(OTP_RESEND_SECONDS);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+  };
+
+  return (
+    <form onSubmit={handleVerify} className="space-y-4">
+      <div className="flex items-start gap-2.5 rounded-xl p-3.5" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)' }}>
+        <ShieldCheck size={18} className="shrink-0 mt-0.5" style={{ color: '#60a5fa' }} />
+        <p className="text-xs" style={{ color: 'rgba(186,210,255,0.85)' }}>
+          Telegramga 6 xonali tasdiqlash kodi yuborildi. Kod 5 daqiqa amal qiladi.
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1.5" style={{ color: 'rgba(186,210,255,0.8)' }}>
+          Tasdiqlash kodi
+        </label>
+        <div className="relative">
+          <KeyRound size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: 'rgba(148,187,255,0.5)' }} />
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={6}
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+            placeholder="000000"
+            autoFocus
+            className="w-full rounded-xl pl-10 pr-4 py-2.5 text-lg font-black tracking-[0.3em] outline-none transition-all text-center"
+            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', color: '#fff' }}
+          />
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        disabled={loading || code.length !== 6}
+        className="w-full rounded-xl py-2.5 text-sm font-semibold text-white transition-all duration-200 flex items-center justify-center gap-2 mt-2 disabled:opacity-50"
+        style={{
+          background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+          boxShadow: loading ? 'none' : '0 4px 20px rgba(59,130,246,0.35)',
+        }}
+      >
+        {loading ? (
+          <>
+            <span className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(255,255,255,0.3)', borderTopColor: '#fff' }} />
+            Tekshirilmoqda...
+          </>
+        ) : 'Tasdiqlash'}
+      </button>
+
+      <div className="flex items-center justify-between pt-1">
+        <button
+          type="button"
+          onClick={() => onBack.reset()}
+          className="flex items-center gap-1.5 text-sm transition-colors"
+          style={{ color: 'rgba(96,165,250,0.7)' }}
+        >
+          <ArrowLeft size={14} /> Orqaga
+        </button>
+        <button
+          type="button"
+          onClick={handleResend}
+          disabled={resendSeconds > 0}
+          className="text-sm transition-colors disabled:opacity-40"
+          style={{ color: 'rgba(96,165,250,0.7)' }}
+        >
+          {resendSeconds > 0 ? `Qayta yuborish (${resendSeconds}s)` : 'Qayta yuborish'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 // ─── Parol bilan kirish ────────────────────────────────────────────────────
 function PasswordForm({ onSwitchQr }) {
   const { login } = useAuth();
@@ -25,6 +138,7 @@ function PasswordForm({ onSwitchQr }) {
   const [form, setForm] = useState({ phone: '+998', password: '' });
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [otpUserId, setOtpUserId] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,15 +147,29 @@ function PasswordForm({ onSwitchQr }) {
     }
     setLoading(true);
     try {
-      const user = await login(form.phone.trim(), form.password);
-      toast.success(`Xush kelibsiz, ${user.fullName}!`);
-      navigate(ROLE_REDIRECTS[user.role] || '/');
+      const result = await login(form.phone.trim(), form.password);
+      if (result.requiresOtp) {
+        setOtpUserId(result.userId);
+        toast.success('Tasdiqlash kodi Telegramga yuborildi');
+        return;
+      }
+      toast.success(`Xush kelibsiz, ${result.user.fullName}!`);
+      navigate(ROLE_REDIRECTS[result.user.role] || '/');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Login yoki parol xato');
     } finally {
       setLoading(false);
     }
   };
+
+  if (otpUserId) {
+    return (
+      <OtpForm
+        userId={otpUserId}
+        onBack={{ phone: form.phone.trim(), password: form.password, reset: () => setOtpUserId(null) }}
+      />
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">

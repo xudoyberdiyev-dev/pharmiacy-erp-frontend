@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "65b7e8ac-86ae-41ff-b1ad-e35c60eb9e55"
+      }
+    },
+    "android": {
+      "package": "com.azizbekxudoyberdiyev.erpfrontend"
+    }
+  }
+}

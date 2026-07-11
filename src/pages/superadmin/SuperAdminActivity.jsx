@@ -37,10 +37,13 @@ const ACTION_META = {
   VEHICLE_DEACTIVATED: { label: 'Mashina bloklandi', cat: 'delete' },
   VEHICLE_DELETED: { label: "Mashina o'chirildi", cat: 'delete' },
   ETIROV_REJECTED_BY_PICKER: { label: 'Etiroz rad etildi', cat: 'delete' },
+  SUPER_ADMIN_CASCADE_BLOCKED: { label: "Super Admin bloklandi — butun tizim to'xtatildi", cat: 'delete' },
+  OLD_ORDERS_PURGED: { label: "Eski buyurtmalar zaxiralanib o'chirildi", cat: 'delete' },
 
   CLIENT_ACTIVATED: { label: 'Klient faollashtirildi', cat: 'activate' },
   USER_ACTIVATED: { label: 'Xodim faollashtirildi', cat: 'activate' },
   VEHICLE_ACTIVATED: { label: 'Mashina faollashtirildi', cat: 'activate' },
+  SUPER_ADMIN_CASCADE_UNBLOCKED: { label: 'Super Admin qayta faollashtirildi — tizim tiklandi', cat: 'activate' },
 
   PICKING_STARTED: { label: 'Picking boshlandi', cat: 'progress' },
   PICKING_COMPLETED: { label: 'Picking yakunlandi', cat: 'progress' },
@@ -70,6 +73,7 @@ const ACTION_META = {
 };
 
 const ROLE_LABELS = {
+  SYSTEM_OWNER: 'System Owner',
   ADMIN: 'Admin', SUPER_ADMIN: 'Super Admin', OPERATOR: 'Operator', PICKER: 'Picker',
   MARKER: 'Marker', CHECKER: 'Checker', DRIVER: 'Haydovchi',
   ACCOUNTANT1: 'Bugalter 1', ACCOUNTANT2: 'Bugalter 2', DOCUMENT: 'Hujjatchi',

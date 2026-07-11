@@ -11,8 +11,23 @@ export const useAuthStore = create(
 
       setLoading: (loading) => set({ loading }),
 
+      // SYSTEM_OWNER uchun ikkinchi bosqich (Telegram OTP) talab qilinishi
+      // mumkin — shu holatda token/user saqlanmaydi, { requiresOtp, userId }
+      // qaytariladi va chaqiruvchi verifyOtp() bilan davom ettirishi kerak.
+      // Boshqa rollarda hozirgidek bir martalik { user } qaytadi.
       login: async (phone, password) => {
         const res = await authAPI.login({ phone, password });
+        if (res.data.requiresOtp) {
+          return { requiresOtp: true, userId: res.data.userId };
+        }
+        const { token, user } = res.data;
+        set({ token, user });
+        localStorage.setItem('erp_token', token);
+        return { user };
+      },
+
+      verifyOtp: async (userId, code) => {
+        const res = await authAPI.verifyOtp({ userId, code });
         const { token, user } = res.data;
         set({ token, user });
         localStorage.setItem('erp_token', token);

@@ -1,6 +1,11 @@
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { KeyRound, LogOut } from 'lucide-react';
+import { KeyRound, LogOut, Users, DatabaseZap } from 'lucide-react';
+
+const NAV_ITEMS = [
+  { to: '/system-owner', label: 'Super Adminlar', icon: Users, end: true },
+  { to: '/system-owner/data-retention', label: "Ma'lumotlarni tozalash", icon: DatabaseZap, end: false },
+];
 
 export default function SystemOwnerLayout() {
   const { user, logout } = useAuth();
@@ -20,6 +25,23 @@ export default function SystemOwnerLayout() {
             </div>
           </div>
 
+          <nav className="hidden md:flex items-center gap-1">
+            {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={end}
+                className={({ isActive }) =>
+                  `flex items-center gap-1.5 px-3 py-2 rounded-xl text-[13px] font-semibold transition-colors ${
+                    isActive ? 'bg-slate-900 text-white' : 'text-gray-600 hover:bg-gray-100'
+                  }`
+                }
+              >
+                <Icon size={14} /> {label}
+              </NavLink>
+            ))}
+          </nav>
+
           <div className="flex-1" />
 
           <div className="flex items-center gap-3 shrink-0">
@@ -35,6 +57,23 @@ export default function SystemOwnerLayout() {
             </button>
           </div>
         </div>
+
+        <nav className="md:hidden max-w-screen-xl mx-auto px-4 pb-2 flex items-center gap-1 overflow-x-auto">
+          {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              className={({ isActive }) =>
+                `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold whitespace-nowrap transition-colors ${
+                  isActive ? 'bg-slate-900 text-white' : 'text-gray-600 bg-gray-100'
+                }`
+              }
+            >
+              <Icon size={13} /> {label}
+            </NavLink>
+          ))}
+        </nav>
       </header>
 
       <main className="flex-1 max-w-screen-xl mx-auto w-full px-4 py-6">

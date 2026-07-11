@@ -66,6 +66,7 @@ import SuperAdminAlertsPage from './pages/superadmin/SuperAdminAlertsPage';
 import SuperAdminDriversMapPage from './pages/superadmin/SuperAdminDriversMapPage';
 import SystemOwnerLayout from './components/layout/SystemOwnerLayout';
 import SystemOwnerPage from './pages/systemowner/SystemOwnerPage';
+import DataRetentionPage from './pages/systemowner/DataRetentionPage';
 
 const qc = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30000 } }
@@ -209,6 +210,7 @@ function AppRoutes() {
       {/* SYSTEM OWNER */}
       <Route path="/system-owner" element={<ProtectedRoute roles={['SYSTEM_OWNER']}><SystemOwnerLayout /></ProtectedRoute>}>
         <Route index element={<SystemOwnerPage />} />
+        <Route path="data-retention" element={<DataRetentionPage />} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />
