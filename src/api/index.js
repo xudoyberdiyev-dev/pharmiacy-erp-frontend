@@ -7,6 +7,8 @@ export const authAPI = {
   qrLogin: (data) => api.post('/auth/qr-login', data),
   me: () => api.get('/auth/me'),
   changePassword: (data) => api.put('/auth/change-password', data),
+  requestCredentialChange: (data) => api.post('/auth/request-credential-change', data),
+  confirmCredentialChange: (data) => api.post('/auth/confirm-credential-change', data),
 };
 
 // ===== CLIENTS =====

@@ -1,10 +1,11 @@
 import { Outlet, useNavigate, NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { KeyRound, LogOut, Users, DatabaseZap } from 'lucide-react';
+import { KeyRound, LogOut, Users, DatabaseZap, Settings } from 'lucide-react';
 
 const NAV_ITEMS = [
   { to: '/system-owner', label: 'Super Adminlar', icon: Users, end: true },
   { to: '/system-owner/data-retention', label: "Ma'lumotlarni tozalash", icon: DatabaseZap, end: false },
+  { to: '/system-owner/settings', label: 'Sozlamalar', icon: Settings, end: false },
 ];
 
 export default function SystemOwnerLayout() {

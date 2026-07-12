@@ -30,6 +30,7 @@ const ACTION_META = {
   ORDER_UPDATED: { label: 'Buyurtma tahrirlandi', cat: 'update' },
   CLIENT_UPDATED: { label: 'Klient tahrirlandi', cat: 'update' },
   VEHICLE_UPDATED: { label: 'Mashina tahrirlandi', cat: 'update' },
+  SYSTEM_OWNER_CREDENTIALS_CHANGED: { label: "System Owner login ma'lumotlarini o'zgartirdi", cat: 'update' },
 
   ORDER_CANCELLED: { label: 'Buyurtma bekor qilindi', cat: 'delete' },
   CLIENT_DEACTIVATED: { label: "Klient o'chirildi", cat: 'delete' },
