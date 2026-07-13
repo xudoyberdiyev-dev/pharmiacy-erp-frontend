@@ -39,6 +39,7 @@ import CheckerLayout from './components/layout/CheckerLayout';
 import CheckerAvailablePage from './pages/checker/CheckerAvailablePage';
 import CheckerMinePage from './pages/checker/CheckerMinePage';
 import CheckerHistoryPage from './pages/checker/CheckerHistoryPage';
+import CheckerEtirozlarPage from './pages/checker/CheckerEtirozlarPage';
 import CheckerPrintPage from './pages/checker/CheckerPrintPage';
 import DocumentLayout from './components/layout/DocumentLayout';
 import DocumentPendingPage from './pages/document/DocumentPendingPage';
@@ -166,6 +167,7 @@ function AppRoutes() {
         <Route index element={<CheckerAvailablePage />} />
         <Route path="mine" element={<CheckerMinePage />} />
         <Route path="history" element={<CheckerHistoryPage />} />
+        <Route path="etirozlar" element={<CheckerEtirozlarPage />} />
         <Route path="print/:id" element={<CheckerPrintPage />} />
       </Route>
       {/* DOCUMENT */}

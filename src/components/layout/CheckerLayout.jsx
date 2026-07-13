@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { checkerAPI } from '../../api';
-import { ClipboardCheck, Zap, Clock, Activity, ChevronDown, LogOut } from 'lucide-react';
+import { ClipboardCheck, Zap, Clock, Activity, ChevronDown, LogOut, AlertCircle } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 function Badge({ count, color = 'gray' }) {
@@ -43,11 +43,18 @@ export default function CheckerLayout() {
     refetchInterval: 15000,
     select: r => r.data.data || [],
   });
+  const { data: etirozli } = useQuery({
+    queryKey: ['checker-etirozli'],
+    queryFn: checkerAPI.getEtirozli,
+    refetchInterval: 20000,
+    select: r => r.data.data || [],
+  });
 
   const NAV = [
     { to: '/checker',         end: true,  label: 'Mavjud buyurtmalar',   icon: ClipboardCheck, badge: available?.length || 0, badgeColor: 'sky'   },
     { to: '/checker/mine',    end: false, label: 'Mening buyurtmalarim', icon: Zap,            badge: mine?.length || 0,      badgeColor: 'green' },
     { to: '/checker/history', end: false, label: 'Tarix',             icon: Clock,          badge: 0,                     badgeColor: 'sky'   },
+    { to: '/checker/etirozlar', end: false, label: 'Etirozlar',       icon: AlertCircle,    badge: etirozli?.length || 0, badgeColor: 'red'   },
   ];
 
   const initials = user?.fullName?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || '?';

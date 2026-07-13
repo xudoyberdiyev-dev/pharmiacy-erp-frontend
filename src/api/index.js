@@ -94,6 +94,8 @@ export const checkerAPI = {
   accept:       (id) => api.patch(`/checker/orders/${id}/accept`),
   returnToMarking: (id, reason) => api.patch(`/checker/orders/${id}/return-to-marking`, { reason }),
   complete:     (id, data) => api.patch(`/checker/orders/${id}/complete`, data),
+  getEtirozli: () => api.get('/checker/etirozlar'),
+  respondEtirov: (id, data) => api.patch(`/checker/etirozlar/${id}/respond`, data),
 };
 
 // ===== DOCUMENT =====
@@ -117,6 +119,7 @@ export const documentAPI = {
   cancelOrder: (id, reason) => api.patch(`/document/orders/${id}/cancel`, { reason }),
   getEtirozli: () => api.get('/document/etirozlar'),
   respondEtirov: (id, data) => api.patch(`/document/etirozlar/${id}/respond`, data),
+  raiseCheckerEtirov: (id, data) => api.post(`/document/orders/${id}/etirov`, data),
 };
 
 // ===== PUBLIC (login talab qilmaydi — QR skan uchun) =====

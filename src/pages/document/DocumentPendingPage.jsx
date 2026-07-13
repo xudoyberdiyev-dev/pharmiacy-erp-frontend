@@ -7,9 +7,10 @@ import { getErrorMessage } from '../../lib/errors';
 import { format } from 'date-fns';
 import {
   FileSpreadsheet, Search, X, CheckSquare, Square,
-  RefreshCw, Building2, Truck, Sparkles, Pencil, Check
+  RefreshCw, Building2, Truck, Sparkles, Pencil, Check, AlertTriangle
 } from 'lucide-react';
 import TripModal from './TripModal';
+import CheckerEtirovModal from './components/CheckerEtirovModal';
 
 function EmptyState() {
   return (
@@ -31,6 +32,7 @@ export default function DocumentPendingPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
+  const [etirovOrder, setEtirovOrder] = useState(null);
 
   const { data: orders = [], isLoading, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ['document', 'pending'],
@@ -150,7 +152,7 @@ export default function DocumentPendingPage() {
                       {allSelected ? <CheckSquare size={17} className="text-indigo-600" /> : <Square size={17} />}
                     </button>
                   </th>
-                  {['FAKTURA', 'SHARTNOMA', 'LOT', 'TASHKILOT', 'SUMMA'].map(h => (
+                  {['FAKTURA', 'SHARTNOMA', 'LOT', 'TASHKILOT', 'SUMMA', 'AMALLAR'].map(h => (
                     <th key={h} className="text-left text-[11px] font-black text-gray-400 uppercase tracking-widest px-5 py-3.5">{h}</th>
                   ))}
                 </tr>
@@ -231,6 +233,15 @@ export default function DocumentPendingPage() {
                           </div>
                         )}
                       </td>
+                      <td className="px-5 py-3.5" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => setEtirovOrder(o)}
+                          title="Checkerga etiroz bildirish"
+                          className="w-7 h-7 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition-colors"
+                        >
+                          <AlertTriangle size={14} />
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -282,6 +293,14 @@ export default function DocumentPendingPage() {
           onConfirm={(driverId, vehicleId) => assignMutation.mutate({ driverId, vehicleId })}
           loading={assignMutation.isPending}
           confirmLabel="Biriktirish"
+        />
+      )}
+
+      {etirovOrder && (
+        <CheckerEtirovModal
+          order={etirovOrder}
+          onClose={() => setEtirovOrder(null)}
+          onDone={() => setEtirovOrder(null)}
         />
       )}
     </div>
