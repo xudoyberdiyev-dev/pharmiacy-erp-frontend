@@ -49,6 +49,7 @@ export const orderAPI = {
   getConfirmationHistory: (params) => api.get('/orders/confirmation-history', { params }),
   getAccountantHistory: (params) => api.get('/orders/accountant-history', { params }),
   adjustLateness: (id, data) => api.post(`/orders/${id}/lateness-adjustment`, data),
+  raiseDocumentEtirov: (id, data) => api.post(`/orders/${id}/document-etirov`, data),
 };
 
 // ===== PICKER =====
@@ -114,6 +115,8 @@ export const documentAPI = {
   }),
   downloadReturnReport: (id) => api.get(`/document/orders/${id}/return-report`, { responseType: 'blob' }),
   cancelOrder: (id, reason) => api.patch(`/document/orders/${id}/cancel`, { reason }),
+  getEtirozli: () => api.get('/document/etirozlar'),
+  respondEtirov: (id, data) => api.patch(`/document/etirozlar/${id}/respond`, data),
 };
 
 // ===== PUBLIC (login talab qilmaydi — QR skan uchun) =====

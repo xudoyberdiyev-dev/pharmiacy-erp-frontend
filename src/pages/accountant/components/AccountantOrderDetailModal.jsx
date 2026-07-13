@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderAPI } from '../../../api';
 import { FILE_BASE_URL } from '../../../api/axios';
@@ -5,6 +6,7 @@ import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../../lib/errors';
 import Modal from '../../../components/shared/Modal';
 import StatusBadge from '../../../components/shared/StatusBadge';
+import AccountantEtirovModal from './AccountantEtirovModal';
 import { CheckCircle2, FileSpreadsheet, Image, Clock, AlertTriangle, Undo2 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -19,6 +21,7 @@ function InfoRow({ label, value }) {
 
 export default function AccountantOrderDetailModal({ order, step, onClose }) {
   const qc = useQueryClient();
+  const [showEtirov, setShowEtirov] = useState(false);
 
   const confirmMutation = useMutation({
     mutationFn: () => orderAPI.accountantConfirm(order.id),
@@ -147,13 +150,29 @@ export default function AccountantOrderDetailModal({ order, step, onClose }) {
         ))}
       </div>
 
-      <button
-        onClick={() => confirmMutation.mutate()}
-        disabled={confirmMutation.isPending}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-md shadow-green-200 hover:shadow-lg transition-all disabled:opacity-60"
-      >
-        <CheckCircle2 size={17} /> {confirmMutation.isPending ? 'Saqlanmoqda...' : `${step}-tasdiqlash`}
-      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={() => setShowEtirov(true)}
+          className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm text-red-600 bg-red-50 hover:bg-red-100 transition-colors shrink-0"
+        >
+          <AlertTriangle size={16} /> Hujjatga etiroz
+        </button>
+        <button
+          onClick={() => confirmMutation.mutate()}
+          disabled={confirmMutation.isPending}
+          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-md shadow-green-200 hover:shadow-lg transition-all disabled:opacity-60"
+        >
+          <CheckCircle2 size={17} /> {confirmMutation.isPending ? 'Saqlanmoqda...' : `${step}-tasdiqlash`}
+        </button>
+      </div>
+
+      {showEtirov && (
+        <AccountantEtirovModal
+          order={order}
+          onClose={() => setShowEtirov(false)}
+          onDone={() => { setShowEtirov(false); onClose(); }}
+        />
+      )}
     </Modal>
   );
 }

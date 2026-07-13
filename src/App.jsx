@@ -47,6 +47,7 @@ import DocumentReadyPage from './pages/document/DocumentReadyPage';
 import DocumentHistoryPage from './pages/document/DocumentHistoryPage';
 import DocumentReturnedPage from './pages/document/DocumentReturnedPage';
 import DocumentReturnDetailPage from './pages/document/DocumentReturnDetailPage';
+import DocumentEtirozlarPage from './pages/document/DocumentEtirozlarPage';
 import PublicOrderInfoPage from './pages/public/PublicOrderInfoPage';
 import DriverMobileLayout from './components/layout/DriverMobileLayout';
 import DriverPanel from './pages/driver/DriverPanel';
@@ -174,6 +175,7 @@ function AppRoutes() {
         <Route path="ready" element={<DocumentReadyPage />} />
         <Route path="history" element={<DocumentHistoryPage />} />
         <Route path="returned" element={<DocumentReturnedPage />} />
+        <Route path="etirozlar" element={<DocumentEtirozlarPage />} />
         <Route path="orders/:id/return" element={<DocumentReturnDetailPage />} />
       </Route>
 

@@ -38,6 +38,7 @@ const ACTION_META = {
   VEHICLE_DEACTIVATED: { label: 'Mashina bloklandi', cat: 'delete' },
   VEHICLE_DELETED: { label: "Mashina o'chirildi", cat: 'delete' },
   ETIROV_REJECTED_BY_PICKER: { label: 'Etiroz rad etildi', cat: 'delete' },
+  DOCUMENT_ETIROV_RAISED: { label: 'Bugalter hujjatga etiroz bildirdi', cat: 'delete' },
   SUPER_ADMIN_CASCADE_BLOCKED: { label: "Super Admin bloklandi — butun tizim to'xtatildi", cat: 'delete' },
   OLD_ORDERS_PURGED: { label: "Eski buyurtmalar zaxiralanib o'chirildi", cat: 'delete' },
 

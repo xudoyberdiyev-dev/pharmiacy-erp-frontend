@@ -9,7 +9,7 @@ import Pagination from '../../components/shared/Pagination';
 import SearchBar from '../../components/shared/SearchBar';
 import PhoneInput from '../../components/shared/PhoneInput';
 
-const PENALTY_ROLES = ['PICKER', 'MARKER', 'CHECKER'];
+const PENALTY_ROLES = ['PICKER', 'MARKER', 'CHECKER', 'DOCUMENT'];
 
 const ROLES = [
   { value: 'OPERATOR', label: 'Operator' },
