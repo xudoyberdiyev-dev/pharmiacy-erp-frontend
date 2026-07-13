@@ -18,33 +18,58 @@ function today() {
 export default function OrdersPage() {
   const navigate = useNavigate();
   const [status, setStatus] = useState('');
-  const [date, setDate] = useState(today());
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const limit = 20;
 
   const { data, isLoading } = useQuery({
-    queryKey: ['orders', status, date, search, page],
-    queryFn: () => orderAPI.getAll({ status: status || undefined, date, search: search || undefined, page, limit }),
+    queryKey: ['orders', status, from, to, search, page],
+    queryFn: () => orderAPI.getAll({ status: status || undefined, from: from || undefined, to: to || undefined, search: search || undefined, page, limit }),
     select: r => r.data,
   });
 
   const orders = data?.data || [];
+  const hasDateFilter = from || to;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold">Buyurtmalar</h1>
-        <label className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm cursor-pointer hover:border-blue-300 transition-colors">
-          <Calendar size={14} className="text-blue-500" />
-          <input
-            type="date"
-            value={date}
-            max={today()}
-            onChange={e => { setDate(e.target.value); setPage(1); }}
-            className="text-sm font-bold text-gray-700 outline-none cursor-pointer bg-transparent"
-          />
-        </label>
+        <div className="flex items-center gap-2 flex-wrap">
+          <label className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm cursor-pointer hover:border-blue-300 transition-colors">
+            <Calendar size={14} className="text-blue-500" />
+            <span className="text-xs font-semibold text-gray-400">Dan</span>
+            <input
+              type="date"
+              value={from}
+              max={to || today()}
+              onChange={e => { setFrom(e.target.value); setPage(1); }}
+              className="text-sm font-bold text-gray-700 outline-none cursor-pointer bg-transparent"
+            />
+          </label>
+          <label className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm cursor-pointer hover:border-blue-300 transition-colors">
+            <Calendar size={14} className="text-blue-500" />
+            <span className="text-xs font-semibold text-gray-400">Gacha</span>
+            <input
+              type="date"
+              value={to}
+              min={from}
+              max={today()}
+              onChange={e => { setTo(e.target.value); setPage(1); }}
+              className="text-sm font-bold text-gray-700 outline-none cursor-pointer bg-transparent"
+            />
+          </label>
+          {hasDateFilter && (
+            <button
+              onClick={() => { setFrom(''); setTo(''); setPage(1); }}
+              className="text-xs font-bold text-gray-400 hover:text-red-500 px-2"
+            >
+              Tozalash
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Search */}
@@ -90,7 +115,7 @@ export default function OrdersPage() {
                 <tbody className="divide-y divide-gray-100">
                   {orders.length === 0 && (
                     <tr><td colSpan={7} className="px-6 py-10 text-center text-gray-400">
-                      {date === today() ? 'Bugun uchun buyurtmalar topilmadi' : 'Bu kunda buyurtmalar topilmadi'}
+                      {hasDateFilter ? 'Tanlangan sana oralig\'ida buyurtmalar topilmadi' : 'Buyurtmalar topilmadi'}
                     </td></tr>
                   )}
                   {orders.map(order => (

@@ -3,35 +3,73 @@ import { useQuery } from '@tanstack/react-query';
 import { orderAPI } from '../../api';
 import AccountantOrderDetailModal from './components/AccountantOrderDetailModal';
 import OrderChangeBadges from './components/OrderChangeBadges';
-import { FileCheck, Eye } from 'lucide-react';
+import SearchBar from '../../components/shared/SearchBar';
+import Pagination from '../../components/shared/Pagination';
+import { FileCheck, Eye, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
+
+const LIMIT = 20;
 
 export default function BugalterPanelTvo() {
   const [selected, setSelected] = useState(null);
+  const [search, setSearch] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['orders', 'accountant', 2],
-    queryFn: () => orderAPI.getAll({ status: 'DELIVERED', acct1Confirmed: true, acct2Confirmed: false, limit: 100 }),
-    select: (r) => r.data.data,
+    queryKey: ['orders', 'accountant', 2, search, from, to, page],
+    queryFn: () => orderAPI.getAll({
+      status: 'DELIVERED', acct1Confirmed: true, acct2Confirmed: false,
+      search: search || undefined, from: from || undefined, to: to || undefined,
+      page, limit: LIMIT,
+    }),
+    select: (r) => r.data,
     refetchInterval: 30000,
   });
 
-  const orders = data || [];
+  const orders = data?.data || [];
+  const hasDateFilter = from || to;
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-3">
-          <div className="w-9 h-9 bg-blue-100 rounded-2xl flex items-center justify-center">
-            <FileCheck size={18} className="text-blue-600" />
-          </div>
-          Bugalteriya — 2-tasdiqlash
-        </h1>
-        <p className="text-xs text-gray-400 mt-1 ml-12">1-bugalter tomonidan tasdiqlangan orderlarni yakuniy tekshirib tasdiqlang</p>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-3">
+            <div className="w-9 h-9 bg-blue-100 rounded-2xl flex items-center justify-center">
+              <FileCheck size={18} className="text-blue-600" />
+            </div>
+            Bugalteriya — 2-tasdiqlash
+          </h1>
+          <p className="text-xs text-gray-400 mt-1 ml-12">1-bugalter tomonidan tasdiqlangan orderlarni yakuniy tekshirib tasdiqlang</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <label className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm cursor-pointer hover:border-blue-300 transition-colors">
+            <Calendar size={14} className="text-blue-500" />
+            <span className="text-xs font-semibold text-gray-400">Dan</span>
+            <input type="date" value={from} max={to || undefined} onChange={e => { setFrom(e.target.value); setPage(1); }} className="text-sm font-bold text-gray-700 outline-none cursor-pointer bg-transparent" />
+          </label>
+          <label className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm cursor-pointer hover:border-blue-300 transition-colors">
+            <Calendar size={14} className="text-blue-500" />
+            <span className="text-xs font-semibold text-gray-400">Gacha</span>
+            <input type="date" value={to} min={from || undefined} onChange={e => { setTo(e.target.value); setPage(1); }} className="text-sm font-bold text-gray-700 outline-none cursor-pointer bg-transparent" />
+          </label>
+          {hasDateFilter && (
+            <button onClick={() => { setFrom(''); setTo(''); setPage(1); }} className="text-xs font-bold text-gray-400 hover:text-red-500 px-2">
+              Tozalash
+            </button>
+          )}
+        </div>
       </div>
 
+      <SearchBar
+        value={search}
+        onChange={v => { setSearch(v); setPage(1); }}
+        placeholder="Faktura, shartnoma yoki klient nomi bo'yicha qidirish..."
+      />
+
       <div className="bg-blue-50 rounded-2xl p-4 w-fit min-w-[180px]">
-        <p className="text-3xl font-black text-blue-600">{orders.length}</p>
+        <p className="text-3xl font-black text-blue-600">{data?.total ?? 0}</p>
         <p className="text-xs text-gray-500 font-medium mt-0.5">Tasdiqlash kutmoqda</p>
       </div>
 
@@ -42,7 +80,9 @@ export default function BugalterPanelTvo() {
       ) : orders.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-16 text-center">
           <FileCheck size={28} className="mx-auto mb-2 text-gray-300" />
-          <p className="text-gray-400 text-sm font-semibold">2-tasdiqlash uchun order yo'q</p>
+          <p className="text-gray-400 text-sm font-semibold">
+            {search || hasDateFilter ? 'Qidiruv bo\'yicha order topilmadi' : '2-tasdiqlash uchun order yo\'q'}
+          </p>
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
@@ -80,6 +120,7 @@ export default function BugalterPanelTvo() {
               ))}
             </tbody>
           </table>
+          <Pagination page={data?.page || page} pages={data?.pages || 1} total={data?.total} onChange={setPage} />
         </div>
       )}
 
