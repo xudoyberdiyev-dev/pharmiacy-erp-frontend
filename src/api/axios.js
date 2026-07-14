@@ -1,9 +1,16 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://pharmacy-erp-backend-production.up.railway.app/api';
+// Production'da so'rovlar Vercel proxy orqali (/api/*, vercel.json'dagi
+// rewrite) yuboriladi — brauzer nuqtai nazaridan bu 1-tomon (same-site)
+// so'rov bo'lib qoladi, shuning uchun cookie Firefox/Safari/Yandex kabi
+// uchinchi-tomon cookie'larni bloklaydigan brauzerlarda ham ishlaydi.
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
-// Yuklangan fayllar (excel, rasm) shu bazadan ochiladi: `${FILE_BASE_URL}${order.productsExcelUrl}`
-export const FILE_BASE_URL = API_URL.replace(/\/api\/?$/, '');
+// Fayllar (excel, rasm) va Socket.io esa proxy'dan aylanmasdan, backend'ning
+// haqiqiy manziliga to'g'ridan-to'g'ri ulanadi (WebSocket proxy orqali
+// ishonchli ishlamaydi) — shuning uchun bu alohida, doim mutlaq manzil.
+export const FILE_BASE_URL = import.meta.env.VITE_BACKEND_ORIGIN
+  || 'https://pharmacy-erp-backend-production.up.railway.app';
 
 const api = axios.create({
   baseURL: API_URL,
