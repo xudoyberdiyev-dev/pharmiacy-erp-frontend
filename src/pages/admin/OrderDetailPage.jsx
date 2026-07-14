@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
 import { ArrowLeft, CheckCircle, Clock, User, Truck, Package, FileText, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
+import { actionMeta, ROLE_LABELS, ETIROV_TYPE_LABELS } from '../../lib/activityLabels';
 
 function InfoRow({ label, value, mono }) {
   if (!value && value !== 0) return null;
@@ -115,16 +116,16 @@ export default function OrderDetailPage() {
         </Section>
 
         {/* Vaqtlar */}
-        <Section title="Muddatlar" icon={Clock}>
-          <InfoRow label="Picking deadline" value={o.pickingDeadline ? format(new Date(o.pickingDeadline), 'dd.MM.yyyy HH:mm') : null} />
-          <InfoRow label="Marking deadline" value={o.markingDeadline ? format(new Date(o.markingDeadline), 'dd.MM.yyyy HH:mm') : null} />
-          <InfoRow label="Cheking deadline" value={o.checkingDeadline ? format(new Date(o.checkingDeadline), 'dd.MM.yyyy HH:mm') : null} />
-          <InfoRow label="Picking boshlandi" value={o.pickingStartedAt ? format(new Date(o.pickingStartedAt), 'dd.MM.yyyy HH:mm') : null} />
-          <InfoRow label="Picking tugadi" value={o.pickingDoneAt ? format(new Date(o.pickingDoneAt), 'dd.MM.yyyy HH:mm') : null} />
-          <InfoRow label="Marking tugadi" value={o.markingDoneAt ? format(new Date(o.markingDoneAt), 'dd.MM.yyyy HH:mm') : null} />
-          <InfoRow label="Cheking tugadi" value={o.checkingDoneAt ? format(new Date(o.checkingDoneAt), 'dd.MM.yyyy HH:mm') : null} />
-          <InfoRow label="Yetkazildi" value={o.deliveredAt ? format(new Date(o.deliveredAt), 'dd.MM.yyyy HH:mm') : null} />
-          <InfoRow label="Tasdiqlandi" value={o.confirmedAt ? format(new Date(o.confirmedAt), 'dd.MM.yyyy HH:mm') : null} />
+        <Section title="Bosqichlar va muddatlar" icon={Clock}>
+          <InfoRow label="Yig'ish (Picking) muddati" value={o.pickingDeadline ? format(new Date(o.pickingDeadline), 'dd.MM.yyyy HH:mm') : null} />
+          <InfoRow label="Yig'ish boshlandi" value={o.pickingStartedAt ? format(new Date(o.pickingStartedAt), 'dd.MM.yyyy HH:mm') : null} />
+          <InfoRow label="Yig'ish yakunlandi" value={o.pickingDoneAt ? format(new Date(o.pickingDoneAt), 'dd.MM.yyyy HH:mm') : null} />
+          <InfoRow label="Belgilash (Marking) muddati" value={o.markingDeadline ? format(new Date(o.markingDeadline), 'dd.MM.yyyy HH:mm') : null} />
+          <InfoRow label="Belgilash yakunlandi" value={o.markingDoneAt ? format(new Date(o.markingDoneAt), 'dd.MM.yyyy HH:mm') : null} />
+          <InfoRow label="Tekshirish (Checking) muddati" value={o.checkingDeadline ? format(new Date(o.checkingDeadline), 'dd.MM.yyyy HH:mm') : null} />
+          <InfoRow label="Tekshirish yakunlandi" value={o.checkingDoneAt ? format(new Date(o.checkingDoneAt), 'dd.MM.yyyy HH:mm') : null} />
+          <InfoRow label="Mijozga yetkazildi" value={o.deliveredAt ? format(new Date(o.deliveredAt), 'dd.MM.yyyy HH:mm') : null} />
+          <InfoRow label="Admin tasdiqladi" value={o.confirmedAt ? format(new Date(o.confirmedAt), 'dd.MM.yyyy HH:mm') : null} />
         </Section>
 
         {/* Xodimlar */}
@@ -170,11 +171,11 @@ export default function OrderDetailPage() {
             {o.etirozlar.map((e, i) => (
               <div key={i} className="p-3 bg-red-50 border border-red-200 rounded-lg">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-red-700">{e.type}</span>
+                  <span className="text-sm font-medium text-red-700">{ETIROV_TYPE_LABELS[e.type] || e.type}</span>
                   <span className="text-xs text-gray-400">{format(new Date(e.createdAt), 'dd.MM HH:mm')}</span>
                 </div>
                 {e.comment && <p className="text-sm text-gray-600">{e.comment}</p>}
-                <p className="text-xs text-gray-400 mt-1">Kimdan: {e.fromRole}</p>
+                <p className="text-xs text-gray-400 mt-1">Kimdan: {ROLE_LABELS[e.fromRole] || e.fromRole}</p>
               </div>
             ))}
           </div>
@@ -191,17 +192,21 @@ export default function OrderDetailPage() {
           <div className="relative">
             <div className="absolute left-3 top-0 bottom-0 w-px bg-gray-200"></div>
             <div className="space-y-4 pl-10">
-              {o.activityLogs.map((log, i) => (
-                <div key={i} className="relative">
-                  <div className="absolute -left-7 w-2.5 h-2.5 rounded-full bg-blue-500 top-1.5 border-2 border-white"></div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">{log.action}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {log.user?.fullName} · {format(new Date(log.createdAt), 'dd.MM.yyyy HH:mm')}
-                    </p>
+              {o.activityLogs.map((log, i) => {
+                const meta = actionMeta(log.action);
+                return (
+                  <div key={i} className="relative">
+                    <div className={`absolute -left-7 w-2.5 h-2.5 rounded-full top-1.5 border-2 border-white ${meta.dot}`}></div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">{meta.label}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {log.user?.fullName ? `${log.user.fullName}${log.user.role ? ` (${ROLE_LABELS[log.user.role] || log.user.role})` : ''}` : 'Tizim'}
+                        {' · '}{format(new Date(log.createdAt), 'dd.MM.yyyy HH:mm')}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

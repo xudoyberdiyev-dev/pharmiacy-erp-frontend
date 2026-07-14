@@ -1,91 +1,11 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { statsAPI } from '../../api';
-import {
-  ClipboardList, Search, X, Calendar, Plus, Pencil, Trash2, CheckCircle2,
-  PlayCircle, PackageCheck, ShieldCheck, AlertTriangle,
-} from 'lucide-react';
+import { ClipboardList, Search, X, Calendar } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { uz } from 'date-fns/locale';
 import Pagination from '../../components/shared/Pagination';
-
-const CATEGORY_META = {
-  create:   { color: 'text-blue-600', bg: 'bg-blue-100', icon: Plus },
-  update:   { color: 'text-amber-600', bg: 'bg-amber-100', icon: Pencil },
-  delete:   { color: 'text-red-600', bg: 'bg-red-100', icon: Trash2 },
-  activate: { color: 'text-green-600', bg: 'bg-green-100', icon: CheckCircle2 },
-  progress: { color: 'text-purple-600', bg: 'bg-purple-100', icon: PlayCircle },
-  success:  { color: 'text-green-600', bg: 'bg-green-100', icon: PackageCheck },
-  confirm:  { color: 'text-teal-600', bg: 'bg-teal-100', icon: ShieldCheck },
-  warning:  { color: 'text-orange-600', bg: 'bg-orange-100', icon: AlertTriangle },
-  default:  { color: 'text-gray-500', bg: 'bg-gray-100', icon: ClipboardList },
-};
-
-const ACTION_META = {
-  ORDER_CREATED: { label: 'Buyurtma yaratildi', cat: 'create' },
-  CLIENT_CREATED: { label: "Klient qo'shildi", cat: 'create' },
-  USER_CREATED: { label: "Xodim qo'shildi", cat: 'create' },
-  VEHICLE_CREATED: { label: "Mashina qo'shildi", cat: 'create' },
-
-  ORDER_UPDATED: { label: 'Buyurtma tahrirlandi', cat: 'update' },
-  CLIENT_UPDATED: { label: 'Klient tahrirlandi', cat: 'update' },
-  VEHICLE_UPDATED: { label: 'Mashina tahrirlandi', cat: 'update' },
-  SYSTEM_OWNER_CREDENTIALS_CHANGED: { label: "System Owner login ma'lumotlarini o'zgartirdi", cat: 'update' },
-
-  ORDER_CANCELLED: { label: 'Buyurtma bekor qilindi', cat: 'delete' },
-  CLIENT_DEACTIVATED: { label: "Klient o'chirildi", cat: 'delete' },
-  USER_BLOCKED: { label: 'Xodim bloklandi', cat: 'delete' },
-  VEHICLE_DEACTIVATED: { label: 'Mashina bloklandi', cat: 'delete' },
-  VEHICLE_DELETED: { label: "Mashina o'chirildi", cat: 'delete' },
-  ETIROV_REJECTED_BY_PICKER: { label: 'Etiroz rad etildi', cat: 'delete' },
-  DOCUMENT_ETIROV_RAISED: { label: 'Bugalter hujjatga etiroz bildirdi', cat: 'delete' },
-  CHECKER_ETIROV_RAISED: { label: 'Hujjatchi checkerga etiroz bildirdi', cat: 'delete' },
-  SUPER_ADMIN_CASCADE_BLOCKED: { label: "Super Admin bloklandi — butun tizim to'xtatildi", cat: 'delete' },
-  OLD_ORDERS_PURGED: { label: "Eski buyurtmalar zaxiralanib o'chirildi", cat: 'delete' },
-
-  CLIENT_ACTIVATED: { label: 'Klient faollashtirildi', cat: 'activate' },
-  USER_ACTIVATED: { label: 'Xodim faollashtirildi', cat: 'activate' },
-  VEHICLE_ACTIVATED: { label: 'Mashina faollashtirildi', cat: 'activate' },
-  SUPER_ADMIN_CASCADE_UNBLOCKED: { label: 'Super Admin qayta faollashtirildi — tizim tiklandi', cat: 'activate' },
-
-  PICKING_STARTED: { label: 'Picking boshlandi', cat: 'progress' },
-  PICKING_COMPLETED: { label: 'Picking yakunlandi', cat: 'progress' },
-  MARKING_STARTED: { label: 'Marking boshlandi', cat: 'progress' },
-  MARKING_COMPLETED: { label: 'Marking yakunlandi', cat: 'progress' },
-  CHECKING_STARTED: { label: 'Cheking boshlandi', cat: 'progress' },
-  CHECKING_COMPLETED: { label: 'Cheking yakunlandi', cat: 'progress' },
-  DRIVER_ASSIGNED: { label: 'Haydovchi biriktirildi', cat: 'progress' },
-  DELIVERY_STARTED: { label: 'Haydovchi yetkazishni boshladi', cat: 'progress' },
-  TRIP_ASSIGNED: { label: 'Reys biriktirildi', cat: 'progress' },
-  DOCUMENT_ISSUED: { label: 'Hujjat chiqarildi', cat: 'progress' },
-  DELIVERED: { label: 'Yetkazildi', cat: 'success' },
-
-  ADMIN_CONFIRMED: { label: 'Admin tasdiqladi', cat: 'confirm' },
-  ACCOUNTANT1_CONFIRMED: { label: 'Bugalter 1-tasdiq', cat: 'confirm' },
-  ACCOUNTANT2_CONFIRMED: { label: 'Bugalter 2-tasdiq', cat: 'confirm' },
-  ETIROV_ACCEPTED_BY_PICKER: { label: 'Etiroz qabul qilindi', cat: 'confirm' },
-
-  ETIROV_RAISED: { label: 'Etiroz bildirildi', cat: 'warning' },
-  ETIROV_SUBMITTED: { label: 'Etiroz yuborildi', cat: 'warning' },
-
-  RETURNED_TO_MARKING: { label: "Checker Marker'ga qaytardi (jarima)", cat: 'warning' },
-  RETURNED_TO_PICKING: { label: "Marker Picker'ga qaytardi (jarima)", cat: 'warning' },
-  PICKING_RESUBMITTED: { label: 'Picking qayta topshirildi', cat: 'progress' },
-  MARKING_RESUBMITTED: { label: 'Marking qayta topshirildi', cat: 'progress' },
-  GOODS_RETURNED: { label: 'Tovar qaytarish hujjati yuklandi', cat: 'update' },
-};
-
-const ROLE_LABELS = {
-  SYSTEM_OWNER: 'System Owner',
-  ADMIN: 'Admin', SUPER_ADMIN: 'Super Admin', OPERATOR: 'Operator', PICKER: 'Picker',
-  MARKER: 'Marker', CHECKER: 'Checker', DRIVER: 'Haydovchi',
-  ACCOUNTANT1: 'Bugalter 1', ACCOUNTANT2: 'Bugalter 2', DOCUMENT: 'Hujjatchi',
-};
-
-function actionMeta(action) {
-  const a = ACTION_META[action] || { label: action, cat: 'default' };
-  return { ...a, ...CATEGORY_META[a.cat] };
-}
+import { ROLE_LABELS, actionMeta } from '../../lib/activityLabels';
 
 function today() {
   return new Date().toISOString().slice(0, 10);
