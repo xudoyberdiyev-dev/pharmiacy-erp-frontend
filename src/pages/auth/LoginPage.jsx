@@ -183,7 +183,13 @@ function PasswordForm({ onSwitchQr }) {
           <input
             type="tel"
             value={form.phone}
-            onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
+            onChange={e => {
+              let v = e.target.value;
+              // "+998" oldindan to'ldirilgan holda, agar foydalanuvchi
+              // to'liq raqamni (+998 bilan) qayta kiritsa, takrorlanishni yo'qotamiz
+              if (v.startsWith('+998+998')) v = v.slice(4);
+              setForm(p => ({ ...p, phone: v }));
+            }}
             placeholder="+998 90 123 45 67"
             autoFocus
             className="w-full rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none transition-all"
