@@ -6,6 +6,7 @@ export const authAPI = {
   verifyOtp: (data) => api.post('/auth/verify-otp', data),
   qrLogin: (data) => api.post('/auth/qr-login', data),
   me: () => api.get('/auth/me'),
+  logout: () => api.post('/auth/logout'),
   changePassword: (data) => api.put('/auth/change-password', data),
   requestCredentialChange: (data) => api.post('/auth/request-credential-change', data),
   confirmCredentialChange: (data) => api.post('/auth/confirm-credential-change', data),
@@ -164,6 +165,7 @@ export const statsAPI = {
   getOrdersDetail: (params) => api.get('/stats/orders-detail', { params }),
   getTopClients: (params) => api.get('/stats/top-clients', { params }),
   getEmployeePerformance: (params) => api.get('/stats/employee-performance', { params }),
+  getAccountantStats: () => api.get('/stats/accountant'),
 };
 
 // ===== SYSTEM OWNER: DATA RETENTION =====

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { statsAPI } from '../../api';
-import { BarChart3, Users, Package, Clock, CheckCircle, AlertCircle, TrendingUp, ChevronRight, Trophy, MapPinned, Footprints, Tag, CheckCircle2, Truck, Calendar, ArrowRight, X } from 'lucide-react';
+import { BarChart3, Users, Package, Clock, CheckCircle, AlertCircle, TrendingUp, ChevronRight, Trophy, MapPinned, Footprints, Tag, CheckCircle2, Truck, Calendar, ArrowRight, X, FileCheck, Hourglass, ShieldCheck } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { regionLabel } from '../../utils/regions';
 import OrderDetailModal from './components/OrderDetailModal';
@@ -64,6 +64,12 @@ export default function SuperAdminStats() {
   const { data: regional, isLoading: regionalLoading } = useQuery({
     queryKey: ['regional-stats'],
     queryFn: () => statsAPI.getRegional(),
+    select: r => r.data.data,
+  });
+
+  const { data: acctStats, isLoading: acctLoading } = useQuery({
+    queryKey: ['accountant-stats'],
+    queryFn: () => statsAPI.getAccountantStats(),
     select: r => r.data.data,
   });
 
@@ -134,6 +140,55 @@ export default function SuperAdminStats() {
       {activeCategory && (
         <OrderDetailModal category={activeCategory} range={range} onClose={() => setActiveCategory(null)} />
       )}
+
+      {/* Bugalteriya tasdiqlash statistikasi */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 bg-amber-100 rounded-2xl flex items-center justify-center shrink-0">
+            <FileCheck size={17} className="text-amber-600" />
+          </div>
+          <div>
+            <h2 className="font-black text-gray-900 text-sm">Bugalteriya tasdiqlash holati</h2>
+            <p className="text-xs text-gray-400">Yetkazilgan orderlar 1- va 2-tasdiqlash bosqichlarida qayerda turibdi</p>
+          </div>
+        </div>
+        {acctLoading ? (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[1, 2, 3, 4].map(i => <div key={i} className="h-16 bg-gray-50 rounded-xl animate-pulse" />)}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="bg-amber-50 rounded-xl p-3.5 flex items-center gap-3">
+              <Hourglass size={18} className="text-amber-600 shrink-0" />
+              <div>
+                <p className="text-xl font-black text-amber-700">{acctStats?.acct1Pending ?? 0}</p>
+                <p className="text-[11px] text-gray-500 font-medium">1-tasdiq kutmoqda</p>
+              </div>
+            </div>
+            <div className="bg-blue-50 rounded-xl p-3.5 flex items-center gap-3">
+              <CheckCircle size={18} className="text-blue-600 shrink-0" />
+              <div>
+                <p className="text-xl font-black text-blue-700">{acctStats?.acct1Confirmed ?? 0}</p>
+                <p className="text-[11px] text-gray-500 font-medium">1-tasdiq bajarilgan</p>
+              </div>
+            </div>
+            <div className="bg-blue-50 rounded-xl p-3.5 flex items-center gap-3">
+              <Hourglass size={18} className="text-blue-600 shrink-0" />
+              <div>
+                <p className="text-xl font-black text-blue-700">{acctStats?.acct2Pending ?? 0}</p>
+                <p className="text-[11px] text-gray-500 font-medium">2-tasdiq kutmoqda</p>
+              </div>
+            </div>
+            <div className="bg-green-50 rounded-xl p-3.5 flex items-center gap-3">
+              <ShieldCheck size={18} className="text-green-600 shrink-0" />
+              <div>
+                <p className="text-xl font-black text-green-700">{acctStats?.fullyConfirmed ?? 0}</p>
+                <p className="text-[11px] text-gray-500 font-medium">To'liq tasdiqlangan</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Top mijozlar va hudud taqsimoti */}
       <div className="grid md:grid-cols-2 gap-4">

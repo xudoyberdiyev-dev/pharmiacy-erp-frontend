@@ -111,12 +111,21 @@ const ROOT_REDIRECTS = {
   DOCUMENT: '/document',
 };
 
+function RootRedirect() {
+  const { user, loading } = useAuth();
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-gray-400 text-sm">Yuklanmoqda...</div>
+    </div>
+  );
+  return <Navigate to={user ? (ROOT_REDIRECTS[user.role] || '/login') : '/login'} replace />;
+}
+
 function AppRoutes() {
-  const { user } = useAuth();
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/" element={user ? <Navigate to={ROOT_REDIRECTS[user.role] || '/login'} replace /> : <Navigate to="/login" replace />} />
+      <Route path="/" element={<RootRedirect />} />
 
       {/* QR skan orqali — login talab qilmaydi */}
       <Route path="/public/orders/:id" element={<PublicOrderInfoPage />} />

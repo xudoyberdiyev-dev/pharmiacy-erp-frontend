@@ -7,12 +7,11 @@ export function AuthProvider({ children }) {
   const { user, login, verifyOtp, logout, fetchMe, updateUser, loading } = useAuthStore();
 
   useEffect(() => {
-    const token = localStorage.getItem('erp_token');
-    if (token && !user) {
-      fetchMe();
-    } else {
-      useAuthStore.setState({ loading: false });
-    }
+    // Token endi httpOnly cookie'da — JavaScript'dan uning bor-yo'qligini
+    // bilib bo'lmaydi, shuning uchun har doim fetchMe() chaqiriladi: cookie
+    // mavjud bo'lsa muvaffaqiyatli bo'ladi, aks holda user null qoladi va
+    // login sahifasi ko'rsatiladi.
+    fetchMe();
   }, []);
 
   return (

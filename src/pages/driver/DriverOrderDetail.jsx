@@ -29,7 +29,7 @@ export default function DriverOrderDetail() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [photos, setPhotos] = useState([]);
-  const { position } = useDriverLocation();
+  const { position, error: locationError } = useDriverLocation();
 
   const { data: order, isLoading, error } = useQuery({
     queryKey: ['order', id],
@@ -161,24 +161,47 @@ export default function DriverOrderDetail() {
 
         {isActive && order.deliveryStartedAt && (
           <div className="bg-white rounded-2xl border border-gray-100 p-4">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shrink-0" />
-              <p className="text-sm font-bold text-green-700">GPS faol — joylashuvingiz ko'rinmoqda</p>
-            </div>
-            {(() => {
-              const clientLat = order.client?.latitude;
-              const clientLon = order.client?.longitude;
-              if (!position || clientLat == null || clientLon == null) {
-                return <p className="text-xs text-gray-400 mt-2">Masofa hisoblanmoqda...</p>;
-              }
-              const km = haversineKm(position.latitude, position.longitude, clientLat, clientLon);
-              const etaMin = Math.round((km / AVERAGE_SPEED_KMH) * 60);
-              return (
+            {locationError ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 bg-red-500 rounded-full shrink-0" />
+                  <p className="text-sm font-bold text-red-700">GPS ishlamayapti</p>
+                </div>
                 <p className="text-xs text-gray-500 mt-2">
-                  ~{Math.round(km * 10) / 10} km qoldi · ~{etaMin} daqiqada yetib borasiz
+                  {locationError} — joylashuvingiz Super Adminga yuborilmayapti. Telefon sozlamalaridan brauzerga
+                  joylashuv (location) ruxsatini bering.
                 </p>
-              );
-            })()}
+              </>
+            ) : position ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shrink-0" />
+                  <p className="text-sm font-bold text-green-700">GPS faol — joylashuvingiz ko'rinmoqda</p>
+                </div>
+                {(() => {
+                  const clientLat = order.client?.latitude;
+                  const clientLon = order.client?.longitude;
+                  if (clientLat == null || clientLon == null) {
+                    return <p className="text-xs text-gray-400 mt-2">Masofa hisoblanmoqda...</p>;
+                  }
+                  const km = haversineKm(position.latitude, position.longitude, clientLat, clientLon);
+                  const etaMin = Math.round((km / AVERAGE_SPEED_KMH) * 60);
+                  return (
+                    <p className="text-xs text-gray-500 mt-2">
+                      ~{Math.round(km * 10) / 10} km qoldi · ~{etaMin} daqiqada yetib borasiz
+                    </p>
+                  );
+                })()}
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 bg-amber-400 rounded-full animate-pulse shrink-0" />
+                  <p className="text-sm font-bold text-amber-700">GPS joylashuv aniqlanmoqda...</p>
+                </div>
+                <p className="text-xs text-gray-400 mt-2">Bir necha soniya kuting</p>
+              </>
+            )}
           </div>
         )}
 
