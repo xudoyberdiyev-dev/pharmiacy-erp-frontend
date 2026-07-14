@@ -347,8 +347,9 @@ function QrScannerPanel({ onBack }) {
     setLastScanned(token.slice(0, 12) + '...');
     try {
       const res = await authAPI.qrLogin({ qrToken: token });
-      const { user } = res.data;
-      useAuthStore.setState({ user });
+      const { token: jwt, user } = res.data;
+      localStorage.setItem('erp_token', jwt);
+      useAuthStore.setState({ token: jwt, user });
       setStatus('success');
       toast.success(`Xush kelibsiz, ${user.fullName}!`);
       setTimeout(() => navigate(ROLE_REDIRECTS[user.role] || '/'), 900);

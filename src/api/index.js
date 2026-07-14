@@ -6,7 +6,6 @@ export const authAPI = {
   verifyOtp: (data) => api.post('/auth/verify-otp', data),
   qrLogin: (data) => api.post('/auth/qr-login', data),
   me: () => api.get('/auth/me'),
-  logout: () => api.post('/auth/logout'),
   changePassword: (data) => api.put('/auth/change-password', data),
   requestCredentialChange: (data) => api.post('/auth/request-credential-change', data),
   confirmCredentialChange: (data) => api.post('/auth/confirm-credential-change', data),
