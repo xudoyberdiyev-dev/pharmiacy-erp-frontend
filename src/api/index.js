@@ -93,6 +93,7 @@ export const checkerAPI = {
   getHistory:   (params) => api.get('/checker/orders/history', { params }),
   accept:       (id) => api.patch(`/checker/orders/${id}/accept`),
   returnToMarking: (id, reason) => api.patch(`/checker/orders/${id}/return-to-marking`, { reason }),
+  returnToPicking: (id, reason) => api.patch(`/checker/orders/${id}/return-to-picking`, { reason }),
   complete:     (id, data) => api.patch(`/checker/orders/${id}/complete`, data),
   getEtirozli: () => api.get('/checker/etirozlar'),
   respondEtirov: (id, data) => api.patch(`/checker/etirozlar/${id}/respond`, data),

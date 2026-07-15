@@ -67,6 +67,7 @@ export const ACTION_META = {
   ETIROV_SUBMITTED: { label: 'Etiroz yuborildi', cat: 'warning' },
   RETURNED_TO_MARKING: { label: "Checker Marker'ga qaytardi (jarima)", cat: 'warning' },
   RETURNED_TO_PICKING: { label: "Marker Picker'ga qaytardi (jarima)", cat: 'warning' },
+  CHECKER_RETURNED_TO_PICKING: { label: "Checker Picker'ga qaytardi (jarima)", cat: 'warning' },
 };
 
 export const ROLE_LABELS = {

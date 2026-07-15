@@ -352,14 +352,32 @@ function DetailModal({ order, index, onClose, onComplete }) {
   );
 }
 
-// ── Markinga qaytarish modali (sababi so'raladi) ──────────────────────────────
-function ReturnToMarkingModal({ order, onClose, onDone }) {
+// ── Markinga/pikingga qaytarish modali (sababi so'raladi) ─────────────────────
+// target: 'marking' — xato belgilashda (marker qayta yuklaydi)
+//         'picking' — xato yig'ishning o'zida (marking butunlay o'tkazib yuboriladi)
+const RETURN_TARGET_META = {
+  marking: {
+    title: 'Orderni markinga qaytarish',
+    mutate: (id, reason) => checkerAPI.returnToMarking(id, reason),
+    note: 'Bu buyurtma aynan shu buyurtma uchun marklagan markerning "Qaytgan buyurtmalar" sahifasiga tushadi.',
+    defaultMessage: 'Buyurtma marking bo\'limiga qaytarildi',
+  },
+  picking: {
+    title: 'Orderni pikingga qaytarish',
+    mutate: (id, reason) => checkerAPI.returnToPicking(id, reason),
+    note: 'Marking bosqichi butunlay o\'tkazib yuboriladi — order aynan shu buyurtmani yig\'gan pickerning "Qaytgan buyurtmalar" sahifasiga tushadi.',
+    defaultMessage: 'Buyurtma picking bo\'limiga qaytarildi',
+  },
+};
+
+function ReturnModal({ order, target, onClose, onDone }) {
   const [reason, setReason] = useState('');
+  const meta = RETURN_TARGET_META[target];
 
   const mutation = useMutation({
-    mutationFn: () => checkerAPI.returnToMarking(order.id, reason),
+    mutationFn: () => meta.mutate(order.id, reason),
     onSuccess: (res) => {
-      toast.success(res.data.message || 'Buyurtma marking bo\'limiga qaytarildi');
+      toast.success(res.data.message || meta.defaultMessage);
       onDone();
       onClose();
     },
@@ -371,7 +389,7 @@ function ReturnToMarkingModal({ order, onClose, onDone }) {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div>
-            <h3 className="font-black text-gray-900">Orderni markinga qaytarish</h3>
+            <h3 className="font-black text-gray-900">{meta.title}</h3>
             <p className="text-xs text-gray-400 mt-0.5">#{order.invoiceNumber} · {order.client?.orgName}</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors">
@@ -388,9 +406,7 @@ function ReturnToMarkingModal({ order, onClose, onDone }) {
             rows={4}
             className="w-full px-3.5 py-3 rounded-xl border-2 border-gray-200 focus:border-amber-400 outline-none text-sm resize-none transition-colors"
           />
-          <p className="text-[11px] text-gray-400">
-            Bu buyurtma aynan shu buyurtma uchun marklagan markerning "Qaytgan buyurtmalar" sahifasiga tushadi.
-          </p>
+          <p className="text-[11px] text-gray-400">{meta.note}</p>
         </div>
 
         <div className="px-5 pb-5 flex gap-3">
@@ -418,18 +434,20 @@ function ReturnToMarkingModal({ order, onClose, onDone }) {
 function MineCard({ order, index }) {
   const [showDetail, setShowDetail] = useState(false);
   const [done, setDone] = useState(false);
-  const [returned, setReturned] = useState(false);
-  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnTarget, setReturnTarget] = useState(null); // null | 'marking' | 'picking'
+  const [returnedTo, setReturnedTo] = useState(null); // null | 'marking' | 'picking'
   const isOverdue = order.checkingDeadline && new Date(order.checkingDeadline) < new Date();
   const qc = useQueryClient();
 
-  if (returned) {
+  if (returnedTo) {
     return (
       <div className="bg-white rounded-2xl border-2 border-amber-300 shadow-sm flex flex-col items-center justify-center py-12 gap-3">
         <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center">
           <RotateCcw size={26} className="text-amber-500" />
         </div>
-        <p className="text-sm font-black text-amber-700">Marking bo'limiga qaytarildi!</p>
+        <p className="text-sm font-black text-amber-700">
+          {returnedTo === 'picking' ? 'Picking bo\'limiga qaytarildi!' : 'Marking bo\'limiga qaytarildi!'}
+        </p>
         <p className="text-xs text-gray-400">#{index + 1}</p>
       </div>
     );
@@ -457,12 +475,13 @@ function MineCard({ order, index }) {
           onComplete={() => setDone(true)}
         />
       )}
-      {showReturnModal && (
-        <ReturnToMarkingModal
+      {returnTarget && (
+        <ReturnModal
           order={order}
-          onClose={() => setShowReturnModal(false)}
+          target={returnTarget}
+          onClose={() => setReturnTarget(null)}
           onDone={() => {
-            setReturned(true);
+            setReturnedTo(returnTarget);
             qc.invalidateQueries(['checker-mine']);
             qc.invalidateQueries(['checker-available']);
           }}
@@ -545,13 +564,22 @@ function MineCard({ order, index }) {
           >
             <Eye size={15} /> Detail ko'rish va tasdiqlash
           </button>
-          <button
-            onClick={() => setShowReturnModal(true)}
-            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold
-              border-2 border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-all"
-          >
-            <RotateCcw size={13} /> Markinga qaytarish
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setReturnTarget('marking')}
+              className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold
+                border-2 border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-all"
+            >
+              <RotateCcw size={13} /> Markinga qaytarish
+            </button>
+            <button
+              onClick={() => setReturnTarget('picking')}
+              className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold
+                border-2 border-red-300 text-red-700 bg-red-50 hover:bg-red-100 transition-all"
+            >
+              <RotateCcw size={13} /> Pikingga qaytarish
+            </button>
+          </div>
         </div>
       </div>
     </>

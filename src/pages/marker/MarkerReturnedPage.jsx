@@ -54,6 +54,12 @@ function ReturnedCard({ order }) {
     completeMut.mutate(fd);
   };
 
+  // Tibbiy buyum (masalan tibbiy asbob-uskuna) — bunday mahsulotlar seriya/lot
+  // bo'yicha alohida belgilanmaydi, shuning uchun Excel talab qilinmaydi.
+  const handleMedicalItem = () => {
+    completeMut.mutate(new FormData());
+  };
+
   if (done) {
     return (
       <div className="bg-white rounded-2xl border-2 border-green-300 shadow-sm flex flex-col items-center justify-center py-12 gap-3">
@@ -129,7 +135,7 @@ function ReturnedCard({ order }) {
         </div>
       </div>
 
-      {/* Yangi excel yuklash — majburiy, o'tkazib yuborish yo'q */}
+      {/* Yangi excel yuklash yoki tibbiy buyum bo'lsa Excelsiz o'tkazish */}
       <div className="px-4 pb-4 space-y-2">
         {selectedFile ? (
           <div className="space-y-2">
@@ -164,11 +170,22 @@ function ReturnedCard({ order }) {
             <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileChange} />
             <button
               onClick={() => fileInputRef.current?.click()}
+              disabled={completeMut.isPending}
               className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold text-white
                 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700
-                shadow-md shadow-purple-200 transition-all"
+                shadow-md shadow-purple-200 transition-all disabled:opacity-70"
             >
               <Upload size={15} /> Yangi Excel yuklash
+            </button>
+            <button
+              onClick={handleMedicalItem}
+              disabled={completeMut.isPending}
+              className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold
+                border-2 border-teal-300 text-teal-700 bg-teal-50 hover:bg-teal-100 transition-all disabled:opacity-70"
+            >
+              {completeMut.isPending
+                ? <><span className="w-4 h-4 border-2 border-teal-300 border-t-teal-600 rounded-full animate-spin" /> Yuborilmoqda...</>
+                : <>💊 Tibbiy buyum — Excelsiz yuborish</>}
             </button>
           </>
         )}

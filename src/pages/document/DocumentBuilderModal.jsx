@@ -10,7 +10,7 @@ const COLUMN_OPTIONS = [
   { key: 'phone',    label: 'Telefon raqami' },
   { key: 'inn',      label: 'INN raqami' },
   { key: 'faktura',  label: 'Faktura raqami' },
-  { key: 'lot',      label: 'Lot raqami' },
+  { key: 'contract', label: 'Shartnoma raqami' },
   { key: 'boxCount', label: 'Qutilar soni' },
   { key: 'amount',   label: 'Summa' },
 ];
