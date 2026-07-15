@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { statsAPI } from '../../api';
-import { TrendingUp, ArrowUp, ArrowDown, XCircle, Calendar, ArrowRight, PieChart as PieIcon } from 'lucide-react';
+import { TrendingUp, ArrowUp, ArrowDown, XCircle, Calendar, ArrowRight, PieChart as PieIcon, X, MessageSquare } from 'lucide-react';
 import {
   ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   PieChart, Pie, Cell,
 } from 'recharts';
+import { format } from 'date-fns';
 
 const PERIODS = [
   { value: 'week', label: 'Hafta' },
@@ -22,7 +23,11 @@ const STATUS_META = {
   MARKING: { label: 'Marking', color: '#8B5CF6' },
   CHECKING: { label: 'Cheking', color: '#F59E0B' },
   LOADING: { label: 'Yuklanmoqda', color: '#0EA5E9' },
-  IN_TRANSIT: { label: "Yo'lda", color: '#F97316' },
+  // IN_TRANSIT statusi ikki xil real holatni birlashtiradi — backend buni
+  // deliveryStartedAt bo'yicha ikkiga ajratib yuboradi (haqiqiy Order.status
+  // qiymati emas, faqat shu statistikada ko'rsatish uchun sun'iy kalitlar).
+  IN_TRANSIT_READY: { label: 'Safarga tayyor', color: '#FBBF24' },
+  IN_TRANSIT_ACTIVE: { label: "Yo'lda", color: '#F97316' },
   DELIVERED: { label: 'Yetkazildi', color: '#10B981' },
   CANCELLED: { label: 'Bekor qilingan', color: '#EF4444' },
 };
@@ -36,6 +41,62 @@ function fmtCompact(v) {
   if (v >= 1e6) return `${(v / 1e6).toFixed(1).replace(/\.0$/, '')} mln`;
   if (v >= 1e3) return `${Math.round(v / 1e3)} ming`;
   return String(Math.round(v));
+}
+
+function CancelledOrdersModal({ queryArgs, onClose }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['cancelled-orders', queryArgs],
+    queryFn: () => statsAPI.getCancelledOrders(queryArgs),
+    select: (r) => r.data.data,
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center">
+              <XCircle size={17} className="text-red-500" />
+            </div>
+            <div>
+              <h3 className="font-black text-gray-900">Bekor qilingan orderlar</h3>
+              <p className="text-xs text-gray-400 mt-0.5">Tanlangan davrdagi barcha bekor qilingan buyurtmalar</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors">
+            <X size={16} className="text-gray-400" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto p-5 space-y-3">
+          {isLoading ? (
+            <div className="py-16 text-center text-gray-400 text-sm">Yuklanmoqda...</div>
+          ) : !data?.length ? (
+            <div className="py-16 text-center text-gray-400 text-sm">Bu davrda bekor qilingan order yo'q</div>
+          ) : (
+            data.map((o) => (
+              <div key={o.id} className="p-3.5 bg-red-50/60 border border-red-100 rounded-xl">
+                <div className="flex items-start justify-between gap-3 mb-1.5">
+                  <div>
+                    <p className="font-mono font-black text-sm text-gray-900">#{o.invoiceNumber}</p>
+                    <p className="text-xs text-gray-500 font-medium">{o.clientName}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-xs font-bold text-gray-700">{format(new Date(o.cancelledAt), 'dd.MM.yyyy')}</p>
+                    <p className="text-[11px] text-gray-400">{format(new Date(o.cancelledAt), 'HH:mm')}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-1.5 mt-2">
+                  <MessageSquare size={12} className="text-red-400 shrink-0 mt-0.5" />
+                  <p className="text-xs text-red-700 font-medium">{o.reason}</p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ChangeBadge({ pct }) {
@@ -52,14 +113,15 @@ function ChangeBadge({ pct }) {
 export default function SuperAdminSalesPage() {
   const [period, setPeriod] = useState('month');
   const [customRange, setCustomRange] = useState({ start: '', end: '' });
+  const [showCancelledModal, setShowCancelledModal] = useState(false);
+
+  const queryArgs = period === 'custom'
+    ? (customRange.start && customRange.end ? { period, startDate: customRange.start, endDate: customRange.end } : { period: 'month' })
+    : { period };
 
   const { data, isLoading } = useQuery({
     queryKey: ['sales-stats', period, customRange],
-    queryFn: () => statsAPI.getSales(
-      period === 'custom'
-        ? (customRange.start && customRange.end ? { period, startDate: customRange.start, endDate: customRange.end } : { period: 'month' })
-        : { period }
-    ),
+    queryFn: () => statsAPI.getSales(queryArgs),
     select: (r) => r.data.data,
   });
 
@@ -153,8 +215,8 @@ export default function SuperAdminSalesPage() {
             <ComposedChart data={buckets} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
               <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-              <YAxis yAxisId="left" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} tickFormatter={fmtCompact} />
+              <YAxis yAxisId="left" domain={[0, 'dataMax']} tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <YAxis yAxisId="right" orientation="right" domain={[0, 'dataMax']} tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} tickFormatter={fmtCompact} />
               <Tooltip
                 formatter={(value, name) => name === 'totalAmount' ? [`${fmtSum(value)} so'm`, 'Summa'] : [value, 'Orderlar']}
                 labelStyle={{ fontWeight: 700, color: '#111827' }}
@@ -162,7 +224,15 @@ export default function SuperAdminSalesPage() {
               />
               <Legend formatter={(v) => (v === 'orderCount' ? 'Orderlar' : 'Summa')} wrapperStyle={{ fontSize: 11 }} />
               <Bar yAxisId="left" dataKey="orderCount" name="orderCount" fill="#3B82F6" radius={[6, 6, 0, 0]} />
-              <Line yAxisId="right" dataKey="totalAmount" name="totalAmount" stroke="#10B981" strokeWidth={2.5} dot={false} />
+              <Line
+                yAxisId="right"
+                dataKey="totalAmount"
+                name="totalAmount"
+                stroke="#10B981"
+                strokeWidth={2.5}
+                dot={{ r: 3, fill: '#10B981', strokeWidth: 0 }}
+                activeDot={{ r: 5 }}
+              />
             </ComposedChart>
           </ResponsiveContainer>
         )}
@@ -212,7 +282,11 @@ export default function SuperAdminSalesPage() {
           )}
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col items-center justify-center text-center">
+        <button
+          onClick={() => cancelledCount > 0 && setShowCancelledModal(true)}
+          disabled={cancelledCount === 0}
+          className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col items-center justify-center text-center transition-all enabled:hover:border-red-200 enabled:hover:shadow-md enabled:cursor-pointer disabled:cursor-default"
+        >
           <div className="w-14 h-14 rounded-2xl bg-red-100 flex items-center justify-center mb-3">
             <XCircle size={26} className="text-red-500" />
           </div>
@@ -221,8 +295,15 @@ export default function SuperAdminSalesPage() {
           <p className="text-xs text-gray-400 mt-2">
             Tanlangan davrdagi {totalStatusOrders} ta orderning {cancelledPct}% i bekor qilingan
           </p>
-        </div>
+          {cancelledCount > 0 && (
+            <p className="text-[11px] text-red-400 font-bold mt-2">Batafsil ko'rish uchun bosing →</p>
+          )}
+        </button>
       </div>
+
+      {showCancelledModal && (
+        <CancelledOrdersModal queryArgs={queryArgs} onClose={() => setShowCancelledModal(false)} />
+      )}
     </div>
   );
 }

@@ -243,31 +243,36 @@ export default function SuperAdminRegionsPage() {
       </div>
 
       {/* Xarita — faqat O'zbekiston, klient darajasida qizil/yashil */}
-      <div className="relative bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden" style={{ height: 380 }}>
+      <div className="relative bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden" style={{ height: 440 }}>
         <MapContainer
           center={UZ_CENTER}
           zoom={6}
           minZoom={6}
-          maxZoom={11}
+          maxZoom={12}
           maxBounds={UZ_BOUNDS}
           maxBoundsViscosity={1.0}
-          style={{ height: '100%', width: '100%' }}
+          style={{ height: '100%', width: '100%', background: '#EAF2F7' }}
           scrollWheelZoom
         >
           <MapViewUpdater selectedRegion={selectedRegion} selected={selected} />
+          {/* CartoDB Positron — toza, och rangli, kam vizual shovqinli xarita
+              (standart OpenStreetMap uslubi haddan tashqari to'yingan rangli va
+              tumanli edi — bu ilovaning umumiy minimalistik dizayniga mos emas edi) */}
           <TileLayer
-            attribution='&copy; OpenStreetMap contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+            subdomains="abcd"
+            maxZoom={19}
           />
           {withCoords.map((c) => (
             <CircleMarker
               key={c.id}
               center={[c.latitude, c.longitude]}
-              radius={7}
+              radius={8}
               pathOptions={{
-                color: c.hasOrdered ? '#10B981' : '#EF4444',
+                color: '#fff',
                 fillColor: c.hasOrdered ? '#10B981' : '#EF4444',
-                fillOpacity: 0.85,
+                fillOpacity: 0.9,
                 weight: 2,
               }}
             >
@@ -284,9 +289,12 @@ export default function SuperAdminRegionsPage() {
             </CircleMarker>
           ))}
         </MapContainer>
-        <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur rounded-xl shadow-sm border border-gray-100 px-3 py-2 flex items-center gap-4 text-xs font-bold z-[1000]">
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" /> Xarid qilgan</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" /> Hali xarid qilmagan</span>
+        <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur rounded-xl shadow-md border border-gray-100 px-3.5 py-2.5 flex items-center gap-4 text-xs font-bold z-[1000]">
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block ring-2 ring-green-100" /> Xarid qilgan</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block ring-2 ring-red-100" /> Hali xarid qilmagan</span>
+        </div>
+        <div className="absolute top-3 right-3 bg-white/95 backdrop-blur rounded-xl shadow-md border border-gray-100 px-3 py-1.5 text-[11px] font-bold text-gray-500 z-[1000]">
+          {withCoords.length} ta klient xaritada
         </div>
       </div>
 
