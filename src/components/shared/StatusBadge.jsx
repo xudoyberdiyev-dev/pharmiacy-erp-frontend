@@ -7,6 +7,7 @@ const STATUS_MAP = {
   IN_TRANSIT: { label: "Yo'lda",       cls: 'badge-in_transit' },
   DELIVERED:  { label: 'Yetkazildi',   cls: 'badge-delivered' },
   CANCELLED:  { label: 'Bekor',        cls: 'badge-new' },
+  RETURNED:   { label: 'Qaytgan',      cls: 'badge-new' },
 };
 
 export default function StatusBadge({ status }) {

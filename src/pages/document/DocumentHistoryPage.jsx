@@ -11,7 +11,7 @@ import {
   Undo2, FileDown, AlertTriangle, CalendarDays, Ban
 } from 'lucide-react';
 
-const NON_CANCELLABLE_STATUSES = ['DELIVERED', 'CANCELLED'];
+const NON_CANCELLABLE_STATUSES = ['DELIVERED', 'CANCELLED', 'RETURNED'];
 
 function EmptyState() {
   return (

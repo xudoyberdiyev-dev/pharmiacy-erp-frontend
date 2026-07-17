@@ -108,6 +108,9 @@ export const documentAPI = {
     '/document/export', { orderIds, columns, footer }, { responseType: 'blob' }
   ),
   assignTrip:  (data) => api.post('/document/assign-trip', data),
+  reassignTrip: (id, data) => api.patch(`/document/orders/${id}/reassign-trip`, data),
+  fullReturn:  (id, reason) => api.patch(`/document/orders/${id}/full-return`, { reason }),
+  getFullyReturned: () => api.get('/document/orders/fully-returned'),
   returnToPending: (orderIds) => api.patch('/document/orders/return-to-pending', { orderIds }),
   updateAmount: (id, totalAmount) => api.patch(`/document/orders/${id}/amount`, { totalAmount }),
   getHistory:   (date) => api.get('/document/orders/history', { params: date ? { date } : {} }),

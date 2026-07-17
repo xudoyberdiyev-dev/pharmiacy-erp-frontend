@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { documentAPI } from '../../api';
+import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../lib/errors';
 import { format } from 'date-fns';
 import {
   Truck, Search, X, RefreshCw, Building2, User2,
-  FileCheck2, Clock, MapPin
+  FileCheck2, Clock, MapPin, Repeat2, Ban
 } from 'lucide-react';
+import TripModal from './TripModal';
 
 function EmptyState() {
   return (
@@ -19,7 +22,69 @@ function EmptyState() {
   );
 }
 
-function OrderRow({ o }) {
+function FullReturnModal({ order, onClose, onDone }) {
+  const [reason, setReason] = useState('');
+
+  const mutation = useMutation({
+    mutationFn: () => documentAPI.fullReturn(order.id, reason),
+    onSuccess: (res) => {
+      toast.success(res.data.message || 'Buyurtma butunlay qaytarildi');
+      onDone();
+      onClose();
+    },
+    onError: e => toast.error(getErrorMessage(e)),
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <h3 className="font-black text-gray-900">Orderni butunlay qaytarish</h3>
+            <p className="text-xs text-gray-400 mt-0.5">#{order.invoiceNumber} · {order.client?.orgName}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors">
+            <X size={16} className="text-gray-400" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-2.5">
+          <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider">Qaytarish sababi</p>
+          <textarea
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            placeholder="Masalan: mijoz qabul qilmadi, manzilga yetib borib bo'lmadi..."
+            rows={4}
+            className="w-full px-3.5 py-3 rounded-xl border-2 border-gray-200 focus:border-red-400 outline-none text-sm resize-none transition-colors"
+          />
+          <p className="text-[11px] text-gray-400">
+            Haydovchi hali yukni topshirmagan bo'lsa ishlatiladi. Order "Qaytgan" statusiga o'tadi va bu
+            haydovchi hamda safarga tayyor ro'yxatidan chiqib ketadi. Bu amalni ortga qaytarib bo'lmaydi.
+          </p>
+        </div>
+
+        <div className="px-5 pb-5 flex gap-3">
+          <button onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">
+            Bekor qilish
+          </button>
+          <button
+            onClick={() => mutation.mutate()}
+            disabled={!reason.trim() || mutation.isPending}
+            className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 text-white text-sm font-bold
+              hover:from-red-600 hover:to-rose-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+          >
+            {mutation.isPending
+              ? <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Qaytarilmoqda...</>
+              : <><Ban size={14} /> Butunlay qaytarish</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OrderRow({ o, onReassign, onFullReturn }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow p-4 flex items-center gap-4">
       <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center shrink-0">
@@ -63,6 +128,23 @@ function OrderRow({ o }) {
           {o.dispatchedAt ? format(new Date(o.dispatchedAt), 'dd.MM HH:mm') : '—'}
         </span>
       </div>
+
+      <div className="flex items-center gap-2 shrink-0">
+        <button
+          onClick={() => onReassign(o)}
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-sky-700
+            bg-sky-50 border border-sky-200 hover:bg-sky-100 transition-colors"
+        >
+          <Repeat2 size={14} /> Almashtirish
+        </button>
+        <button
+          onClick={() => onFullReturn(o)}
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-gray-500
+            bg-gray-50 border border-gray-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors"
+        >
+          <Ban size={14} /> Qaytarish
+        </button>
+      </div>
     </div>
   );
 }
@@ -70,12 +152,24 @@ function OrderRow({ o }) {
 export default function DocumentReadyPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
+  const [reassignOrder, setReassignOrder] = useState(null);
+  const [fullReturnOrder, setFullReturnOrder] = useState(null);
 
   const { data: orders = [], isLoading, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ['document', 'ready'],
     queryFn: () => documentAPI.getReady(),
     select: r => r.data.data || [],
     refetchInterval: 15000,
+  });
+
+  const reassignMutation = useMutation({
+    mutationFn: ({ id, driverId, vehicleId }) => documentAPI.reassignTrip(id, { driverId, vehicleId }),
+    onSuccess: (res) => {
+      toast.success(res.data.message || 'Haydovchi almashtirildi');
+      qc.invalidateQueries(['document']);
+      setReassignOrder(null);
+    },
+    onError: e => toast.error(getErrorMessage(e)),
   });
 
   const filtered = orders.filter(o => {
@@ -142,8 +236,28 @@ export default function DocumentReadyPage() {
         </div>
       ) : (
         <div className="space-y-2.5">
-          {filtered.map(o => <OrderRow key={o.id} o={o} />)}
+          {filtered.map(o => (
+            <OrderRow key={o.id} o={o} onReassign={setReassignOrder} onFullReturn={setFullReturnOrder} />
+          ))}
         </div>
+      )}
+
+      {reassignOrder && (
+        <TripModal
+          orders={[reassignOrder]}
+          onClose={() => setReassignOrder(null)}
+          onConfirm={(driverId, vehicleId) => reassignMutation.mutate({ id: reassignOrder.id, driverId, vehicleId })}
+          loading={reassignMutation.isPending}
+          confirmLabel="Qayta biriktirish"
+        />
+      )}
+
+      {fullReturnOrder && (
+        <FullReturnModal
+          order={fullReturnOrder}
+          onClose={() => setFullReturnOrder(null)}
+          onDone={() => qc.invalidateQueries(['document'])}
+        />
       )}
     </div>
   );
