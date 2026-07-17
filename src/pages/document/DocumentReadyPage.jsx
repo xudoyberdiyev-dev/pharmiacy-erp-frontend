@@ -86,64 +86,72 @@ function FullReturnModal({ order, onClose, onDone }) {
 
 function OrderRow({ o, onReassign, onFullReturn }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow p-4 flex items-center gap-4">
-      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center shrink-0">
-        <Building2 size={16} className="text-orange-600" />
-      </div>
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+      {/* Faktura / mijoz */}
+      <div className="p-4 flex items-start gap-3.5">
+        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center shrink-0">
+          <Building2 size={18} className="text-orange-600" />
+        </div>
 
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-mono text-sm font-black text-gray-900">{o.invoiceNumber}</span>
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
-            <FileCheck2 size={10} /> № {o.dispatchDocument?.documentNumber ?? '—'}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-mono text-sm font-black text-gray-900">{o.invoiceNumber}</span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+              <FileCheck2 size={10} /> № {o.dispatchDocument?.documentNumber ?? '—'}
+            </span>
+          </div>
+          <p className="text-sm font-semibold text-gray-700 truncate mt-0.5">{o.client?.orgName}</p>
+          {o.client?.address && (
+            <p className="text-[11px] text-gray-400 truncate flex items-center gap-1 mt-0.5">
+              <MapPin size={10} className="shrink-0" /> {o.client.address}
+            </p>
+          )}
+        </div>
+
+        <div className="hidden sm:flex items-center gap-1.5 text-gray-400 shrink-0">
+          <Clock size={12} />
+          <span className="text-xs font-medium whitespace-nowrap">
+            {o.dispatchedAt ? format(new Date(o.dispatchedAt), 'dd.MM HH:mm') : '—'}
           </span>
         </div>
-        <p className="text-sm text-gray-500 truncate mt-0.5">{o.client?.orgName}</p>
-        {o.client?.address && (
-          <p className="text-[11px] text-gray-400 truncate flex items-center gap-1 mt-0.5">
-            <MapPin size={10} /> {o.client.address}
-          </p>
-        )}
       </div>
 
-      <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-sky-50 rounded-xl border border-sky-100 shrink-0">
-        <User2 size={13} className="text-sky-600" />
-        <div className="min-w-0">
-          <p className="text-[9px] text-sky-400 font-bold uppercase tracking-wider">Haydovchi</p>
-          <p className="text-xs font-bold text-sky-800 truncate max-w-[120px]">{o.driver?.fullName}</p>
+      {/* Haydovchi / mashina + amallar */}
+      <div className="px-4 pb-4 pt-3 border-t border-gray-50 flex flex-wrap items-center gap-2.5">
+        <div className="flex items-center gap-2 px-3 py-2 bg-sky-50 rounded-xl border border-sky-100 min-w-0">
+          <User2 size={13} className="text-sky-600 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-[9px] text-sky-400 font-bold uppercase tracking-wider leading-none">Haydovchi</p>
+            <p className="text-xs font-bold text-sky-800 truncate max-w-[140px] mt-0.5">{o.driver?.fullName || '—'}</p>
+          </div>
         </div>
-      </div>
 
-      <div className="hidden md:flex items-center gap-2 px-3 py-2 bg-violet-50 rounded-xl border border-violet-100 shrink-0">
-        <Truck size={13} className="text-violet-600" />
-        <div className="min-w-0">
-          <p className="text-[9px] text-violet-400 font-bold uppercase tracking-wider">Mashina</p>
-          <p className="text-xs font-bold text-violet-800 truncate max-w-[130px]">{o.vehicle?.model} · {o.vehicle?.plateNumber}</p>
+        <div className="flex items-center gap-2 px-3 py-2 bg-violet-50 rounded-xl border border-violet-100 min-w-0">
+          <Truck size={13} className="text-violet-600 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-[9px] text-violet-400 font-bold uppercase tracking-wider leading-none">Mashina</p>
+            <p className="text-xs font-bold text-violet-800 truncate max-w-[150px] mt-0.5">{o.vehicle?.model} · {o.vehicle?.plateNumber}</p>
+          </div>
         </div>
-      </div>
 
-      <div className="hidden lg:flex items-center gap-1.5 text-gray-400 shrink-0">
-        <Clock size={12} />
-        <span className="text-xs font-medium whitespace-nowrap">
-          {o.dispatchedAt ? format(new Date(o.dispatchedAt), 'dd.MM HH:mm') : '—'}
-        </span>
-      </div>
-
-      <div className="flex items-center gap-2 shrink-0">
-        <button
-          onClick={() => onReassign(o)}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-sky-700
-            bg-sky-50 border border-sky-200 hover:bg-sky-100 transition-colors"
-        >
-          <Repeat2 size={14} /> Almashtirish
-        </button>
-        <button
-          onClick={() => onFullReturn(o)}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-gray-500
-            bg-gray-50 border border-gray-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors"
-        >
-          <Ban size={14} /> Qaytarish
-        </button>
+        <div className="flex items-center gap-2 ml-auto">
+          <button
+            onClick={() => onReassign(o)}
+            title="Haydovchi va mashinani almashtirish"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-sky-700
+              bg-sky-50 border border-sky-200 hover:bg-sky-100 active:scale-[0.97] transition-all"
+          >
+            <Repeat2 size={14} /> Almashtirish
+          </button>
+          <button
+            onClick={() => onFullReturn(o)}
+            title="Haydovchi hali topshirmagan bo'lsa, orderni butunlay qaytarish"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-red-600
+              bg-red-50 border border-red-100 hover:bg-red-100 hover:border-red-200 active:scale-[0.97] transition-all"
+          >
+            <Ban size={14} /> Qaytarish
+          </button>
+        </div>
       </div>
     </div>
   );

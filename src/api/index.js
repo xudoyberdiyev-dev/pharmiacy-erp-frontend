@@ -164,6 +164,7 @@ export const statsAPI = {
   getActivityLog: (params) => api.get('/activity-log', { params }),
   getSales: (params) => api.get('/stats/sales', { params }),
   getCancelledOrders: (params) => api.get('/stats/cancelled-orders', { params }),
+  getReturnedOrders: () => api.get('/stats/returned-orders'),
   getRegional: (params) => api.get('/stats/regional', { params }),
   getDriverLocations: () => api.get('/stats/driver-locations'),
   getOrdersDetail: (params) => api.get('/stats/orders-detail', { params }),

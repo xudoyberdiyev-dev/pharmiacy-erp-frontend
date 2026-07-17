@@ -8,8 +8,11 @@ import { useNavigate } from 'react-router-dom';
 import { Eye, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 
-const STATUSES = ['', 'NEW', 'PICKING', 'MARKING', 'CHECKING', 'LOADING', 'IN_TRANSIT', 'DELIVERED'];
-const STATUS_LABELS = { '': 'Barchasi', NEW: 'Yangi', PICKING: 'Picking', MARKING: 'Marking', CHECKING: 'Cheking', LOADING: 'Yuklanmoqda', IN_TRANSIT: "Yo'lda", DELIVERED: 'Yetkazildi' };
+const STATUSES = ['', 'NEW', 'PICKING', 'MARKING', 'CHECKING', 'LOADING', 'IN_TRANSIT', 'DELIVERED', 'RETURNED', 'CANCELLED'];
+const STATUS_LABELS = {
+  '': 'Barchasi', NEW: 'Yangi', PICKING: 'Picking', MARKING: 'Marking', CHECKING: 'Cheking', LOADING: 'Yuklanmoqda',
+  IN_TRANSIT: "Yo'lda", DELIVERED: 'Yetkazildi', RETURNED: "To'liq qaytgan", CANCELLED: 'Bekor qilingan',
+};
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -119,10 +122,25 @@ export default function OrdersPage() {
                     </td></tr>
                   )}
                   {orders.map(order => (
-                    <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={order.id} className={`hover:bg-gray-50 transition-colors ${order.status === 'RETURNED' ? 'bg-rose-50/40' : ''}`}>
                       <td className="px-6 py-3 font-mono text-sm font-bold">{order.invoiceNumber}</td>
-                      <td className="px-6 py-3 text-sm max-w-[140px] truncate">{order.client?.orgName}</td>
-                      <td className="px-6 py-3 text-sm font-medium">{order.totalAmount?.toLocaleString()}</td>
+                      <td className="px-6 py-3 text-sm max-w-[220px]">
+                        <p className="truncate">{order.client?.orgName}</p>
+                        {order.status === 'RETURNED' && (
+                          <p className="text-[11px] text-rose-600 font-medium truncate mt-0.5" title={order.fullyReturnedReason || ''}>
+                            100% qaytgan{order.fullyReturnedBy ? ` · ${order.fullyReturnedBy.fullName}` : ''}
+                            {order.fullyReturnedReason ? ` — ${order.fullyReturnedReason}` : ''}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-6 py-3 text-sm font-medium">
+                        <span className={order.status === 'RETURNED' ? 'line-through text-gray-400' : ''}>
+                          {order.totalAmount?.toLocaleString()}
+                        </span>
+                        {order.status === 'RETURNED' && (
+                          <p className="text-[10px] text-gray-400 font-normal mt-0.5">statistikaga kirmaydi</p>
+                        )}
+                      </td>
                       <td className="px-6 py-3"><StatusBadge status={order.status} /></td>
                       <td className="px-6 py-3 text-sm text-gray-500">
                         {order.pickingDeadline ? format(new Date(order.pickingDeadline), 'dd.MM HH:mm') : '—'}

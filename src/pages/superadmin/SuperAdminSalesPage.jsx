@@ -30,6 +30,7 @@ const STATUS_META = {
   IN_TRANSIT_ACTIVE: { label: "Yo'lda", color: '#F97316' },
   DELIVERED: { label: 'Yetkazildi', color: '#10B981' },
   CANCELLED: { label: 'Bekor qilingan', color: '#EF4444' },
+  RETURNED: { label: "To'liq qaytgan", color: '#E11D48' },
 };
 
 function fmtSum(v) {
@@ -99,6 +100,69 @@ function CancelledOrdersModal({ queryArgs, onClose }) {
   );
 }
 
+function ReturnedOrdersModal({ onClose }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['returned-orders'],
+    queryFn: () => statsAPI.getReturnedOrders(),
+    select: (r) => r.data.data,
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center">
+              <XCircle size={17} className="text-rose-600" />
+            </div>
+            <div>
+              <h3 className="font-black text-gray-900">To'liq qaytgan orderlar</h3>
+              <p className="text-xs text-gray-400 mt-0.5">Haydovchi yetkazib bermasdan hujjatchi tomonidan 100% qaytarilgan buyurtmalar</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors">
+            <X size={16} className="text-gray-400" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto p-5 space-y-3">
+          {isLoading ? (
+            <div className="py-16 text-center text-gray-400 text-sm">Yuklanmoqda...</div>
+          ) : !data?.length ? (
+            <div className="py-16 text-center text-gray-400 text-sm">Hozircha to'liq qaytarilgan order yo'q</div>
+          ) : (
+            data.map((o) => (
+              <div key={o.id} className="p-3.5 bg-rose-50/60 border border-rose-100 rounded-xl">
+                <div className="flex items-start justify-between gap-3 mb-1.5">
+                  <div>
+                    <p className="font-mono font-black text-sm text-gray-900">#{o.invoiceNumber}</p>
+                    <p className="text-xs text-gray-500 font-medium">{o.client?.orgName}</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      {o.driver?.fullName || '—'}{o.vehicle ? ` · ${o.vehicle.model} ${o.vehicle.plateNumber}` : ''}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-xs font-bold text-gray-700">{o.fullyReturnedAt ? format(new Date(o.fullyReturnedAt), 'dd.MM.yyyy') : '—'}</p>
+                    <p className="text-[11px] text-gray-400">{o.fullyReturnedAt ? format(new Date(o.fullyReturnedAt), 'HH:mm') : ''}</p>
+                    <p className="text-xs font-bold text-gray-400 line-through mt-1">{o.totalAmount?.toLocaleString()} so'm</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-1.5 mt-2">
+                  <MessageSquare size={12} className="text-rose-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-rose-700 font-medium">
+                    {o.fullyReturnedReason || 'Sabab ko\'rsatilmagan'}
+                    {o.fullyReturnedBy?.fullName ? ` — ${o.fullyReturnedBy.fullName}` : ''}
+                  </p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ChangeBadge({ pct }) {
   if (pct === undefined || pct === null) return null;
   if (pct === 0) return <span className="text-xs font-bold text-gray-400">o'zgarishsiz</span>;
@@ -114,6 +178,7 @@ export default function SuperAdminSalesPage() {
   const [period, setPeriod] = useState('month');
   const [customRange, setCustomRange] = useState({ start: '', end: '' });
   const [showCancelledModal, setShowCancelledModal] = useState(false);
+  const [showReturnedModal, setShowReturnedModal] = useState(false);
 
   const queryArgs = period === 'custom'
     ? (customRange.start && customRange.end ? { period, startDate: customRange.start, endDate: customRange.end } : { period: 'month' })
@@ -129,12 +194,14 @@ export default function SuperAdminSalesPage() {
   const comparison = data?.comparison || {};
   const statusBreakdown = data?.statusBreakdown || [];
   const cancelledCount = data?.cancelledCount || 0;
+  const returnedCount = data?.returnedCount || 0;
 
   const totalOrders = buckets.reduce((s, b) => s + b.orderCount, 0);
   const totalAmount = buckets.reduce((s, b) => s + b.totalAmount, 0);
   const avgOrder = totalOrders > 0 ? Math.round(totalAmount / totalOrders) : 0;
   const totalStatusOrders = statusBreakdown.reduce((s, x) => s + x.count, 0);
   const cancelledPct = totalStatusOrders > 0 ? Math.round((cancelledCount / totalStatusOrders) * 100) : 0;
+  const returnedPct = totalStatusOrders > 0 ? Math.round((returnedCount / totalStatusOrders) * 100) : 0;
 
   return (
     <div className="space-y-5">
@@ -238,8 +305,8 @@ export default function SuperAdminSalesPage() {
         )}
       </div>
 
-      {/* Holat taqsimoti va bekor qilinganlar */}
-      <div className="grid md:grid-cols-2 gap-4">
+      {/* Holat taqsimoti, bekor qilinganlar va to'liq qaytganlar */}
+      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-9 h-9 bg-indigo-100 rounded-2xl flex items-center justify-center shrink-0">
@@ -299,10 +366,31 @@ export default function SuperAdminSalesPage() {
             <p className="text-[11px] text-red-400 font-bold mt-2">Batafsil ko'rish uchun bosing →</p>
           )}
         </button>
+
+        <button
+          onClick={() => returnedCount > 0 && setShowReturnedModal(true)}
+          disabled={returnedCount === 0}
+          className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col items-center justify-center text-center transition-all enabled:hover:border-rose-200 enabled:hover:shadow-md enabled:cursor-pointer disabled:cursor-default"
+        >
+          <div className="w-14 h-14 rounded-2xl bg-rose-100 flex items-center justify-center mb-3">
+            <XCircle size={26} className="text-rose-600" />
+          </div>
+          <p className="text-3xl font-black text-rose-600">{returnedCount}</p>
+          <p className="text-sm text-gray-700 font-bold mt-1">To'liq qaytgan orderlar</p>
+          <p className="text-xs text-gray-400 mt-2">
+            Tanlangan davrdagi {totalStatusOrders} ta orderning {returnedPct}% i haydovchi tomonidan yetkazilmasdan qaytarilgan
+          </p>
+          {returnedCount > 0 && (
+            <p className="text-[11px] text-rose-500 font-bold mt-2">Batafsil ko'rish uchun bosing →</p>
+          )}
+        </button>
       </div>
 
       {showCancelledModal && (
         <CancelledOrdersModal queryArgs={queryArgs} onClose={() => setShowCancelledModal(false)} />
+      )}
+      {showReturnedModal && (
+        <ReturnedOrdersModal onClose={() => setShowReturnedModal(false)} />
       )}
     </div>
   );
