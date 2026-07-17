@@ -7,10 +7,100 @@ import { getErrorMessage } from '../../lib/errors';
 import { format } from 'date-fns';
 import {
   FileSpreadsheet, Search, X, CheckSquare, Square,
-  RefreshCw, Building2, Truck, Sparkles, Pencil, Check, AlertTriangle
+  RefreshCw, Building2, Truck, Sparkles, Pencil, Check, AlertTriangle, Percent
 } from 'lucide-react';
 import TripModal from './TripModal';
 import CheckerEtirovModal from './components/CheckerEtirovModal';
+
+// ── Chegirma berish modali — foiz yoki aniq summada, yangi narx avtomatik
+// hisoblanadi va mavjud updateAmount so'rovi orqali saqlanadi (originalAmount
+// backendning o'zida birinchi o'zgarishda avtomatik saqlab qo'yiladi). ───────
+function DiscountModal({ order, onClose, onApply, isPending }) {
+  const [mode, setMode] = useState('percent'); // 'percent' | 'fixed'
+  const [value, setValue] = useState('');
+
+  const base = order.totalAmount;
+  const num = parseFloat(value) || 0;
+  const discountAmount = mode === 'percent' ? Math.round(base * (num / 100)) : num;
+  const newTotal = Math.max(0, base - discountAmount);
+  const canApply = num > 0 && newTotal < base;
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <h3 className="font-black text-gray-900">Chegirma berish</h3>
+            <p className="text-xs text-gray-400 mt-0.5">#{order.invoiceNumber} · {order.client?.orgName}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors">
+            <X size={16} className="text-gray-400" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-3">
+          <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
+            <button
+              onClick={() => { setMode('percent'); setValue(''); }}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === 'percent' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500'}`}
+            >
+              Foizda (%)
+            </button>
+            <button
+              onClick={() => { setMode('fixed'); setValue(''); }}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === 'fixed' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500'}`}
+            >
+              Aniq summada
+            </button>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-black text-gray-400 uppercase tracking-wider">
+              {mode === 'percent' ? 'Chegirma foizi' : "Chegirma summasi (so'm)"}
+            </label>
+            <input
+              autoFocus
+              type="text"
+              inputMode="numeric"
+              value={value}
+              onChange={e => setValue(e.target.value.replace(/[^\d.]/g, ''))}
+              placeholder={mode === 'percent' ? '10' : '50000'}
+              className="w-full mt-1 px-3.5 py-2.5 rounded-xl border-2 border-gray-200 focus:border-indigo-400 outline-none text-sm font-bold"
+            />
+          </div>
+
+          <div className="bg-indigo-50 rounded-xl p-3.5 space-y-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-gray-500">Joriy narx</span>
+              <span className="font-bold text-gray-700">{base.toLocaleString()} so'm</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-gray-500">Chegirma</span>
+              <span className="font-bold text-red-500">−{discountAmount.toLocaleString()} so'm</span>
+            </div>
+            <div className="flex items-center justify-between text-sm pt-1 border-t border-indigo-100">
+              <span className="font-black text-gray-800">Yangi narx</span>
+              <span className="font-black text-indigo-700">{newTotal.toLocaleString()} so'm</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 pb-5 flex gap-3">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">
+            Bekor qilish
+          </button>
+          <button
+            onClick={() => onApply(newTotal)}
+            disabled={!canApply || isPending}
+            className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 text-white text-sm font-bold hover:from-indigo-600 hover:to-indigo-700 disabled:opacity-50 transition-all"
+          >
+            {isPending ? 'Saqlanmoqda...' : 'Chegirmani qo\'llash'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function EmptyState() {
   return (
@@ -33,6 +123,7 @@ export default function DocumentPendingPage() {
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
   const [etirovOrder, setEtirovOrder] = useState(null);
+  const [discountOrder, setDiscountOrder] = useState(null);
 
   const { data: orders = [], isLoading, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ['document', 'pending'],
@@ -226,9 +317,17 @@ export default function DocumentPendingPage() {
                             </div>
                             <button
                               onClick={() => startEditAmount(o)}
+                              title="Qo'lda tahrirlash"
                               className="w-6 h-6 rounded-lg text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100 shrink-0"
                             >
                               <Pencil size={12} />
+                            </button>
+                            <button
+                              onClick={() => setDiscountOrder(o)}
+                              title="Chegirma berish"
+                              className="w-6 h-6 rounded-lg text-gray-300 hover:text-emerald-600 hover:bg-emerald-50 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                            >
+                              <Percent size={12} />
                             </button>
                           </div>
                         )}
@@ -301,6 +400,18 @@ export default function DocumentPendingPage() {
           order={etirovOrder}
           onClose={() => setEtirovOrder(null)}
           onDone={() => setEtirovOrder(null)}
+        />
+      )}
+
+      {discountOrder && (
+        <DiscountModal
+          order={discountOrder}
+          isPending={amountMutation.isPending}
+          onClose={() => setDiscountOrder(null)}
+          onApply={(newTotal) => amountMutation.mutate(
+            { id: discountOrder.id, totalAmount: newTotal },
+            { onSuccess: () => setDiscountOrder(null) }
+          )}
         />
       )}
     </div>
