@@ -149,7 +149,24 @@ export default function DriverOrderDetail() {
           <Navigation size={17} className="text-[#3B5BFD]" /> Xaritada ochish
         </button>
 
-        {isActive && !order.deliveryStartedAt && (
+        {isActive && !order.driverConfirmedAt && (
+          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-start gap-3">
+            <AlertCircle size={20} className="text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold text-amber-700">Bu order hali tasdiqlanmagan</p>
+              <p className="text-xs text-amber-600 mt-1">
+                Yetkazishni boshlash yoki yakunlash uchun avval bosh sahifadagi ro'yxatdan bu orderni
+                "qabul qildim" deb tasdiqlashingiz kerak.
+              </p>
+              <button onClick={() => navigate('/driver')}
+                className="mt-2.5 text-xs font-bold text-amber-800 underline underline-offset-2">
+                Bosh sahifaga qaytish →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isActive && order.driverConfirmedAt && !order.deliveryStartedAt && (
           <button
             onClick={() => startDeliveryMutation.mutate()}
             disabled={startDeliveryMutation.isPending}
@@ -205,7 +222,7 @@ export default function DriverOrderDetail() {
           </div>
         )}
 
-        {isActive ? (
+        {isActive && order.driverConfirmedAt ? (
           <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-4">
             <p className="font-bold text-gray-900 text-sm">Yetkazib berishni tasdiqlash</p>
 
@@ -238,7 +255,7 @@ export default function DriverOrderDetail() {
               <CheckCircle size={18} /> {deliverMutation.isPending ? 'Yuborilmoqda...' : 'Yetkazdim'}
             </button>
           </div>
-        ) : order.status === 'DELIVERED' ? (
+        ) : isActive ? null : order.status === 'DELIVERED' ? (
           <div className="bg-green-50 border border-green-100 rounded-2xl p-4 flex items-center gap-3">
             <CheckCircle size={20} className="text-green-600 shrink-0" />
             <p className="text-sm font-bold text-green-700">Bu order yetkazib berilgan</p>
