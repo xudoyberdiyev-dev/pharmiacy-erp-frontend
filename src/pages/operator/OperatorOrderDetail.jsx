@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
 import NotFoundState from '../../components/shared/NotFoundState';
+import ClientSelect from '../../components/shared/ClientSelect';
 import {
   ArrowLeft, Pencil, X, Check, Save, Upload,
   FileSpreadsheet, Clock, User, Building2, AlertTriangle,
@@ -104,6 +105,7 @@ export default function OperatorOrderDetail() {
 
   const startEdit = () => {
     setEditForm({
+      clientId: order.clientId,
       contractNumber: order.contractNumber,
       invoiceNumber: order.invoiceNumber,
       lotNumber: order.lotNumber || '',
@@ -246,7 +248,15 @@ export default function OperatorOrderDetail() {
                 </>
               ) : (
                 <div className="space-y-4">
-                  <div className="p-3 bg-gray-50 rounded-xl text-sm font-semibold text-gray-600">{order.client?.orgName}</div>
+                  <div>
+                    <label className="block text-xs text-gray-400 font-bold mb-1.5">Klient</label>
+                    <ClientSelect value={editForm.clientId} onChange={v => setEditForm(p => ({ ...p, clientId: v }))} />
+                    {editForm.clientId !== order.clientId && (
+                      <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 font-medium mt-2">
+                        Klient almashtirilmoqda — saqlagach, bu buyurtma statistikasi eski klientdan chiqib, yangi klientga o'tadi.
+                      </p>
+                    )}
+                  </div>
                   <div className="grid grid-cols-3 gap-3">
                     {[
                       { k: 'contractNumber', label: 'Shartnoma #', ph: 'SH-2024-001' },
