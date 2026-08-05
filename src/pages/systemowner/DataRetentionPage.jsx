@@ -153,27 +153,27 @@ export default function DataRetentionPage() {
               </div>
 
               <div className="space-y-3">
-                <div className="flex items-center gap-3">
+                <div className="flex items-start gap-3">
                   <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-black flex items-center justify-center shrink-0">1</span>
                   <button
                     onClick={() => exportMutation.mutate()}
                     disabled={exportMutation.isPending}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors disabled:opacity-50"
+                    className="min-w-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-left text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors disabled:opacity-50"
                   >
-                    <Download size={15} /> {exportMutation.isPending ? 'Yuklanmoqda...' : 'Zaxira nusxasini yuklab olish'}
+                    <Download size={15} className="shrink-0" /> <span>{exportMutation.isPending ? 'Yuklanmoqda...' : 'Zaxira nusxasini yuklab olish'}</span>
                   </button>
-                  {backupDownloaded && <CheckCircle2 size={18} className="text-green-600" />}
+                  {backupDownloaded && <CheckCircle2 size={18} className="text-green-600 shrink-0 mt-2" />}
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-start gap-3">
                   <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-black flex items-center justify-center shrink-0">2</span>
-                  <div>
+                  <div className="min-w-0">
                     <button
                       onClick={() => setShowConfirm(true)}
                       disabled={!backupDownloaded}
                       className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 transition-colors disabled:opacity-50 disabled:hover:bg-red-50"
                     >
-                      <Trash2 size={15} /> Butunlay o'chirish
+                      <Trash2 size={15} className="shrink-0" /> Butunlay o'chirish
                     </button>
                     {!backupDownloaded && (
                       <p className="text-xs text-gray-400 mt-1">Avval zaxirani yuklab oling</p>

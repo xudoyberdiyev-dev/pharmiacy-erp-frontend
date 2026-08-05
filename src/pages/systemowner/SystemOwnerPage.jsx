@@ -200,32 +200,39 @@ export default function SystemOwnerPage() {
       ) : (
         <div className="space-y-2.5">
           {admins.map((a) => (
-            <div key={a.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-4">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold shrink-0">
-                {a.fullName?.charAt(0)}
+            <div key={a.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold shrink-0">
+                  {a.fullName?.charAt(0)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-gray-900 text-sm truncate">{a.fullName}</p>
+                  <p className="text-xs text-gray-400 truncate">{a.phone}</p>
+                </div>
+                <span className={`shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full sm:hidden ${a.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  {a.isActive ? 'Faol' : 'Bloklangan'}
+                </span>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-gray-900 text-sm truncate">{a.fullName}</p>
-                <p className="text-xs text-gray-400">{a.phone}</p>
-              </div>
-              <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${a.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+              <span className={`hidden sm:inline-block shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full ${a.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                 {a.isActive ? 'Faol' : 'Bloklangan'}
               </span>
-              <button
-                onClick={() => setEditing(a)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors shrink-0"
-              >
-                <Pencil size={13} /> Tahrirlash
-              </button>
-              <button
-                onClick={() => setToggling(a)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors shrink-0 ${
-                  a.isActive ? 'text-red-600 bg-red-50 hover:bg-red-100' : 'text-green-600 bg-green-50 hover:bg-green-100'
-                }`}
-              >
-                {a.isActive ? <ShieldAlert size={13} /> : <ShieldCheck size={13} />}
-                {a.isActive ? 'Bloklash' : 'Faollashtirish'}
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => setEditing(a)}
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+                >
+                  <Pencil size={13} /> Tahrirlash
+                </button>
+                <button
+                  onClick={() => setToggling(a)}
+                  className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors ${
+                    a.isActive ? 'text-red-600 bg-red-50 hover:bg-red-100' : 'text-green-600 bg-green-50 hover:bg-green-100'
+                  }`}
+                >
+                  {a.isActive ? <ShieldAlert size={13} /> : <ShieldCheck size={13} />}
+                  {a.isActive ? 'Bloklash' : 'Faollashtirish'}
+                </button>
+              </div>
             </div>
           ))}
         </div>
