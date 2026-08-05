@@ -122,6 +122,7 @@ export const documentAPI = {
   }),
   downloadReturnReport: (id) => api.get(`/document/orders/${id}/return-report`, { responseType: 'blob' }),
   cancelOrder: (id, reason) => api.patch(`/document/orders/${id}/cancel`, { reason }),
+  restoreOrder: (id, reason) => api.patch(`/document/orders/${id}/restore`, { reason }),
   getEtirozli: () => api.get('/document/etirozlar'),
   respondEtirov: (id, data) => api.patch(`/document/etirozlar/${id}/respond`, data),
   raiseCheckerEtirov: (id, data) => api.post(`/document/orders/${id}/etirov`, data),

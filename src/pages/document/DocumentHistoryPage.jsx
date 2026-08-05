@@ -8,10 +8,11 @@ import { getErrorMessage } from '../../lib/errors';
 import { format } from 'date-fns';
 import {
   History, Search, X, RefreshCw, Building2, FileCheck2,
-  Undo2, FileDown, AlertTriangle, CalendarDays, Ban
+  Undo2, FileDown, AlertTriangle, CalendarDays, Ban, RotateCcw
 } from 'lucide-react';
 
 const NON_CANCELLABLE_STATUSES = ['DELIVERED', 'CANCELLED', 'RETURNED'];
+const RESTORABLE_STATUSES = ['CANCELLED', 'RETURNED'];
 
 function EmptyState() {
   return (
@@ -25,9 +26,10 @@ function EmptyState() {
   );
 }
 
-function HistoryRow({ o, onDownload, downloading, onCancel, cancelling }) {
+function HistoryRow({ o, onDownload, downloading, onCancel, cancelling, onRestore, restoring }) {
   const navigate = useNavigate();
   const canCancel = !NON_CANCELLABLE_STATUSES.includes(o.status);
+  const canRestore = RESTORABLE_STATUSES.includes(o.status);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow p-4 flex items-center gap-4 flex-wrap">
@@ -95,6 +97,16 @@ function HistoryRow({ o, onDownload, downloading, onCancel, cancelling }) {
             <Ban size={14} /> {cancelling === o.id ? 'Bekor qilinmoqda...' : 'Bekor qilish'}
           </button>
         )}
+        {canRestore && (
+          <button
+            onClick={() => onRestore(o)}
+            disabled={restoring === o.id}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-amber-700
+              bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors disabled:opacity-50"
+          >
+            <RotateCcw size={14} /> {restoring === o.id ? 'Tiklanmoqda...' : 'Tiklash'}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -106,6 +118,7 @@ export default function DocumentHistoryPage() {
   const [downloading, setDownloading] = useState(null);
   const [dateFilter, setDateFilter] = useState('');
   const [cancellingId, setCancellingId] = useState(null);
+  const [restoringId, setRestoringId] = useState(null);
 
   const { data: orders = [], isLoading, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ['document', 'history', dateFilter],
@@ -125,9 +138,25 @@ export default function DocumentHistoryPage() {
   });
 
   const handleCancel = (o) => {
-    if (!window.confirm(`#${o.invoiceNumber} orderni butunlay bekor qilmoqchimisiz? Bu amalni ortga qaytarib bo'lmaydi.`)) return;
+    if (!window.confirm(`#${o.invoiceNumber} orderni butunlay bekor qilmoqchimisiz? (Kerak bo'lsa keyinroq "Tiklash" orqali qaytarish mumkin.)`)) return;
     setCancellingId(o.id);
     cancelMutation.mutate(o.id);
+  };
+
+  const restoreMutation = useMutation({
+    mutationFn: (id) => documentAPI.restoreOrder(id),
+    onSuccess: () => {
+      toast.success('Buyurtma tiklandi, "Chekingdan o\'tganlar" bo\'limiga qaytdi');
+      qc.invalidateQueries(['document']);
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+    onSettled: () => setRestoringId(null),
+  });
+
+  const handleRestore = (o) => {
+    if (!window.confirm(`#${o.invoiceNumber} orderni tiklamoqchimisiz? Order haydovchi/hujjatsiz "Chekingdan o'tganlar" bo'limiga qaytadi va qaytadan hujjatlashtirish kerak bo'ladi.`)) return;
+    setRestoringId(o.id);
+    restoreMutation.mutate(o.id);
   };
 
   const filtered = orders.filter(o => {
@@ -236,6 +265,8 @@ export default function DocumentHistoryPage() {
               downloading={downloading}
               onCancel={handleCancel}
               cancelling={cancellingId}
+              onRestore={handleRestore}
+              restoring={restoringId}
             />
           ))}
         </div>
