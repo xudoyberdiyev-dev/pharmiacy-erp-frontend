@@ -10,6 +10,11 @@ import { getErrorMessage } from '../../lib/errors';
 import { ArrowLeft, MapPin, Camera, CheckCircle, Navigation, X, Package, Banknote, AlertCircle, Truck, Images } from 'lucide-react';
 
 const MAX_PHOTOS = 4;
+// Backend middleware/upload.js dagi uploadImage limiti bilan bir xil (15MB) —
+// oshib ketgan rasmni serverga yubormasdan, shu yerda darhol tushunarli
+// xabar bilan qaytarib, foydalanuvchini keraksiz "Yetkazdim" bosib xato
+// olishdan asraydi.
+const MAX_PHOTO_SIZE_BYTES = 15 * 1024 * 1024;
 
 // Backend statsController.js dagi getDriverLocations bilan bir xil formula —
 // driver o'zining hozirgi joylashuvidan mijozgacha taxminiy masofa/ETA'ni
@@ -87,7 +92,19 @@ export default function DriverOrderDetail() {
   };
 
   const addPhotos = (files) => {
-    const next = [...photos, ...Array.from(files)].slice(0, MAX_PHOTOS);
+    const incoming = Array.from(files);
+    const tooBig = incoming.filter(f => f.size > MAX_PHOTO_SIZE_BYTES);
+    const ok = incoming.filter(f => f.size <= MAX_PHOTO_SIZE_BYTES);
+
+    if (tooBig.length > 0) {
+      toast.error(
+        tooBig.length === 1
+          ? "Bu rasm hajmi juda katta (15MB dan oshmasligi kerak) — boshqa rasm tanlang"
+          : `${tooBig.length} ta rasm hajmi juda katta (15MB dan oshmasligi kerak) — o'tkazib yuborildi`
+      );
+    }
+
+    const next = [...photos, ...ok].slice(0, MAX_PHOTOS);
     setPhotos(next);
   };
 
