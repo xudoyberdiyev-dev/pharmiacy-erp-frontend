@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderAPI } from '../../api';
@@ -7,7 +7,7 @@ import StatusBadge from '../../components/shared/StatusBadge';
 import NotFoundState from '../../components/shared/NotFoundState';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
-import { ArrowLeft, MapPin, Camera, CheckCircle, Navigation, X, Package, Banknote, AlertCircle, Truck } from 'lucide-react';
+import { ArrowLeft, MapPin, Camera, CheckCircle, Navigation, X, Package, Banknote, AlertCircle, Truck, Images } from 'lucide-react';
 
 const MAX_PHOTOS = 4;
 
@@ -29,6 +29,9 @@ export default function DriverOrderDetail() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [photos, setPhotos] = useState([]);
+  const [showPhotoMenu, setShowPhotoMenu] = useState(false);
+  const cameraInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
   const { position, error: locationError } = useDriverLocation();
 
   const { data: order, isLoading, error } = useQuery({
@@ -237,15 +240,52 @@ export default function DriverOrderDetail() {
                 </div>
               ))}
               {photos.length < MAX_PHOTOS && (
-                <label className="aspect-square rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-1 cursor-pointer active:bg-gray-50">
+                <button type="button" onClick={() => setShowPhotoMenu(true)}
+                  className="aspect-square rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-1 active:bg-gray-50">
                   <Camera size={18} className="text-gray-400" />
                   <span className="text-[10px] text-gray-400 font-bold">{photos.length}/{MAX_PHOTOS}</span>
-                  <input type="file" accept="image/*" multiple className="hidden"
-                    onChange={e => { addPhotos(e.target.files); e.target.value = ''; }} />
-                </label>
+                </button>
               )}
             </div>
             <p className="text-xs text-gray-400">Yetkazib berish tasdig'i uchun 1 tadan 4 tagacha rasm oling.</p>
+
+            {/* Kamera bilan bevosita olish uchun — orqa kamera to'g'ridan-to'g'ri
+                ochiladi (galereyaga aylanib o'tmasdan). Ikkalasi ham alohida,
+                ko'rinmas inputlar — pastdagi tanlov varag'idagi tugmalar orqali
+                ishga tushiriladi. */}
+            <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden"
+              onChange={e => { addPhotos(e.target.files); e.target.value = ''; }} />
+            <input ref={galleryInputRef} type="file" accept="image/*" multiple className="hidden"
+              onChange={e => { addPhotos(e.target.files); e.target.value = ''; }} />
+
+            {showPhotoMenu && (
+              <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={() => setShowPhotoMenu(false)}>
+                <div className="absolute inset-0 bg-black/40" />
+                <div className="relative w-full max-w-md bg-white rounded-t-2xl p-4 pb-6 space-y-2.5" onClick={e => e.stopPropagation()}>
+                  <p className="text-center text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Rasm qo'shish</p>
+                  <button type="button"
+                    onClick={() => { setShowPhotoMenu(false); cameraInputRef.current?.click(); }}
+                    className="w-full flex items-center gap-3 bg-gray-50 rounded-2xl p-4 active:bg-gray-100 transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-[#3B5BFD]/10 flex items-center justify-center shrink-0">
+                      <Camera size={19} className="text-[#3B5BFD]" />
+                    </div>
+                    <span className="font-bold text-gray-800 text-sm">Kamera bilan olish</span>
+                  </button>
+                  <button type="button"
+                    onClick={() => { setShowPhotoMenu(false); galleryInputRef.current?.click(); }}
+                    className="w-full flex items-center gap-3 bg-gray-50 rounded-2xl p-4 active:bg-gray-100 transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-[#3B5BFD]/10 flex items-center justify-center shrink-0">
+                      <Images size={19} className="text-[#3B5BFD]" />
+                    </div>
+                    <span className="font-bold text-gray-800 text-sm">Galereyadan tanlash</span>
+                  </button>
+                  <button type="button" onClick={() => setShowPhotoMenu(false)}
+                    className="w-full text-center py-3 text-sm font-bold text-gray-400">
+                    Bekor qilish
+                  </button>
+                </div>
+              </div>
+            )}
 
             <button
               onClick={() => deliverMutation.mutate()}
