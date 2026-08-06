@@ -6,7 +6,7 @@ import StatusBadge from '../../components/shared/StatusBadge';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
 import { MapPin, ChevronRight, CheckSquare, Square, ClipboardCheck, Package } from 'lucide-react';
-import { isToday } from 'date-fns';
+import { isToday, format } from 'date-fns';
 
 function ConfirmChecklist({ orders, onDone }) {
   const qc = useQueryClient();
@@ -95,19 +95,41 @@ function ConfirmChecklist({ orders, onDone }) {
 export default function DriverPanel() {
   const navigate = useNavigate();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['orders', 'driver'],
-    queryFn: () => orderAPI.getAll({ limit: 50 }),
+  // Faol (hali yetkazilmagan) orderlar — alohida, cheklovsiz so'rov bilan
+  // olinadi. Muhim: bularni haydovchining eski (yetkazib bo'lingan) tarixi
+  // bilan bitta umumiy "limit"ga sig'dirib olishga urinish xato edi — agar
+  // haydovchida ko'p tarix bo'lsa, yangi biriktirilgan faol orderlar
+  // createdAt bo'yicha saralanganda ro'yxatdan "siqilib chiqib", haydovchi
+  // panelida umuman ko'rinmay qolar edi (hujjatchi panelida esa hammasi
+  // to'g'ri biriktirilgan bo'lib turaverardi). Shu sabab faol va tarix
+  // ro'yxatlari endi butunlay mustaqil so'rovlar orqali olinadi.
+  const { data: active, isLoading } = useQuery({
+    queryKey: ['orders', 'driver', 'active'],
+    queryFn: () => orderAPI.getAll({ status: 'IN_TRANSIT', limit: 1000 }),
     select: r => r.data.data,
     refetchInterval: 20000,
   });
 
-  const orders = data || [];
-  const active = orders.filter(o => o.status === 'IN_TRANSIT');
-  const unconfirmed = active.filter(o => !o.driverConfirmedAt);
-  const confirmedActive = active.filter(o => o.driverConfirmedAt);
-  const done = orders.filter(o => o.status === 'DELIVERED');
-  const deliveredToday = done.filter(o => o.deliveredAt && isToday(new Date(o.deliveredAt))).length;
+  const { data: deliveredRes } = useQuery({
+    queryKey: ['orders', 'driver', 'delivered'],
+    queryFn: () => orderAPI.getAll({ status: 'DELIVERED', limit: 10 }),
+    select: r => r.data,
+    refetchInterval: 30000,
+  });
+
+  const { data: deliveredTodayTotal } = useQuery({
+    queryKey: ['orders', 'driver', 'delivered-today'],
+    queryFn: () => orderAPI.getAll({ status: 'DELIVERED', date: format(new Date(), 'yyyy-MM-dd'), limit: 1 }),
+    select: r => r.data.total,
+    refetchInterval: 30000,
+  });
+
+  const activeOrders = active || [];
+  const unconfirmed = activeOrders.filter(o => !o.driverConfirmedAt);
+  const confirmedActive = activeOrders.filter(o => o.driverConfirmedAt);
+  const done = deliveredRes?.data || [];
+  const doneTotal = deliveredRes?.total || 0;
+  const deliveredToday = deliveredTodayTotal || 0;
 
   return (
     <div className="space-y-6">
@@ -118,7 +140,7 @@ export default function DriverPanel() {
       {/* Kichik statistika */}
       <div className="grid grid-cols-3 gap-2.5">
         <div className="bg-orange-50 rounded-2xl p-3 text-center">
-          <p className="text-2xl font-black text-orange-600">{active.length}</p>
+          <p className="text-2xl font-black text-orange-600">{activeOrders.length}</p>
           <p className="text-[10px] text-gray-500 font-bold mt-0.5">Faol</p>
         </div>
         <div className="bg-green-50 rounded-2xl p-3 text-center">
@@ -126,7 +148,7 @@ export default function DriverPanel() {
           <p className="text-[10px] text-gray-500 font-bold mt-0.5">Bugun yetkazilgan</p>
         </div>
         <div className="bg-blue-50 rounded-2xl p-3 text-center">
-          <p className="text-2xl font-black text-blue-600">{done.length}</p>
+          <p className="text-2xl font-black text-blue-600">{doneTotal}</p>
           <p className="text-[10px] text-gray-500 font-bold mt-0.5">Jami yetkazilgan</p>
         </div>
       </div>
@@ -167,15 +189,15 @@ export default function DriverPanel() {
         </div>
       </div>
 
-      {/* Tugatilgan */}
+      {/* Tugatilgan — so'nggi 10 tasi, jami son yuqoridagi statistikada */}
       {done.length > 0 && (
         <div>
           <h2 className="text-sm font-bold text-gray-500 mb-2.5 flex items-center gap-2">
             <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-            Yetkazilgan ({done.length})
+            Yetkazilgan (so'nggi {done.length}, jami {doneTotal})
           </h2>
           <div className="space-y-2">
-            {done.slice(0, 10).map(order => (
+            {done.map(order => (
               <button
                 key={order.id}
                 onClick={() => navigate(`/driver/orders/${order.id}`)}
