@@ -131,8 +131,13 @@ export default function AdminHeaderLayout() {
     enabled: !isSuperAdmin,
   });
 
-  const pendingCount = stats?.pendingAdminConfirm?.length ?? 0;
-  const overdueCount = pendingCount; // pendingAdminConfirm from /stats is already the >48h subset
+  // "Tasdiqlash" belgisi — HAMMA tasdiqlanmagan orderlar (yoshidan qat'iy nazar).
+  // "Muddati o'tgan" belgisi — faqat 48 soatdan ko'p kutganlar. Ikkalasini
+  // avval bitta songa (faqat >48soat) bog'lab qo'yilgani sabab, haydovchi
+  // hozirgina yetkazib bergan orderlar uchun admin panelida hech qanday
+  // belgi chiqmay, "tasdiqlash yo'q" degan noto'g'ri taassurot qoldirardi.
+  const pendingCount = stats?.pendingAdminConfirmCount ?? 0;
+  const overdueCount = stats?.pendingAdminConfirm?.length ?? 0;
 
   const initials = user?.fullName?.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase() || '?';
 
