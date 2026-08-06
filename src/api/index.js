@@ -40,8 +40,12 @@ export const orderAPI = {
   completeChecking: (id, data) => api.patch(`/orders/${id}/complete-checking`, data),
   assignDriver: (data) => api.post('/orders/assign-driver', data),
   driverConfirm: (orderIds) => api.patch('/orders/driver-confirm', { orderIds }),
+  // Bir nechta rasm (har biri 15MB gacha) sekin mobil internetda uzatilishi
+  // mumkin — umumiy 15s limit yetarli emas edi va hato chiqarardi, hatto
+  // yuklash aslida davom etayotgan bo'lsa ham.
   deliver: (id, formData) => api.patch(`/orders/${id}/deliver`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 60000,
   }),
   adminConfirm: (id) => api.patch(`/orders/${id}/admin-confirm`),
   accountantConfirm: (id) => api.patch(`/orders/${id}/accountant-confirm`),
