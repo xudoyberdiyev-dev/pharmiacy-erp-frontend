@@ -96,6 +96,7 @@ export const checkerAPI = {
   returnToMarking: (id, reason) => api.patch(`/checker/orders/${id}/return-to-marking`, { reason }),
   returnToPicking: (id, reason) => api.patch(`/checker/orders/${id}/return-to-picking`, { reason }),
   complete:     (id, data) => api.patch(`/checker/orders/${id}/complete`, data),
+  updateBoxes:  (id, data) => api.patch(`/checker/orders/${id}/boxes`, data),
   getEtirozli: () => api.get('/checker/etirozlar'),
   respondEtirov: (id, data) => api.patch(`/checker/etirozlar/${id}/respond`, data),
 };
