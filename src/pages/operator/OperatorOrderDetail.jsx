@@ -271,8 +271,12 @@ export default function OperatorOrderDetail() {
                   </div>
                   <div>
                     <label className="block text-xs text-gray-400 font-bold mb-1.5">Summa (so'm)</label>
-                    <input type="text" inputMode="numeric" className={inp} value={editForm.totalAmount}
-                      onChange={e => setEditForm(p => ({ ...p, totalAmount: e.target.value.replace(/\D/g, '') }))} />
+                    <input type="text" inputMode="decimal" className={inp} value={editForm.totalAmount}
+                      onChange={e => {
+                        // Butun va kasr (tiyin) qismini saqlaydi — faqat raqam va bitta nuqtaga ruxsat.
+                        const cleaned = e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+                        setEditForm(p => ({ ...p, totalAmount: cleaned }));
+                      }} />
                   </div>
                   <div>
                     <label className="block text-xs text-gray-400 font-bold mb-1.5">Excel fayl (ixtiyoriy — yangi yuklash)</label>

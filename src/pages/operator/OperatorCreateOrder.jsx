@@ -158,8 +158,10 @@ export default function OperatorCreateOrder() {
   });
 
   const handleAmountChange = (e) => {
-    const digits = e.target.value.replace(/\D/g, '');
-    setForm(p => ({ ...p, totalAmount: digits }));
+    // Butun va kasr (tiyin) qismini saqlaydi — faqat raqam va bitta nuqtaga ruxsat.
+    const cleaned = e.target.value.replace(/[^\d.]/g, '');
+    const normalized = cleaned.replace(/(\..*)\./g, '$1');
+    setForm(p => ({ ...p, totalAmount: normalized }));
   };
 
   return (
@@ -238,7 +240,7 @@ export default function OperatorCreateOrder() {
               <div className="relative">
                 <input
                   type="text"
-                  inputMode="numeric"
+                  inputMode="decimal"
                   value={form.totalAmount}
                   onChange={handleAmountChange}
                   placeholder="0"

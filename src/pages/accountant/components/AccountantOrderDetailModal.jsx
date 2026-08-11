@@ -93,6 +93,14 @@ export default function AccountantOrderDetailModal({ order, step, onClose }) {
         <InfoRow label="Summasi" value={`${order.totalAmount?.toLocaleString()} so'm`} />
         <InfoRow label="Haydovchi" value={order.driver?.fullName} />
         <InfoRow label="Mashina" value={order.vehicle ? `${order.vehicle.plateNumber} · ${order.vehicle.model}` : '—'} />
+        <InfoRow
+          label="Hujjat"
+          value={order.dispatchDocument ? `№ ${order.dispatchDocument.documentNumber}` : '—'}
+        />
+        <InfoRow
+          label="Hujjatchi"
+          value={order.dispatchDocument?.issuedBy?.fullName}
+        />
       </div>
 
       <div className="flex items-center gap-2 text-xs text-gray-400 mb-4">

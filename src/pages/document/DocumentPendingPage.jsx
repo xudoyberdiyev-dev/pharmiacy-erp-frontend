@@ -21,8 +21,11 @@ function DiscountModal({ order, onClose, onApply, isPending }) {
 
   const base = order.totalAmount;
   const num = parseFloat(value) || 0;
-  const discountAmount = mode === 'percent' ? Math.round(base * (num / 100)) : num;
-  const newTotal = Math.max(0, base - discountAmount);
+  // Tiyingacha (2 xona) aniqlikda — butun somga yaxlitlanmaydi, faqat
+  // suzuvchi nuqta arifmetikasi shovqinining (masalan 100.20999999998) oldi olinadi.
+  const round2 = (n) => Math.round(n * 100) / 100;
+  const discountAmount = mode === 'percent' ? round2(base * (num / 100)) : num;
+  const newTotal = Math.max(0, round2(base - discountAmount));
   const canApply = num > 0 && newTotal < base;
 
   return (
