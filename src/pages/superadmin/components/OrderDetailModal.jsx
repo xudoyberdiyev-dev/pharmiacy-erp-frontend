@@ -5,6 +5,7 @@ import Modal from '../../../components/shared/Modal';
 import StatusBadge from '../../../components/shared/StatusBadge';
 import Pagination from '../../../components/shared/Pagination';
 import { MapPin, Clock } from 'lucide-react';
+import { formatSum } from '../../../lib/format';
 
 const CATEGORY_TITLES = {
   today: 'Bugungi orderlar',
@@ -64,7 +65,7 @@ export default function OrderDetailModal({ category, range, onClose }) {
                 </div>
               </div>
               <div className="text-right text-xs text-gray-500">
-                <p className="font-bold text-gray-800 text-sm">{o.totalAmount?.toLocaleString()} so'm</p>
+                <p className="font-bold text-gray-800 text-sm">{formatSum(o.totalAmount)} so'm</p>
                 <p>Shartnoma: {o.contractNumber}</p>
                 <p>Lot: {o.lotNumber}</p>
               </div>

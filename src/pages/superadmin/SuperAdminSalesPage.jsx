@@ -7,6 +7,7 @@ import {
   PieChart, Pie, Cell,
 } from 'recharts';
 import { format } from 'date-fns';
+import { formatSum } from '../../lib/format';
 
 const PERIODS = [
   { value: 'week', label: 'Hafta' },
@@ -34,7 +35,7 @@ const STATUS_META = {
 };
 
 function fmtSum(v) {
-  return v.toLocaleString('uz-UZ');
+  return formatSum(v);
 }
 
 function fmtCompact(v) {
@@ -144,7 +145,7 @@ function ReturnedOrdersModal({ onClose }) {
                   <div className="text-right shrink-0">
                     <p className="text-xs font-bold text-gray-700">{o.fullyReturnedAt ? format(new Date(o.fullyReturnedAt), 'dd.MM.yyyy') : '—'}</p>
                     <p className="text-[11px] text-gray-400">{o.fullyReturnedAt ? format(new Date(o.fullyReturnedAt), 'HH:mm') : ''}</p>
-                    <p className="text-xs font-bold text-gray-400 line-through mt-1">{o.totalAmount?.toLocaleString()} so'm</p>
+                    <p className="text-xs font-bold text-gray-400 line-through mt-1">{formatSum(o.totalAmount)} so'm</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-1.5 mt-2">

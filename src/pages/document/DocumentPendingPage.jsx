@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import TripModal from './TripModal';
 import CheckerEtirovModal from './components/CheckerEtirovModal';
+import { formatSum } from '../../lib/format';
 
 // ── Chegirma berish modali — foiz yoki aniq summada, yangi narx avtomatik
 // hisoblanadi va mavjud updateAmount so'rovi orqali saqlanadi (originalAmount
@@ -75,15 +76,15 @@ function DiscountModal({ order, onClose, onApply, isPending }) {
           <div className="bg-indigo-50 rounded-xl p-3.5 space-y-1">
             <div className="flex items-center justify-between text-xs">
               <span className="text-gray-500">Joriy narx</span>
-              <span className="font-bold text-gray-700">{base.toLocaleString()} so'm</span>
+              <span className="font-bold text-gray-700">{formatSum(base)} so'm</span>
             </div>
             <div className="flex items-center justify-between text-xs">
               <span className="text-gray-500">Chegirma</span>
-              <span className="font-bold text-red-500">−{discountAmount.toLocaleString()} so'm</span>
+              <span className="font-bold text-red-500">−{formatSum(discountAmount)} so'm</span>
             </div>
             <div className="flex items-center justify-between text-sm pt-1 border-t border-indigo-100">
               <span className="font-black text-gray-800">Yangi narx</span>
-              <span className="font-black text-indigo-700">{newTotal.toLocaleString()} so'm</span>
+              <span className="font-black text-indigo-700">{formatSum(newTotal)} so'm</span>
             </div>
           </div>
         </div>
@@ -310,11 +311,11 @@ export default function DocumentPendingPage() {
                             <div>
                               {o.originalAmount != null && (
                                 <p className="text-[11px] text-gray-400 line-through leading-tight">
-                                  {o.originalAmount.toLocaleString()}
+                                  {formatSum(o.originalAmount)}
                                 </p>
                               )}
                               <p className={`text-sm font-black whitespace-nowrap leading-tight ${o.originalAmount != null ? 'text-emerald-600' : 'text-gray-900'}`}>
-                                {o.totalAmount?.toLocaleString()}
+                                {formatSum(o.totalAmount)}
                               </p>
                               <p className="text-[11px] text-gray-400">so'm</p>
                             </div>
@@ -364,7 +365,7 @@ export default function DocumentPendingPage() {
                 </div>
                 <div>
                   <p className="text-sm font-bold text-white">{selected.length} ta order tanlandi</p>
-                  <p className="text-xs text-gray-400">Jami: {totalSelectedAmount.toLocaleString()} so'm</p>
+                  <p className="text-xs text-gray-400">Jami: {formatSum(totalSelectedAmount)} so'm</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">

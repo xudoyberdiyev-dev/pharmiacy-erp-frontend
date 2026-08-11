@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { orderAPI } from '../../api';
 import { format } from 'date-fns';
 import { Calendar, Package, CheckCircle2, AlertTriangle, Truck, History } from 'lucide-react';
+import { formatSum } from '../../lib/format';
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -50,7 +51,7 @@ function OrderRow({ order }) {
 
       <div className="flex items-center justify-between text-[11px] text-gray-400">
         <span>Yetkazildi: {format(new Date(order.deliveredAt), 'HH:mm')} · Tasdiqlandi: {format(new Date(order.confirmedAt), 'HH:mm')}</span>
-        <span className="font-bold text-gray-600">{order.totalAmount?.toLocaleString()} so'm</span>
+        <span className="font-bold text-gray-600">{formatSum(order.totalAmount)} so'm</span>
       </div>
     </div>
   );

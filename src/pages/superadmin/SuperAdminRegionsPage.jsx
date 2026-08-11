@@ -6,6 +6,7 @@ import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaf
 import 'leaflet/dist/leaflet.css';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { REGIONS, regionLabel, REGION_COORDS } from '../../utils/regions';
+import { formatSum } from '../../lib/format';
 
 const UZ_CENTER = [41.3, 64.2];
 const UZ_BOUNDS = [[36.5, 55.0], [46.0, 74.0]];
@@ -213,7 +214,7 @@ export default function SuperAdminRegionsPage() {
                   <p className="text-[11px] text-gray-400">Buyurtma soni</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-lg font-black text-green-600">{selected.totalAmount.toLocaleString()}</p>
+                  <p className="text-lg font-black text-green-600">{formatSum(selected.totalAmount)}</p>
                   <p className="text-[11px] text-gray-400">Savdo (so'm)</p>
                 </div>
               </div>
@@ -282,7 +283,7 @@ export default function SuperAdminRegionsPage() {
                   <p className="text-xs text-gray-500">{c.address}</p>
                   <p className="text-xs text-gray-500">{c.phone}</p>
                   <p className={`font-bold ${c.hasOrdered ? 'text-green-600' : 'text-red-600'}`}>
-                    {c.hasOrdered ? `${c.orderCount} ta order · ${c.totalAmount.toLocaleString()} so'm` : 'Hali xarid qilmagan'}
+                    {c.hasOrdered ? `${c.orderCount} ta order · ${formatSum(c.totalAmount)} so'm` : 'Hali xarid qilmagan'}
                   </p>
                 </div>
               </Popup>
@@ -330,7 +331,7 @@ export default function SuperAdminRegionsPage() {
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value, _name, props) => [`${value.toLocaleString()} so'm`, regionLabel(props.payload.region)]}
+                formatter={(value, _name, props) => [`${formatSum(value)} so'm`, regionLabel(props.payload.region)]}
                 contentStyle={{ borderRadius: 12, border: '1px solid #F1F5F9', fontSize: 12 }}
               />
             </PieChart>
@@ -380,7 +381,7 @@ export default function SuperAdminRegionsPage() {
                         <div className="h-full rounded-full transition-all" style={{ width: `${r.coveragePct}%`, background: color }} />
                       </div>
                       <p className="text-xs text-gray-400 mt-1">
-                        {r.activeClients}/{r.totalClients} klient xarid qilgan · {r.totalAmount.toLocaleString()} so'm
+                        {r.activeClients}/{r.totalClients} klient xarid qilgan · {formatSum(r.totalAmount)} so'm
                       </p>
                     </div>
                     <ChevronDown size={16} className={`text-gray-300 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
@@ -401,7 +402,7 @@ export default function SuperAdminRegionsPage() {
                                   <p className="text-xs text-gray-400 truncate">{c.address} · {c.phone}</p>
                                 </div>
                                 <span className={`shrink-0 text-xs font-bold px-2.5 py-1 rounded-full ${c.hasOrdered ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
-                                  {c.hasOrdered ? `${c.orderCount} ta order · ${c.totalAmount.toLocaleString()} so'm` : 'Hali xarid qilmagan'}
+                                  {c.hasOrdered ? `${c.orderCount} ta order · ${formatSum(c.totalAmount)} so'm` : 'Hali xarid qilmagan'}
                                 </span>
                               </div>
                             ))}

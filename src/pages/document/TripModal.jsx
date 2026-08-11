@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { userAPI, vehicleAPI } from '../../api';
 import { X, Truck, User2, ArrowRight } from 'lucide-react';
 import SearchableSelect from './SearchableSelect';
+import { formatSum } from '../../lib/format';
 
 export default function TripModal({ orders, onClose, onConfirm, loading, confirmLabel = 'Safarga chiqarish' }) {
   const [driverId, setDriverId] = useState('');
@@ -35,7 +36,7 @@ export default function TripModal({ orders, onClose, onConfirm, loading, confirm
             </div>
             <div>
               <h3 className="font-bold text-gray-900">Haydovchi va mashina biriktirish</h3>
-              <p className="text-xs text-gray-400">{orders.length} ta order · {totalBoxes} quti · {totalAmount.toLocaleString()} so'm</p>
+              <p className="text-xs text-gray-400">{orders.length} ta order · {totalBoxes} quti · {formatSum(totalAmount)} so'm</p>
             </div>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">

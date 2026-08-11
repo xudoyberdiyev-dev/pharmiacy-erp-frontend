@@ -8,6 +8,7 @@ import {
   CheckCircle2, RotateCcw, User, FileSpreadsheet, Upload,
   MessageSquare, Package, X,
 } from 'lucide-react';
+import { formatSum } from '../../lib/format';
 
 // ── Order card ────────────────────────────────────────────────────────────────
 function ReturnedCard({ order }) {
@@ -131,7 +132,7 @@ function ReturnedCard({ order }) {
         {/* Meta */}
         <div className="flex items-center justify-between mt-1 mb-3">
           <span className="text-xs text-gray-500 font-medium">Faktura: {order.invoiceNumber}</span>
-          <span className="text-xs font-bold text-gray-700">{order.totalAmount?.toLocaleString()} so'm</span>
+          <span className="text-xs font-bold text-gray-700">{formatSum(order.totalAmount)} so'm</span>
         </div>
       </div>
 

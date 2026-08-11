@@ -8,6 +8,7 @@ import {
   CheckCircle2, Clock, Upload, ArrowRight, AlertCircle,
   AlertTriangle, Zap, Package, TrendingUp, X, FileSpreadsheet, User, File, RotateCcw
 } from 'lucide-react';
+import { formatSum } from '../../lib/format';
 
 // ── Etirov types ──────────────────────────────────────────────────────────────
 const ETIROV_TYPES = [
@@ -446,7 +447,7 @@ function MineCard({ order }) {
                 Muddat: {order.markingDeadline ? format(new Date(order.markingDeadline), 'HH:mm') : '—'}
               </span>
             </div>
-            <span className="text-xs font-bold text-gray-700">{order.totalAmount?.toLocaleString()} so'm</span>
+            <span className="text-xs font-bold text-gray-700">{formatSum(order.totalAmount)} so'm</span>
           </div>
         </div>
 

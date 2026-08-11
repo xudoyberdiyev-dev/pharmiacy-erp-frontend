@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderAPI } from '../../api';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
+import { formatSum } from '../../lib/format';
 import { format } from 'date-fns';
 import { AlertTriangle, Clock, Truck, CheckCircle2, MapPin, Package } from 'lucide-react';
 import Pagination from '../shared/Pagination';
@@ -54,7 +55,7 @@ function OrderCard({ order, onConfirm, isConfirming }) {
           { l: 'Shartnoma', v: order.contractNumber },
           { l: 'Lot', v: order.lotNumber },
           { l: 'Quti', v: order.boxCount != null ? order.boxCount : '—', icon: Package },
-          { l: 'Summa', v: `${(order.totalAmount ?? 0).toLocaleString()} so'm` },
+          { l: 'Summa', v: `${formatSum(order.totalAmount)} so'm` },
         ].map(({ l, v }) => (
           <div key={l} className="bg-gray-50 rounded-lg px-2 py-1.5 text-center">
             <p className="text-[9px] text-gray-400 font-bold uppercase">{l}</p>

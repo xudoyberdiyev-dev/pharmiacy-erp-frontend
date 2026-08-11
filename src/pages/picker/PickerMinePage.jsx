@@ -9,6 +9,7 @@ import {
   CheckCircle2, Clock, FileSpreadsheet, Package,
   AlertTriangle, TrendingUp, Zap, RotateCcw
 } from 'lucide-react';
+import { formatSum } from '../../lib/format';
 
 // ── Countdown hook ────────────────────────────────────────────────────────
 function useCountdown(deadline, totalMinutes) {
@@ -135,7 +136,7 @@ function MineCard({ order, blocked }) {
               Muddat: {order.pickingDeadline ? format(new Date(order.pickingDeadline), 'HH:mm') : '—'}
             </span>
           </div>
-          <span className="text-xs font-bold text-gray-700">{order.totalAmount?.toLocaleString()} so'm</span>
+          <span className="text-xs font-bold text-gray-700">{formatSum(order.totalAmount)} so'm</span>
         </div>
       </div>
 

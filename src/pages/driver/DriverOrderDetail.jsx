@@ -8,6 +8,7 @@ import NotFoundState from '../../components/shared/NotFoundState';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
 import { ArrowLeft, MapPin, Camera, CheckCircle, Navigation, X, Package, Banknote, AlertCircle, Truck, Images } from 'lucide-react';
+import { formatSum } from '../../lib/format';
 
 const MAX_PHOTOS = 4;
 // Backend middleware/upload.js dagi uploadImage limiti bilan bir xil (15MB) —
@@ -158,7 +159,7 @@ export default function DriverOrderDetail() {
               <Banknote size={15} className="text-gray-400" />
               <div>
                 <p className="text-[10px] text-gray-400 font-bold uppercase">Summa</p>
-                <p className="text-sm font-bold text-gray-800">{order.totalAmount?.toLocaleString() || 0}</p>
+                <p className="text-sm font-bold text-gray-800">{formatSum(order.totalAmount)}</p>
               </div>
             </div>
           </div>

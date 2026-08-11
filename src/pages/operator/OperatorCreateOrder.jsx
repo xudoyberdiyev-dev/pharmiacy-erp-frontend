@@ -5,6 +5,7 @@ import { orderAPI, userAPI } from '../../api';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
 import ClientSelect from '../../components/shared/ClientSelect';
+import { formatSum } from '../../lib/format';
 import {
   ArrowLeft, ArrowRight, Check, Upload, X,
   Clock, User, FileSpreadsheet,
@@ -250,7 +251,7 @@ export default function OperatorCreateOrder() {
               </div>
               {form.totalAmount && (
                 <p className="mt-1 text-xs font-semibold text-blue-600 pl-1">
-                  {parseFloat(form.totalAmount).toLocaleString()} so'm
+                  {formatSum(parseFloat(form.totalAmount))} so'm
                 </p>
               )}
             </div>

@@ -6,6 +6,7 @@ import {
   Package, Building2, MapPin, Phone, User2, Truck,
   FileCheck2, AlertTriangle, CheckCircle2, Clock
 } from 'lucide-react';
+import { formatSum } from '../../lib/format';
 
 function Row({ icon: Icon, label, value, sub }) {
   if (!value) return null;
@@ -81,8 +82,8 @@ export default function PublicOrderInfoPage() {
               <Row icon={Building2} label="Tashkilot" value={order.client?.orgName} />
               <Row icon={MapPin} label="Manzil" value={order.client?.address} />
               <Row icon={Phone} label="Telefon" value={order.client?.phone} />
-              <Row icon={Package} label="Qutilar / Summa" value={`${order.boxCount ?? '—'} quti · ${order.totalAmount?.toLocaleString() ?? 0} so'm`}
-                sub={order.originalAmount != null ? `Dastlabki: ${order.originalAmount.toLocaleString()} so'm` : null} />
+              <Row icon={Package} label="Qutilar / Summa" value={`${order.boxCount ?? '—'} quti · ${formatSum(order.totalAmount)} so'm`}
+                sub={order.originalAmount != null ? `Dastlabki: ${formatSum(order.originalAmount)} so'm` : null} />
             </div>
 
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
@@ -105,7 +106,7 @@ export default function PublicOrderInfoPage() {
                 <Row icon={User2} label="Qayd etdi" value={order.returnedGoodsBy} />
                 <Row icon={Clock} label="Sana" value={fmt(order.returnedGoodsAt)} />
                 {order.returnedAmount != null && (
-                  <Row icon={Package} label="Qaytarilgan summa" value={`${order.returnedAmount.toLocaleString()} so'm`} />
+                  <Row icon={Package} label="Qaytarilgan summa" value={`${formatSum(order.returnedAmount)} so'm`} />
                 )}
                 <Row icon={Package} label="Izoh" value={order.returnedGoodsNote} />
               </div>

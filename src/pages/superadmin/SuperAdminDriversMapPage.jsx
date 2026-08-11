@@ -8,6 +8,7 @@ import Modal from '../../components/shared/Modal';
 import { Map, Truck, ChevronRight, AlertTriangle, CheckCircle2, Phone } from 'lucide-react';
 import { format } from 'date-fns';
 import socket from '../../lib/socket';
+import { formatSum } from '../../lib/format';
 
 const carIcon = L.divIcon({
   html: '<div style="font-size:24px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.55))">🚚</div>',
@@ -141,7 +142,7 @@ function OrderDetailModal({ order, onClose }) {
         <InfoRow label="Manzil" value={order.client?.address} />
         <InfoRow label="Shartnoma" value={order.contractNumber} />
         <InfoRow label="Lot" value={order.lotNumber} />
-        <InfoRow label="Summasi" value={`${order.totalAmount?.toLocaleString()} so'm`} />
+        <InfoRow label="Summasi" value={`${formatSum(order.totalAmount)} so'm`} />
         <InfoRow label="Jo'natilgan vaqt" value={order.dispatchedAt ? format(new Date(order.dispatchedAt), 'dd.MM.yyyy HH:mm') : '—'} />
         <InfoRow label="Haydovchi" value={order.driver?.fullName} />
         <InfoRow label="Mashina" value={`${order.vehicle?.plateNumber || '—'}${order.vehicle?.model ? ' · ' + order.vehicle.model : ''}`} />

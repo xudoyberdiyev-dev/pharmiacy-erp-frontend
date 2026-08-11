@@ -7,6 +7,7 @@ import StatusBadge from '../../components/shared/StatusBadge';
 import NotFoundState from '../../components/shared/NotFoundState';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
+import { formatSum } from '../../lib/format';
 import { format } from 'date-fns';
 import {
   ArrowLeft, Building2, FileSpreadsheet, Upload, X, Undo2,
@@ -128,7 +129,7 @@ export default function DocumentReturnDetailPage() {
             <InfoCard label="Shartnoma" value={order.contractNumber} />
             <InfoCard label="Lot" value={order.lotNumber} />
             <InfoCard label="Qutilar" value={order.boxCount} />
-            <InfoCard label="Summa" value={order.totalAmount?.toLocaleString() + " so'm"} />
+            <InfoCard label="Summa" value={formatSum(order.totalAmount) + " so'm"} />
           </div>
         </div>
       </div>
@@ -208,9 +209,9 @@ export default function DocumentReturnDetailPage() {
             </div>
             {parsedReturnedAmount != null && !Number.isNaN(parsedReturnedAmount) && (
               <p className={`text-xs mt-1.5 font-semibold ${newTotal < 0 ? 'text-red-500' : 'text-gray-500'}`}>
-                {order.totalAmount.toLocaleString()} − {parsedReturnedAmount.toLocaleString()} = {' '}
+                {formatSum(order.totalAmount)} − {formatSum(parsedReturnedAmount)} = {' '}
                 <span className={newTotal < 0 ? 'text-red-600' : 'text-emerald-600'}>
-                  {newTotal.toLocaleString()} so'm
+                  {formatSum(newTotal)} so'm
                 </span> {newTotal < 0 && '(faktura summasidan katta bo\'lmasin)'}
               </p>
             )}
@@ -245,7 +246,7 @@ export default function DocumentReturnDetailPage() {
           <CheckCircle size={20} className="text-emerald-600 shrink-0" />
           <p className="text-sm font-bold text-emerald-700">
             Bu order allaqachon qaytarilgan deb belgilangan ({order.returnedGoodsBy?.fullName}, {order.returnedGoodsAt ? format(new Date(order.returnedGoodsAt), 'dd.MM.yyyy HH:mm') : ''})
-            {order.returnedAmount != null && ` — ${order.returnedAmount.toLocaleString()} so'm qaytarilgan`}
+            {order.returnedAmount != null && ` — ${formatSum(order.returnedAmount)} so'm qaytarilgan`}
           </p>
         </div>
       )}

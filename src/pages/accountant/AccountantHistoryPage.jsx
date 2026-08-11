@@ -4,6 +4,7 @@ import { orderAPI } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { format } from 'date-fns';
 import { Calendar, Package, History, Truck } from 'lucide-react';
+import { formatSum } from '../../lib/format';
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -17,7 +18,7 @@ function OrderRow({ order, atField }) {
           <p className="font-mono text-sm font-black text-gray-900">{order.invoiceNumber}</p>
           <p className="text-[11px] text-gray-400">{order.client?.orgName}</p>
         </div>
-        <span className="text-sm font-bold text-gray-700">{order.totalAmount?.toLocaleString()} so'm</span>
+        <span className="text-sm font-bold text-gray-700">{formatSum(order.totalAmount)} so'm</span>
       </div>
 
       {order.driver && (

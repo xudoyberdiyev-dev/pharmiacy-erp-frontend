@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { markerAPI } from '../../api';
 import { format } from 'date-fns';
 import { Clock, TrendingUp, AlertTriangle, CheckCircle2, Package, Calendar, User } from 'lucide-react';
+import { formatSum } from '../../lib/format';
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -67,7 +68,7 @@ function OrderRow({ order }) {
           <Clock size={11} />
           <span>Muddat: {deadline} · Yakunlandi: {doneAt}</span>
         </div>
-        <span className="font-bold text-gray-600">{order.totalAmount?.toLocaleString()} so'm</span>
+        <span className="font-bold text-gray-600">{formatSum(order.totalAmount)} so'm</span>
       </div>
     </div>
   );

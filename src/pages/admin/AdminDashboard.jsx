@@ -4,6 +4,7 @@ import StatusBadge from '../../components/shared/StatusBadge';
 import { Package, Users, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { formatSum } from '../../lib/format';
 
 function StatCard({ label, value, icon: Icon, color, sub, onClick }) {
   return (
@@ -94,7 +95,7 @@ export default function AdminDashboard() {
                 <tr key={order.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-3 font-mono text-sm font-medium">{order.invoiceNumber}</td>
                   <td className="px-6 py-3 text-sm">{order.client?.orgName || '—'}</td>
-                  <td className="px-6 py-3 text-sm font-medium">{order.totalAmount?.toLocaleString()} so'm</td>
+                  <td className="px-6 py-3 text-sm font-medium">{formatSum(order.totalAmount)} so'm</td>
                   <td className="px-6 py-3"><StatusBadge status={order.status} /></td>
                   <td className="px-6 py-3 text-sm text-gray-500">{format(new Date(order.createdAt), 'dd.MM HH:mm')}</td>
                   <td className="px-6 py-3">

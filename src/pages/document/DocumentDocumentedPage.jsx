@@ -10,6 +10,7 @@ import {
   ChevronDown, ChevronRight, Undo2, Package,
 } from 'lucide-react';
 import DocumentBuilderModal from './DocumentBuilderModal';
+import { formatSum } from '../../lib/format';
 
 function EmptyState() {
   return (
@@ -90,7 +91,7 @@ function TripGroup({ group, selected, onToggle, onToggleGroup, collapsed, onTogg
         </span>
 
         <span className="ml-auto text-sm font-black text-gray-900 shrink-0">
-          {totalAmount.toLocaleString()} so'm
+          {formatSum(totalAmount)} so'm
         </span>
       </div>
 
@@ -122,7 +123,7 @@ function TripGroup({ group, selected, onToggle, onToggleGroup, collapsed, onTogg
                       </div>
                     </td>
                     <td className="px-3 py-3 text-right pr-5">
-                      <p className="text-sm font-black text-gray-900 whitespace-nowrap">{o.totalAmount?.toLocaleString()}</p>
+                      <p className="text-sm font-black text-gray-900 whitespace-nowrap">{formatSum(o.totalAmount)}</p>
                       <p className="text-[11px] text-gray-400">so'm</p>
                     </td>
                   </tr>

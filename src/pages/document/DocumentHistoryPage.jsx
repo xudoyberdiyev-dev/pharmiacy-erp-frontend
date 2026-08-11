@@ -5,6 +5,7 @@ import { documentAPI } from '../../api';
 import StatusBadge from '../../components/shared/StatusBadge';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
+import { formatSum } from '../../lib/format';
 import { format } from 'date-fns';
 import {
   History, Search, X, RefreshCw, Building2, FileCheck2,
@@ -59,11 +60,11 @@ function HistoryRow({ o, onDownload, downloading, onCancel, cancelling, onRestor
       <div className="text-right shrink-0">
         {o.originalAmount != null && (
           <p className="text-[11px] text-gray-400 line-through leading-tight">
-            {o.originalAmount.toLocaleString()}
+            {formatSum(o.originalAmount)}
           </p>
         )}
         <p className={`text-sm font-black leading-tight ${o.originalAmount != null ? 'text-emerald-600' : 'text-gray-900'}`}>
-          {o.totalAmount?.toLocaleString()}
+          {formatSum(o.totalAmount)}
         </p>
         <p className="text-[11px] text-gray-400">so'm</p>
       </div>

@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
+import { formatSum } from '../../lib/format';
 import {
   Plus, Search, Eye, Pencil, Trash2,
   Package, X, AlertTriangle, ArrowRight,
@@ -263,7 +264,7 @@ export default function OperatorOrdersPage() {
                       </td>
                       <td className="px-5 py-3.5 text-sm text-gray-500 font-medium">{o.invoiceNumber}</td>
                       <td className="px-5 py-3.5">
-                        <p className="text-sm font-black text-gray-900 whitespace-nowrap">{o.totalAmount?.toLocaleString()}</p>
+                        <p className="text-sm font-black text-gray-900 whitespace-nowrap">{formatSum(o.totalAmount)}</p>
                         <p className="text-[11px] text-gray-400">so'm</p>
                       </td>
                       <td className="px-5 py-3.5"><StatusBadge status={o.status} /></td>

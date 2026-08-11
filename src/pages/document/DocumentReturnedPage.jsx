@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import {
   Undo2, Search, X, RefreshCw, Building2, FileDown, User2, MessageSquare, Banknote, Pencil
 } from 'lucide-react';
+import { formatSum } from '../../lib/format';
 
 function EmptyState() {
   return (
@@ -36,10 +37,10 @@ function ReturnedRow({ o, onDownload, downloading }) {
         <div className="text-right shrink-0">
           {o.originalAmount != null && (
             <p className="text-[11px] text-gray-400 line-through leading-tight">
-              {o.originalAmount.toLocaleString()}
+              {formatSum(o.originalAmount)}
             </p>
           )}
-          <p className="text-sm font-black text-emerald-600 leading-tight">{o.totalAmount?.toLocaleString()}</p>
+          <p className="text-sm font-black text-emerald-600 leading-tight">{formatSum(o.totalAmount)}</p>
           <p className="text-[11px] text-gray-400">so'm</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -75,7 +76,7 @@ function ReturnedRow({ o, onDownload, downloading }) {
             <Banknote size={13} className="text-gray-400 shrink-0" />
             <div className="min-w-0">
               <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Qaytarilgan summa</p>
-              <p className="text-xs font-bold text-gray-800 truncate">{o.returnedAmount.toLocaleString()} so'm</p>
+              <p className="text-xs font-bold text-gray-800 truncate">{formatSum(o.returnedAmount)} so'm</p>
             </div>
           </div>
         )}

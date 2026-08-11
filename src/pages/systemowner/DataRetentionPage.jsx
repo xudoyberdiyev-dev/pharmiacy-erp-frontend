@@ -4,6 +4,7 @@ import { dataRetentionAPI } from '../../api';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
 import { DatabaseZap, Search, Download, Trash2, AlertTriangle, X, CheckCircle2 } from 'lucide-react';
+import { formatSum } from '../../lib/format';
 
 function ConfirmPurgeModal({ preview, from, to, onClose, onDone }) {
   const [input, setInput] = useState('');
@@ -148,7 +149,7 @@ export default function DataRetentionPage() {
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Topildi</p>
                 <p className="text-2xl font-black text-gray-900">{preview.count} ta buyurtma</p>
                 <p className="text-sm text-gray-500 mt-1">
-                  Jami summa: <strong>{(preview.totalAmount || 0).toLocaleString()} so'm</strong>
+                  Jami summa: <strong>{formatSum(preview.totalAmount)} so'm</strong>
                 </p>
               </div>
 

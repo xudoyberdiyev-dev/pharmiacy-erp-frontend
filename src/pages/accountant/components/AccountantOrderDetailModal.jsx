@@ -4,6 +4,7 @@ import { orderAPI } from '../../../api';
 import { FILE_BASE_URL } from '../../../api/axios';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../../lib/errors';
+import { formatSum } from '../../../lib/format';
 import Modal from '../../../components/shared/Modal';
 import StatusBadge from '../../../components/shared/StatusBadge';
 import AccountantEtirovModal from './AccountantEtirovModal';
@@ -66,15 +67,15 @@ export default function AccountantOrderDetailModal({ order, step, onClose }) {
           <p className="text-xs font-black text-amber-700 uppercase tracking-wide">Hujjatchi tomonidan o'zgartirilgan</p>
           {order.originalAmount != null && (
             <p className="text-sm text-amber-800">
-              Summa: <span className="line-through text-amber-500">{order.originalAmount.toLocaleString()} so'm</span>
+              Summa: <span className="line-through text-amber-500">{formatSum(order.originalAmount)} so'm</span>
               {' → '}
-              <span className="font-bold">{order.totalAmount?.toLocaleString()} so'm</span>
+              <span className="font-bold">{formatSum(order.totalAmount)} so'm</span>
             </p>
           )}
           {order.hasReturnedGoods && (
             <div className="text-sm text-amber-800 space-y-1">
               <p>
-                Tovar qaytarilgan{order.returnedAmount ? ` (${order.returnedAmount.toLocaleString()} so'mlik)` : ''}
+                Tovar qaytarilgan{order.returnedAmount ? ` (${formatSum(order.returnedAmount)} so'mlik)` : ''}
                 {order.returnedGoodsAt ? ` — ${format(new Date(order.returnedGoodsAt), 'dd.MM.yyyy HH:mm')}` : ''}
                 {order.returnedGoodsBy?.fullName ? `, ${order.returnedGoodsBy.fullName}` : ''}
               </p>
@@ -90,7 +91,7 @@ export default function AccountantOrderDetailModal({ order, step, onClose }) {
         <InfoRow label="Shartnoma" value={order.contractNumber} />
         <InfoRow label="Lot" value={order.lotNumber} />
         <InfoRow label="Faktura" value={order.invoiceNumber} />
-        <InfoRow label="Summasi" value={`${order.totalAmount?.toLocaleString()} so'm`} />
+        <InfoRow label="Summasi" value={`${formatSum(order.totalAmount)} so'm`} />
         <InfoRow label="Haydovchi" value={order.driver?.fullName} />
         <InfoRow label="Mashina" value={order.vehicle ? `${order.vehicle.plateNumber} · ${order.vehicle.model}` : '—'} />
         <InfoRow

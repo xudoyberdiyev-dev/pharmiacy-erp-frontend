@@ -9,6 +9,7 @@ import {
   CheckCircle2, Clock, AlertTriangle, Zap, Package,
   TrendingUp, X, User, FileSpreadsheet, Eye, Box, Plus, Minus, Printer, RotateCcw
 } from 'lucide-react';
+import { formatSum } from '../../lib/format';
 
 const BOX_TYPES = [
   { value: 'SBOR',     label: 'Sbor' },
@@ -244,7 +245,7 @@ function DetailModal({ order, index, onClose, onComplete }) {
           <div className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-xl">
             <div>
               <p className="text-[10px] text-gray-400 font-medium">Umumiy summa</p>
-              <p className="text-lg font-black text-gray-900">{order.totalAmount?.toLocaleString()} so'm</p>
+              <p className="text-lg font-black text-gray-900">{formatSum(order.totalAmount)} so'm</p>
             </div>
             <div className="text-right">
               <p className="text-[10px] text-gray-400 font-medium">Muddat</p>
@@ -551,7 +552,7 @@ function MineCard({ order, index }) {
                 Muddat: {order.checkingDeadline ? format(new Date(order.checkingDeadline), 'HH:mm') : '—'}
               </span>
             </div>
-            <span className="text-xs font-bold text-gray-700">{order.totalAmount?.toLocaleString()} so'm</span>
+            <span className="text-xs font-bold text-gray-700">{formatSum(order.totalAmount)} so'm</span>
           </div>
         </div>
 

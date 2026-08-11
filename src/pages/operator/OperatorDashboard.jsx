@@ -9,6 +9,7 @@ import {
   CheckCircle2, Eye, ArrowRight, Clock,
   BarChart3, Zap, Users
 } from 'lucide-react';
+import { formatSum } from '../../lib/format';
 
 // ── Animated counter ──────────────────────────────────────────────────────────
 function useCountUp(target, duration = 900) {
@@ -354,7 +355,7 @@ export default function OperatorDashboard() {
                         <p className="text-xs text-gray-400">{o.client?.inn}</p>
                       </td>
                       <td className="px-5 py-3.5">
-                        <p className="text-sm font-bold text-gray-900">{o.totalAmount?.toLocaleString()}</p>
+                        <p className="text-sm font-bold text-gray-900">{formatSum(o.totalAmount)}</p>
                         <p className="text-[11px] text-gray-400">so'm</p>
                       </td>
                       <td className="px-5 py-3.5"><StatusBadge status={o.status} /></td>

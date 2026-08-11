@@ -9,6 +9,7 @@ import { getErrorMessage } from '../../lib/errors';
 import { ArrowLeft, CheckCircle, Clock, User, Truck, Package, FileText, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { actionMeta, ROLE_LABELS, ETIROV_TYPE_LABELS } from '../../lib/activityLabels';
+import { formatSum } from '../../lib/format';
 
 function InfoRow({ label, value, mono }) {
   if (!value && value !== 0) return null;
@@ -102,7 +103,7 @@ export default function OrderDetailPage() {
           <InfoRow label="Shartnoma" value={o.contractNumber} mono />
           <InfoRow label="Faktura" value={o.invoiceNumber} mono />
           <InfoRow label="Lot raqami" value={o.lotNumber} mono />
-          <InfoRow label="Umumiy summa" value={`${o.totalAmount?.toLocaleString()} so'm`} />
+          <InfoRow label="Umumiy summa" value={`${formatSum(o.totalAmount)} so'm`} />
           <InfoRow label="Qutilar soni" value={o.boxCount} />
         </Section>
 

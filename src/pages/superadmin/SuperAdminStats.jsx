@@ -5,6 +5,7 @@ import { BarChart3, Users, Package, Clock, CheckCircle, AlertCircle, TrendingUp,
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { regionLabel } from '../../utils/regions';
 import OrderDetailModal from './components/OrderDetailModal';
+import { formatSum } from '../../lib/format';
 
 function StatCard({ label, value, icon: Icon, color, alert, onClick }) {
   const clickable = !!onClick;
@@ -244,7 +245,7 @@ export default function SuperAdminStats() {
                         <span className="text-[11px] text-gray-400 shrink-0">{c.orderCount} ta order</span>
                       </div>
                     </div>
-                    <span className="text-sm font-black text-green-600 shrink-0">{c.totalAmount.toLocaleString()} so'm</span>
+                    <span className="text-sm font-black text-green-600 shrink-0">{formatSum(c.totalAmount)} so'm</span>
                   </div>
                 );
               })}
@@ -289,7 +290,7 @@ export default function SuperAdminStats() {
                     </Pie>
                     <Tooltip
                       formatter={(value, _name, props) => [
-                        `${value.toLocaleString()} so'm`,
+                        `${formatSum(value)} so'm`,
                         regionLabel(props.payload.region),
                       ]}
                       contentStyle={{ borderRadius: 12, border: '1px solid #F1F5F9', fontSize: 12 }}
@@ -312,7 +313,7 @@ export default function SuperAdminStats() {
                       <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
                         <div className="h-full rounded-full" style={{ width: `${pct}%`, background: PIE_COLORS[i % PIE_COLORS.length] }} />
                       </div>
-                      <span className="text-xs font-bold text-gray-500 w-24 text-right shrink-0">{r.totalAmount.toLocaleString()} so'm</span>
+                      <span className="text-xs font-bold text-gray-500 w-24 text-right shrink-0">{formatSum(r.totalAmount)} so'm</span>
                     </div>
                   );
                 })}

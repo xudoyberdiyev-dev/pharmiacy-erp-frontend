@@ -7,6 +7,7 @@ import SearchBar from '../../components/shared/SearchBar';
 import Pagination from '../../components/shared/Pagination';
 import { FileCheck, Eye, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
+import { formatSum } from '../../lib/format';
 
 const LIMIT = 20;
 
@@ -106,7 +107,7 @@ export default function BugalterPanelOne() {
                   </td>
                   <td className="px-6 py-3 text-sm text-gray-700">{o.client?.orgName}</td>
                   <td className="px-6 py-3 text-sm text-gray-500">{o.contractNumber}</td>
-                  <td className="px-6 py-3 text-sm font-bold text-gray-800">{o.totalAmount?.toLocaleString()} so'm</td>
+                  <td className="px-6 py-3 text-sm font-bold text-gray-800">{formatSum(o.totalAmount)} so'm</td>
                   <td className="px-6 py-3 text-xs text-gray-400">{o.deliveredAt ? format(new Date(o.deliveredAt), 'dd.MM.yyyy HH:mm') : '—'}</td>
                   <td className="px-6 py-3">
                     <button

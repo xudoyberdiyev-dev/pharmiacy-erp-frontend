@@ -7,6 +7,7 @@ import SearchBar from '../../components/shared/SearchBar';
 import { useNavigate } from 'react-router-dom';
 import { Eye, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
+import { formatSum } from '../../lib/format';
 
 const STATUSES = ['', 'NEW', 'PICKING', 'MARKING', 'CHECKING', 'LOADING', 'IN_TRANSIT', 'DELIVERED', 'RETURNED', 'CANCELLED'];
 const STATUS_LABELS = {
@@ -135,7 +136,7 @@ export default function OrdersPage() {
                       </td>
                       <td className="px-6 py-3 text-sm font-medium">
                         <span className={order.status === 'RETURNED' ? 'line-through text-gray-400' : ''}>
-                          {order.totalAmount?.toLocaleString()}
+                          {formatSum(order.totalAmount)}
                         </span>
                         {order.status === 'RETURNED' && (
                           <p className="text-[10px] text-gray-400 font-normal mt-0.5">statistikaga kirmaydi</p>

@@ -5,6 +5,7 @@ import {
   X, FileSpreadsheet, CheckSquare, Square, User2, Truck,
   ShieldCheck, ClipboardCheck, UserCog, Building2
 } from 'lucide-react';
+import { formatSum } from '../../lib/format';
 
 const COLUMN_OPTIONS = [
   { key: 'phone',    label: 'Telefon raqami' },
@@ -84,7 +85,7 @@ export default function DocumentBuilderModal({ orders, onClose, onConfirm, loadi
             </div>
             <div>
               <h3 className="font-bold text-gray-900">Hujjatlashtirish</h3>
-              <p className="text-xs text-gray-400">{orders.length} ta order · {totalBoxes} quti · {totalAmount.toLocaleString()} so'm</p>
+              <p className="text-xs text-gray-400">{orders.length} ta order · {totalBoxes} quti · {formatSum(totalAmount)} so'm</p>
             </div>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors shrink-0">

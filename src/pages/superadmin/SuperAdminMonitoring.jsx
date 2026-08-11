@@ -6,6 +6,7 @@ import Pagination from '../../components/shared/Pagination';
 import OrderChangeBadges from '../accountant/components/OrderChangeBadges';
 import { MapPin, Clock, Package, Truck, RefreshCw, Calendar, Footprints, Tag, CheckCircle2, AlertTriangle, Layers, ArrowRight, Hourglass, Wallet } from 'lucide-react';
 import { format } from 'date-fns';
+import { formatSum } from '../../lib/format';
 
 // IN_TRANSIT'ni ikkiga ajratamiz — hujjatlashtirilib safarga tayyor
 // (haydovchi hali yo'lga chiqmagan) va haqiqatan yo'lda (Sales sahifasidagi
@@ -157,7 +158,7 @@ export default function SuperAdminMonitoring() {
             <Wallet size={19} className="text-emerald-600" />
           </div>
           <div>
-            <p className="text-2xl font-black text-emerald-700">{priceSummary.totalAmount.toLocaleString()} so'm</p>
+            <p className="text-2xl font-black text-emerald-700">{formatSum(priceSummary.totalAmount)} so'm</p>
             <p className="text-xs text-gray-500 font-medium">Tanlangan davrdagi umumiy narx</p>
           </div>
         </div>
@@ -244,14 +245,14 @@ export default function SuperAdminMonitoring() {
                         {format(new Date(order.createdAt), 'dd.MM HH:mm')}
                       </div>
                       {order.originalAmount != null && (
-                        <p className="text-[11px] text-gray-400 line-through">{order.originalAmount.toLocaleString()} so'm</p>
+                        <p className="text-[11px] text-gray-400 line-through">{formatSum(order.originalAmount)} so'm</p>
                       )}
                       <p className={`font-black text-sm mt-0.5 ${
                         order.originalAmount != null
                           ? (order.totalAmount < order.originalAmount ? 'text-green-600' : 'text-red-600')
                           : 'text-gray-800'
                       }`}>
-                        {order.totalAmount?.toLocaleString()} so'm
+                        {formatSum(order.totalAmount)} so'm
                       </p>
                     </div>
                   </div>

@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
 import NotFoundState from '../../components/shared/NotFoundState';
 import ClientSelect from '../../components/shared/ClientSelect';
+import { formatSum } from '../../lib/format';
 import {
   ArrowLeft, Pencil, X, Check, Save, Upload,
   FileSpreadsheet, Clock, User, Building2, AlertTriangle,
@@ -243,7 +244,7 @@ export default function OperatorOrderDetail() {
                   </div>
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3.5 mt-3 flex items-center justify-between">
                     <span className="text-sm font-bold text-gray-500">Jami summa</span>
-                    <span className="text-xl font-black text-blue-700">{order.totalAmount?.toLocaleString()} <span className="text-sm font-semibold text-blue-400">so'm</span></span>
+                    <span className="text-xl font-black text-blue-700">{formatSum(order.totalAmount)} <span className="text-sm font-semibold text-blue-400">so'm</span></span>
                   </div>
                 </>
               ) : (
