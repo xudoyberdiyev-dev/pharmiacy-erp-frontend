@@ -8,7 +8,7 @@ import { formatSum } from '../../../lib/format';
 import Modal from '../../../components/shared/Modal';
 import StatusBadge from '../../../components/shared/StatusBadge';
 import AccountantEtirovModal from './AccountantEtirovModal';
-import { CheckCircle2, FileSpreadsheet, Image, Clock, AlertTriangle, Undo2 } from 'lucide-react';
+import { CheckCircle2, FileSpreadsheet, Image, Clock, AlertTriangle, Undo2, RotateCcw, X } from 'lucide-react';
 import { format } from 'date-fns';
 
 function InfoRow({ label, value }) {
@@ -20,9 +20,76 @@ function InfoRow({ label, value }) {
   );
 }
 
+// ── Qaytarish sababi modali (1-bugalter→hujjatchi yoki 2-bugalter→1-bugalter) ─
+function ReturnReasonModal({ order, step, onClose, onDone }) {
+  const [reason, setReason] = useState('');
+
+  const mutation = useMutation({
+    mutationFn: () => step === 2
+      ? orderAPI.returnToAccountant1(order.id, reason)
+      : orderAPI.returnToDocument(order.id, reason),
+    onSuccess: (res) => {
+      toast.success(res.data.message || 'Buyurtma qaytarildi');
+      onDone();
+      onClose();
+    },
+    onError: e => toast.error(getErrorMessage(e)),
+  });
+
+  const targetLabel = step === 2 ? '1-bugalterga' : 'Hujjatchiga';
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <h3 className="font-black text-gray-900">Orderni {targetLabel} qaytarish</h3>
+            <p className="text-xs text-gray-400 mt-0.5">#{order.invoiceNumber} · {order.client?.orgName}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors">
+            <X size={16} className="text-gray-400" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-2.5">
+          <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider">Qaytarish sababi</p>
+          <textarea
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            placeholder="Masalan: narx noto'g'ri, hujjat raqami xato..."
+            rows={4}
+            className="w-full px-3.5 py-3 rounded-xl border-2 border-gray-200 focus:border-amber-400 outline-none text-sm resize-none transition-colors"
+          />
+          <p className="text-[11px] text-gray-400">
+            {targetLabel} 5 jarima bali beriladi va bu order uning "Qaytganlar" sahifasiga tushadi.
+          </p>
+        </div>
+
+        <div className="px-5 pb-5 flex gap-3">
+          <button onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">
+            Bekor qilish
+          </button>
+          <button
+            onClick={() => mutation.mutate()}
+            disabled={!reason.trim() || mutation.isPending}
+            className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-bold
+              hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+          >
+            {mutation.isPending
+              ? <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Qaytarilmoqda...</>
+              : <><RotateCcw size={14} /> Qaytarish</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AccountantOrderDetailModal({ order, step, onClose }) {
   const qc = useQueryClient();
   const [showEtirov, setShowEtirov] = useState(false);
+  const [showReturn, setShowReturn] = useState(false);
 
   const confirmMutation = useMutation({
     mutationFn: () => orderAPI.accountantConfirm(order.id),
@@ -159,12 +226,20 @@ export default function AccountantOrderDetailModal({ order, step, onClose }) {
         ))}
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
+        {step === 1 && (
+          <button
+            onClick={() => setShowEtirov(true)}
+            className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm text-red-600 bg-red-50 hover:bg-red-100 transition-colors shrink-0"
+          >
+            <AlertTriangle size={16} /> Hujjatga etiroz
+          </button>
+        )}
         <button
-          onClick={() => setShowEtirov(true)}
-          className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm text-red-600 bg-red-50 hover:bg-red-100 transition-colors shrink-0"
+          onClick={() => setShowReturn(true)}
+          className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors shrink-0"
         >
-          <AlertTriangle size={16} /> Hujjatga etiroz
+          <RotateCcw size={16} /> {step === 2 ? "1-bugalterga qaytarish" : 'Hujjatchiga qaytarish'}
         </button>
         <button
           onClick={() => confirmMutation.mutate()}
@@ -180,6 +255,15 @@ export default function AccountantOrderDetailModal({ order, step, onClose }) {
           order={order}
           onClose={() => setShowEtirov(false)}
           onDone={() => { setShowEtirov(false); onClose(); }}
+        />
+      )}
+
+      {showReturn && (
+        <ReturnReasonModal
+          order={order}
+          step={step}
+          onClose={() => setShowReturn(false)}
+          onDone={() => { setShowReturn(false); qc.invalidateQueries({ queryKey: ['orders', 'accountant'] }); onClose(); }}
         />
       )}
     </Modal>

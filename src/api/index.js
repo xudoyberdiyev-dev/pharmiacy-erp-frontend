@@ -55,6 +55,9 @@ export const orderAPI = {
   getAccountantHistory: (params) => api.get('/orders/accountant-history', { params }),
   adjustLateness: (id, data) => api.post(`/orders/${id}/lateness-adjustment`, data),
   raiseDocumentEtirov: (id, data) => api.post(`/orders/${id}/document-etirov`, data),
+  returnToDocument: (id, reason) => api.patch(`/orders/${id}/return-to-document`, { reason }),
+  returnToAccountant1: (id, reason) => api.patch(`/orders/${id}/return-to-accountant1`, { reason }),
+  getReturnedFromAccountant2: () => api.get('/orders/returned-from-accountant2'),
 };
 
 // ===== PICKER =====
@@ -101,6 +104,7 @@ export const checkerAPI = {
   returnToPicking: (id, reason) => api.patch(`/checker/orders/${id}/return-to-picking`, { reason }),
   complete:     (id, data) => api.patch(`/checker/orders/${id}/complete`, data),
   updateBoxes:  (id, data) => api.patch(`/checker/orders/${id}/boxes`, data),
+  getReturned: () => api.get('/checker/orders/returned'),
   getEtirozli: () => api.get('/checker/etirozlar'),
   respondEtirov: (id, data) => api.patch(`/checker/etirozlar/${id}/respond`, data),
 };
@@ -117,6 +121,9 @@ export const documentAPI = {
   reassignTrip: (id, data) => api.patch(`/document/orders/${id}/reassign-trip`, data),
   fullReturn:  (id, reason) => api.patch(`/document/orders/${id}/full-return`, { reason }),
   getFullyReturned: () => api.get('/document/orders/fully-returned'),
+  returnToChecking: (id, reason) => api.patch(`/document/orders/${id}/return-to-checking`, { reason }),
+  getReturnedFromAccountant: () => api.get('/document/orders/returned-from-accountant'),
+  resendToAccountant: (id, totalAmount) => api.patch(`/document/orders/${id}/resend`, { totalAmount }),
   returnToPending: (orderIds) => api.patch('/document/orders/return-to-pending', { orderIds }),
   updateAmount: (id, totalAmount) => api.patch(`/document/orders/${id}/amount`, { totalAmount }),
   getHistory:   (date) => api.get('/document/orders/history', { params: date ? { date } : {} }),

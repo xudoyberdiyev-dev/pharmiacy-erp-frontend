@@ -38,6 +38,7 @@ import MarkerHistoryPage from './pages/marker/MarkerHistoryPage';
 import CheckerLayout from './components/layout/CheckerLayout';
 import CheckerAvailablePage from './pages/checker/CheckerAvailablePage';
 import CheckerMinePage from './pages/checker/CheckerMinePage';
+import CheckerReturnedPage from './pages/checker/CheckerReturnedPage';
 import CheckerHistoryPage from './pages/checker/CheckerHistoryPage';
 import CheckerEtirozlarPage from './pages/checker/CheckerEtirozlarPage';
 import CheckerPrintPage from './pages/checker/CheckerPrintPage';
@@ -47,6 +48,7 @@ import DocumentDocumentedPage from './pages/document/DocumentDocumentedPage';
 import DocumentReadyPage from './pages/document/DocumentReadyPage';
 import DocumentHistoryPage from './pages/document/DocumentHistoryPage';
 import DocumentReturnedPage from './pages/document/DocumentReturnedPage';
+import DocumentReturnedFromAccountantPage from './pages/document/DocumentReturnedFromAccountantPage';
 import DocumentReturnDetailPage from './pages/document/DocumentReturnDetailPage';
 import DocumentEtirozlarPage from './pages/document/DocumentEtirozlarPage';
 import PublicOrderInfoPage from './pages/public/PublicOrderInfoPage';
@@ -57,6 +59,7 @@ import DriverProfile from './pages/driver/DriverProfile';
 import BugalterPanelOne from './pages/accountant/BugalterPanelOne';
 import BugalterPanelTvo from './pages/accountant/BugalterPanelTvo';
 import AccountantHistoryPage from './pages/accountant/AccountantHistoryPage';
+import AccountantReturnedPage from './pages/accountant/AccountantReturnedPage';
 import SuperAdminStats from './pages/superadmin/SuperAdminStats';
 import SuperAdminMonitoring from './pages/superadmin/SuperAdminMonitoring';
 import SuperAdminActivity from './pages/superadmin/SuperAdminActivity';
@@ -166,6 +169,7 @@ function AppRoutes() {
       <Route path="/checker" element={<ProtectedRoute roles={['CHECKER']}><CheckerLayout /></ProtectedRoute>}>
         <Route index element={<CheckerAvailablePage />} />
         <Route path="mine" element={<CheckerMinePage />} />
+        <Route path="returned" element={<CheckerReturnedPage />} />
         <Route path="history" element={<CheckerHistoryPage />} />
         <Route path="etirozlar" element={<CheckerEtirozlarPage />} />
         <Route path="print/:id" element={<CheckerPrintPage />} />
@@ -177,6 +181,7 @@ function AppRoutes() {
         <Route path="ready" element={<DocumentReadyPage />} />
         <Route path="history" element={<DocumentHistoryPage />} />
         <Route path="returned" element={<DocumentReturnedPage />} />
+        <Route path="returned-from-accountant" element={<DocumentReturnedFromAccountantPage />} />
         <Route path="etirozlar" element={<DocumentEtirozlarPage />} />
         <Route path="orders/:id/return" element={<DocumentReturnDetailPage />} />
       </Route>
@@ -190,6 +195,7 @@ function AppRoutes() {
       {/* ACCOUNTANT 1 */}
       <Route path="/accountant1" element={<ProtectedRoute roles={['ACCOUNTANT1']}><AccountantLayout /></ProtectedRoute>}>
         <Route index element={<BugalterPanelOne />} />
+        <Route path="returned" element={<AccountantReturnedPage />} />
         <Route path="history" element={<AccountantHistoryPage />} />
       </Route>
       {/* ACCOUNTANT 2 */}

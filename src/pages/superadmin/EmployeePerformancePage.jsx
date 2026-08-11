@@ -5,8 +5,13 @@ import { statsAPI } from '../../api';
 import SearchBar from '../../components/shared/SearchBar';
 import { Gauge, Clock, AlertOctagon, MessageSquare, Package, TrendingUp } from 'lucide-react';
 
-const ROLE_LABELS = { PICKER: 'Picker', MARKER: 'Marker', CHECKER: 'Checker' };
-const ROLES = ['', 'PICKER', 'MARKER', 'CHECKER'];
+const ROLE_LABELS = {
+  PICKER: 'Picker', MARKER: 'Marker', CHECKER: 'Checker',
+  DOCUMENT: 'Hujjatchi', ACCOUNTANT1: '1-bugalter', ACCOUNTANT2: '2-bugalter',
+};
+const ROLES = ['', 'PICKER', 'MARKER', 'CHECKER', 'DOCUMENT', 'ACCOUNTANT1', 'ACCOUNTANT2'];
+// Bu rollarda "deadline" tushunchasi yo'q — kechikish hisoblanmaydi (stats.lateCount doim 0)
+const NO_LATENESS_ROLES = ['DOCUMENT', 'ACCOUNTANT1', 'ACCOUNTANT2'];
 
 const LEVEL_META = {
   good:    { label: "A'lo",     dot: 'bg-green-500',  border: 'border-green-200',  bg: 'bg-green-50',  text: 'text-green-700'  },
@@ -35,12 +40,12 @@ function EmployeeCard({ employee, onClick }) {
           <span className={`w-2 h-2 rounded-full ${meta.dot}`} /> {meta.label}
         </span>
       </div>
-      <div className="grid grid-cols-4 gap-1.5">
+      <div className={`grid gap-1.5 ${NO_LATENESS_ROLES.includes(employee.role) ? 'grid-cols-3' : 'grid-cols-4'}`}>
         {[
           { icon: Package, label: 'Buyurtma', val: employee.totalOrders },
-          { icon: Clock, label: 'Kech', val: employee.lateCount },
+          ...(NO_LATENESS_ROLES.includes(employee.role) ? [] : [{ icon: Clock, label: 'Kech', val: employee.lateCount }]),
           { icon: AlertOctagon, label: 'Jarima', val: employee.totalPenaltyPoints },
-          { icon: MessageSquare, label: 'Etiroz', val: employee.etirovCount },
+          { icon: MessageSquare, label: 'Qaytarish/etiroz', val: employee.etirovCount },
         ].map(({ icon: Icon, label, val }) => (
           <div key={label} className="bg-gray-50 rounded-lg px-2 py-1.5 text-center">
             <Icon size={12} className="mx-auto text-gray-400 mb-0.5" />

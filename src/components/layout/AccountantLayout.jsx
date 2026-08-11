@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { FileCheck, History, LogOut, ChevronDown, Activity } from 'lucide-react';
+import { FileCheck, History, LogOut, ChevronDown, Activity, RotateCcw } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 // Bugalter 1 va 2 uchun umumiy header-navigatsiyali layout — DocumentLayout
@@ -19,6 +19,7 @@ export default function AccountantLayout() {
 
   const NAV_LINKS = [
     { to: basePath,               label: isStep2 ? '2-tasdiqlash' : '1-tasdiqlash', icon: FileCheck, end: true },
+    ...(!isStep2 ? [{ to: `${basePath}/returned`, label: 'Qaytganlar', icon: RotateCcw }] : []),
     { to: `${basePath}/history`,  label: 'Tarix',                                    icon: History },
   ];
 

@@ -11,8 +11,13 @@ import {
   X, RotateCcw, MessageSquare, User as UserIcon, ChevronDown, ChevronUp,
 } from 'lucide-react';
 
-const ROLE_LABELS = { PICKER: 'Picker', MARKER: 'Marker', CHECKER: 'Checker' };
+const ROLE_LABELS = {
+  PICKER: 'Picker', MARKER: 'Marker', CHECKER: 'Checker',
+  DOCUMENT: 'Hujjatchi', ACCOUNTANT1: '1-bugalter', ACCOUNTANT2: '2-bugalter',
+};
 const ROLE_STAGE = { PICKER: 'PICKING', MARKER: 'MARKING', CHECKER: 'CHECKING' };
+// Bu rollarda "deadline" tushunchasi yo'q — kechikish hisoblanmaydi.
+const NO_LATENESS_ROLES = ['DOCUMENT', 'ACCOUNTANT1', 'ACCOUNTANT2'];
 const ETIROV_TYPE_LABELS = {
   WRONG_SERIES: 'Seriya boshqa', WRONG_QUANTITY: 'Miqdor noto\'g\'ri', DAMAGED: 'Shikastlangan',
   WRONG_PRODUCT: 'Noto\'g\'ri dori', MISSING_PRODUCT: 'Mahsulot yo\'q', OTHER: 'Boshqa sabab',
@@ -142,7 +147,7 @@ function VoidedNote({ label, byName, reason }) {
 }
 
 // ── Bitta order kartasi ────────────────────────────────────────────────────────
-function OrderCard({ order, userId, stage }) {
+function OrderCard({ order, userId, stage, showLateness }) {
   const qc = useQueryClient();
   const [showAdjust, setShowAdjust] = useState(false);
   const [voidTarget, setVoidTarget] = useState(null); // { kind: 'penalty'|'etirov', item }
@@ -190,24 +195,28 @@ function OrderCard({ order, userId, stage }) {
         <StatusBadge status={order.status} />
       </div>
 
-      {/* Lateness */}
-      <div className={`flex items-center justify-between p-3 rounded-xl ${order.isLate ? 'bg-red-50' : 'bg-green-50'}`}>
-        <div className="flex items-center gap-2">
-          {order.isLate
-            ? <AlertTriangle size={14} className="text-red-500 shrink-0" />
-            : <CheckCircle2 size={14} className="text-green-500 shrink-0" />}
-          <span className={`text-sm font-bold ${order.isLate ? 'text-red-700' : 'text-green-700'}`}>
-            {order.isLate ? `${order.effectiveLateMinutes} daqiqa kech yakunlangan` : 'O\'z vaqtida / erta yakunlangan'}
-          </span>
-        </div>
-        {order.effectiveLateMinutes > 0 && (
-          <button onClick={() => setShowAdjust(true)} className="text-xs font-bold text-blue-600 hover:underline shrink-0">
-            {order.adjustment ? 'Qayta tuzatish' : 'Tuzatish'}
-          </button>
-        )}
-      </div>
-      {order.adjustment && (
-        <VoidedNote label={`Asl kechikish: ${order.adjustment.originalLateMinutes} daq.`} byName={order.adjustment.adjustedBy?.fullName} reason={order.adjustment.reason} />
+      {/* Lateness — faqat deadline tushunchasi bor rollarda ko'rsatiladi */}
+      {showLateness && (
+        <>
+          <div className={`flex items-center justify-between p-3 rounded-xl ${order.isLate ? 'bg-red-50' : 'bg-green-50'}`}>
+            <div className="flex items-center gap-2">
+              {order.isLate
+                ? <AlertTriangle size={14} className="text-red-500 shrink-0" />
+                : <CheckCircle2 size={14} className="text-green-500 shrink-0" />}
+              <span className={`text-sm font-bold ${order.isLate ? 'text-red-700' : 'text-green-700'}`}>
+                {order.isLate ? `${order.effectiveLateMinutes} daqiqa kech yakunlangan` : 'O\'z vaqtida / erta yakunlangan'}
+              </span>
+            </div>
+            {order.effectiveLateMinutes > 0 && (
+              <button onClick={() => setShowAdjust(true)} className="text-xs font-bold text-blue-600 hover:underline shrink-0">
+                {order.adjustment ? 'Qayta tuzatish' : 'Tuzatish'}
+              </button>
+            )}
+          </div>
+          {order.adjustment && (
+            <VoidedNote label={`Asl kechikish: ${order.adjustment.originalLateMinutes} daq.`} byName={order.adjustment.adjustedBy?.fullName} reason={order.adjustment.reason} />
+          )}
+        </>
       )}
 
       {/* Etirozlar */}
@@ -290,6 +299,7 @@ export default function EmployeeDetailPage() {
   const { user, stats } = data;
   const orders = data.data || [];
   const stage = ROLE_STAGE[user.role];
+  const showLateness = !NO_LATENESS_ROLES.includes(user.role);
 
   return (
     <div className="space-y-5">
@@ -319,9 +329,11 @@ export default function EmployeeDetailPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard icon={Package} label="Jami order" value={stats.totalOrders} color="text-blue-600" bg="bg-blue-50" />
-        <StatCard icon={Clock} label="O'rtacha kechikish (daq.)" value={stats.avgLateMinutes} color="text-amber-600" bg="bg-amber-50" />
+        {showLateness && (
+          <StatCard icon={Clock} label="O'rtacha kechikish (daq.)" value={stats.avgLateMinutes} color="text-amber-600" bg="bg-amber-50" />
+        )}
         <StatCard icon={AlertOctagon} label="Jarima balli" value={stats.totalPenaltyPoints} color="text-red-600" bg="bg-red-50" />
-        <StatCard icon={MessageSquare} label="Etirozlar" value={stats.etirovCount} color="text-purple-600" bg="bg-purple-50" />
+        <StatCard icon={MessageSquare} label={showLateness ? 'Etirozlar' : 'Qaytarish/etiroz'} value={stats.etirovCount} color="text-purple-600" bg="bg-purple-50" />
       </div>
 
       {orders.length === 0 ? (
@@ -331,7 +343,7 @@ export default function EmployeeDetailPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {orders.map(o => <OrderCard key={o.id} order={o} userId={user.id} stage={stage} />)}
+          {orders.map(o => <OrderCard key={o.id} order={o} userId={user.id} stage={stage} showLateness={showLateness} />)}
         </div>
       )}
     </div>

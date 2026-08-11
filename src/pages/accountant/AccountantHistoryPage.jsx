@@ -3,8 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { orderAPI } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { format } from 'date-fns';
-import { Calendar, Package, History, Truck } from 'lucide-react';
+import { Calendar, Package, History, Truck, AlertTriangle } from 'lucide-react';
 import { formatSum } from '../../lib/format';
+import { getErrorMessage } from '../../lib/errors';
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -46,7 +47,7 @@ export default function AccountantHistoryPage() {
 
   const [date, setDate] = useState(today());
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['orders', 'accountant-history', user?.role, date],
     queryFn: () => orderAPI.getAccountantHistory({ date }),
     select: (r) => r.data,
@@ -91,7 +92,21 @@ export default function AccountantHistoryPage() {
         </div>
       </div>
 
-      {isLoading ? (
+      {isError ? (
+        <div className="bg-red-50 rounded-2xl border border-red-100 shadow-sm py-16 text-center px-6">
+          <div className="w-14 h-14 mx-auto bg-red-100 rounded-2xl flex items-center justify-center mb-3">
+            <AlertTriangle size={24} className="text-red-500" />
+          </div>
+          <p className="text-red-600 text-sm font-bold">Tarixni yuklab bo'lmadi</p>
+          <p className="text-red-400 text-xs mt-1">{getErrorMessage(error)}</p>
+          <button
+            onClick={() => refetch()}
+            className="mt-4 px-4 py-2 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition-colors"
+          >
+            Qayta urinish
+          </button>
+        </div>
+      ) : isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 h-24 animate-pulse">
