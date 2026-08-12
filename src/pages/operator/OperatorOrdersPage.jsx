@@ -103,8 +103,8 @@ export default function OperatorOrdersPage() {
   const [page, setPage]             = useState(1);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['op-orders', statusFilter, page],
-    queryFn: () => orderAPI.getAll({ status: statusFilter || undefined, page, limit: 15 }),
+    queryKey: ['op-orders', statusFilter, search, page],
+    queryFn: () => orderAPI.getAll({ status: statusFilter || undefined, search: search || undefined, page, limit: 15 }),
     select: r => r.data,
   });
 
@@ -131,14 +131,9 @@ export default function OperatorOrdersPage() {
     return d && new Date(d) < now;
   };
 
-  const filtered = orders.filter(o => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return o.orderNumber?.toLowerCase().includes(q)
-      || o.client?.orgName?.toLowerCase().includes(q)
-      || o.invoiceNumber?.toLowerCase().includes(q)
-      || o.contractNumber?.toLowerCase().includes(q);
-  });
+  const filtered = orders;
+
+  const changeSearch = (v) => { setSearch(v); setPage(1); };
 
   const changeStatus = (s) => {
     setStatus(s); setPage(1);
@@ -171,14 +166,14 @@ export default function OperatorOrdersPage() {
           <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => changeSearch(e.target.value)}
             placeholder="Buyurtma #, klient nomi, faktura, shartnoma raqami..."
             className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-transparent rounded-xl text-sm
               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-blue-100
               transition-all placeholder:text-gray-400"
           />
           {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors">
+            <button onClick={() => changeSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors">
               <X size={12} className="text-gray-500" />
             </button>
           )}
@@ -240,7 +235,11 @@ export default function OperatorOrdersPage() {
               <tbody>
                 {filtered.map(o => {
                   const late    = isLate(o);
-                  const canEdit = o.status === 'NEW' && o.createdById === user?.id;
+                  // Tahrirlash bosqichdan qat'iy nazar ruxsat etiladi — backend
+                  // (updateOrder) ham buyurtma qaysi bosqichda bo'lishidan
+                  // qat'iy nazar klient/narx/muddatlarni yangilashga ruxsat
+                  // beradi, faqat bekor qilish (cancel) NEW statusiga xos.
+                  const canEdit = o.createdById === user?.id;
                   const canDel  = o.status === 'NEW' && o.createdById === user?.id;
                   const isMe    = o.createdById === user?.id;
                   return (
