@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
 import { ArrowLeft, MapPin, Camera, CheckCircle, Navigation, X, Package, Banknote, AlertCircle, Truck, Images, Undo2 } from 'lucide-react';
 import { formatSum } from '../../lib/format';
+import heic2any from 'heic2any';
 
 // ── Hujjatchiga qaytarish modali (sababi majburiy) ─────────────────────────
 function ReturnToDocumentModal({ order, onClose, onDone }) {
@@ -57,6 +58,12 @@ function ReturnToDocumentModal({ order, onClose, onDone }) {
     </div>
   );
 }
+
+const isHeic = (file) => {
+  const type = (file.type || '').toLowerCase();
+  const name = (file.name || '').toLowerCase();
+  return type === 'image/heic' || type === 'image/heif' || name.endsWith('.heic') || name.endsWith('.heif');
+};
 
 const MAX_PHOTOS = 4;
 // Backend middleware/upload.js dagi uploadImage limiti bilan bir xil (15MB) —
@@ -156,10 +163,28 @@ export default function DriverOrderDetail() {
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`, '_blank');
   };
 
-  const addPhotos = (files) => {
+  const addPhotos = async (files) => {
     const incoming = Array.from(files);
-    const tooBig = incoming.filter(f => f.size > MAX_PHOTO_SIZE_BYTES);
-    const ok = incoming.filter(f => f.size <= MAX_PHOTO_SIZE_BYTES);
+
+    // Galereyadan tanlangan rasm HEIC/HEIF bo'lishi mumkin (ayniqsa iPhone) —
+    // bu format hech qaysi oddiy brauzerda ko'rinmaydi va avval serverga
+    // yuklashda ham vaqti-vaqti bilan tushunarsiz xato bilan yiqilardi.
+    // Shu yerda avtomatik JPEG'ga aylantiramiz — haydovchi buni sezmaydi ham.
+    const converted = await Promise.all(incoming.map(async (f) => {
+      if (!isHeic(f)) return f;
+      try {
+        const blob = await heic2any({ blob: f, toType: 'image/jpeg', quality: 0.85 });
+        const jpegBlob = Array.isArray(blob) ? blob[0] : blob;
+        return new File([jpegBlob], f.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
+      } catch {
+        toast.error(`"${f.name}" rasmini o'zgartirib bo'lmadi — boshqa rasm tanlang`);
+        return null;
+      }
+    }));
+
+    const usable = converted.filter(Boolean);
+    const tooBig = usable.filter(f => f.size > MAX_PHOTO_SIZE_BYTES);
+    const ok = usable.filter(f => f.size <= MAX_PHOTO_SIZE_BYTES);
 
     if (tooBig.length > 0) {
       toast.error(
@@ -169,8 +194,7 @@ export default function DriverOrderDetail() {
       );
     }
 
-    const next = [...photos, ...ok].slice(0, MAX_PHOTOS);
-    setPhotos(next);
+    setPhotos(prev => [...prev, ...ok].slice(0, MAX_PHOTOS));
   };
 
   const removePhoto = (idx) => setPhotos(p => p.filter((_, i) => i !== idx));
