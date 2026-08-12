@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { DriverLocationProvider, useDriverLocation } from '../../context/DriverLocationContext';
 import { useQuery } from '@tanstack/react-query';
 import { orderAPI } from '../../api';
-import { Package, User, Smartphone } from 'lucide-react';
+import { Package, User, Smartphone, History } from 'lucide-react';
 
 function isMobileDevice() {
   const ua = navigator.userAgent || navigator.vendor || '';
@@ -64,6 +64,7 @@ function DriverMobileLayoutInner({ user, isDetailPage }) {
 
   const TABS = [
     { to: '/driver', end: true, label: 'Buyurtmalar', icon: Package },
+    { to: '/driver/history', end: true, label: 'Tarix', icon: History },
     { to: '/driver/profile', end: true, label: 'Profil', icon: User },
   ];
 

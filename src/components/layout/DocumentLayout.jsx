@@ -12,6 +12,7 @@ const NAV_LINKS = [
   { to: '/document/history',     label: 'Tarix',                    icon: History },
   { to: '/document/returned',    label: 'Qaytgan buyurtmalar',      icon: Undo2 },
   { to: '/document/returned-from-accountant', label: 'Bugalterdan qaytganlar', icon: Undo2 },
+  { to: '/document/returned-from-driver', label: 'Haydovchidan qaytganlar', icon: Truck },
   { to: '/document/etirozlar',   label: 'Etirozlar',                icon: AlertCircle },
 ];
 

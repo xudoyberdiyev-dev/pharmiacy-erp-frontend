@@ -2,13 +2,61 @@ import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderAPI } from '../../api';
+import { FILE_BASE_URL } from '../../api/axios';
 import { useDriverLocation } from '../../context/DriverLocationContext';
 import StatusBadge from '../../components/shared/StatusBadge';
 import NotFoundState from '../../components/shared/NotFoundState';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
-import { ArrowLeft, MapPin, Camera, CheckCircle, Navigation, X, Package, Banknote, AlertCircle, Truck, Images } from 'lucide-react';
+import { ArrowLeft, MapPin, Camera, CheckCircle, Navigation, X, Package, Banknote, AlertCircle, Truck, Images, Undo2 } from 'lucide-react';
 import { formatSum } from '../../lib/format';
+
+// ── Hujjatchiga qaytarish modali (sababi majburiy) ─────────────────────────
+function ReturnToDocumentModal({ order, onClose, onDone }) {
+  const [reason, setReason] = useState('');
+
+  const mutation = useMutation({
+    mutationFn: () => orderAPI.driverReturnToDocument(order.id, reason),
+    onSuccess: (res) => {
+      toast.success(res.data.message || 'Buyurtma hujjatchiga qaytarildi');
+      onDone();
+    },
+    onError: e => toast.error(getErrorMessage(e)),
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center" onClick={onClose}>
+      <div className="relative w-full max-w-md bg-white rounded-t-2xl p-5 pb-6 space-y-3.5" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="font-black text-gray-900 text-base">Hujjatchiga qaytarish</h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center">
+            <X size={16} className="text-gray-400" />
+          </button>
+        </div>
+        <p className="text-xs text-gray-400">
+          #{order.invoiceNumber} — {order.client?.orgName}. Bu orderni yetkaza olmasangiz (mijoz qabul qilmadi, manzil
+          xato va h.k.), sababini yozib hujjatchiga qaytaring — u tuzatib qayta yuboradi. Jarima yozilmaydi.
+        </p>
+        <textarea
+          value={reason}
+          onChange={e => setReason(e.target.value)}
+          placeholder="Masalan: mijoz topilmadi, manzil noto'g'ri, buyurtma bekor qilindi..."
+          rows={4}
+          className="w-full px-3.5 py-3 rounded-xl border-2 border-gray-200 focus:border-amber-400 outline-none text-sm resize-none transition-colors"
+        />
+        <button
+          onClick={() => mutation.mutate()}
+          disabled={!reason.trim() || mutation.isPending}
+          className="w-full flex items-center justify-center gap-2 bg-amber-500 disabled:bg-gray-300 text-white rounded-xl py-3.5 text-sm font-bold active:opacity-90 transition-colors"
+        >
+          {mutation.isPending
+            ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Qaytarilmoqda...</>
+            : <><Undo2 size={16} /> Hujjatchiga qaytarish</>}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 const MAX_PHOTOS = 4;
 // Backend middleware/upload.js dagi uploadImage limiti bilan bir xil (15MB) —
@@ -36,6 +84,7 @@ export default function DriverOrderDetail() {
   const qc = useQueryClient();
   const [photos, setPhotos] = useState([]);
   const [showPhotoMenu, setShowPhotoMenu] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
   const { position, error: locationError } = useDriverLocation();
@@ -63,12 +112,27 @@ export default function DriverOrderDetail() {
       qc.invalidateQueries(['order', id]);
       navigate('/driver');
     },
-    onError: e => {
+    onError: async (e) => {
+      // Sekin/uzilib qolgan mobil tarmoqda so'rov aslida serverda
+      // MUVAFFAQIYATLI bajarilgan, lekin javob haydovchiga yetib
+      // kelmagan bo'lishi mumkin — qayta bossa backend "IN_TRANSIT
+      // statusida emas" deb rad etib, chalkash xato ko'rsatardi, holbuki
+      // yetkazib berish aslida allaqachon tasdiqlangan edi. Shu holatni
+      // aniqlash uchun haqiqiy holatni tekshirib, agar allaqachon
+      // yetkazilgan bo'lsa — muvaffaqiyat sifatida ko'rsatamiz.
+      try {
+        const fresh = await orderAPI.getOne(id);
+        if (fresh.data.data.status === 'DELIVERED') {
+          toast.success('Yetkazib berish allaqachon tasdiqlangan edi!');
+          qc.invalidateQueries(['orders']);
+          qc.invalidateQueries(['order', id]);
+          navigate('/driver');
+          return;
+        }
+      } catch {
+        // e'tibor bermaymiz — pastda oddiy xato ko'rsatiladi
+      }
       toast.error(getErrorMessage(e));
-      // Holat bilan bog'liq xato bo'lsa (masalan order boshqa joyda
-      // allaqachon yetkazilgan) — darhol qayta yuklab haqiqiy holatni
-      // ko'rsatamiz, shunda foydalanuvchi eskirgan formaga qarab qayta
-      // urinib, xatoni takrorlamaydi.
       qc.invalidateQueries(['order', id]);
     },
   });
@@ -169,6 +233,13 @@ export default function DriverOrderDetail() {
           className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-2xl py-3.5 text-sm font-bold text-gray-700 active:bg-gray-50">
           <Navigation size={17} className="text-[#3B5BFD]" /> Xaritada ochish
         </button>
+
+        {isActive && (
+          <button onClick={() => setShowReturnModal(true)}
+            className="w-full flex items-center justify-center gap-2 bg-white border border-amber-200 rounded-2xl py-3 text-sm font-bold text-amber-700 active:bg-amber-50">
+            <Undo2 size={16} /> Hujjatchiga qaytarish
+          </button>
+        )}
 
         {isActive && !order.driverConfirmedAt && (
           <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-start gap-3">
@@ -314,9 +385,51 @@ export default function DriverOrderDetail() {
             </button>
           </div>
         ) : isActive ? null : order.status === 'DELIVERED' ? (
-          <div className="bg-green-50 border border-green-100 rounded-2xl p-4 flex items-center gap-3">
-            <CheckCircle size={20} className="text-green-600 shrink-0" />
-            <p className="text-sm font-bold text-green-700">Bu order yetkazib berilgan</p>
+          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div className="bg-green-50 border-b border-green-100 p-4 flex items-center gap-3">
+              <CheckCircle size={20} className="text-green-600 shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-green-700">Bu order yetkazib berilgan</p>
+                {order.deliveredAt && (
+                  <p className="text-xs text-green-600 mt-0.5">
+                    {new Date(order.deliveredAt).toLocaleString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-2 bg-gray-50 rounded-xl p-2.5">
+                  <Package size={15} className="text-gray-400" />
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase">Qutilar</p>
+                    <p className="text-sm font-bold text-gray-800">{order.boxCount || '—'}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 bg-gray-50 rounded-xl p-2.5">
+                  <Banknote size={15} className="text-gray-400" />
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase">Summa</p>
+                    <p className="text-sm font-bold text-gray-800">{formatSum(order.totalAmount)}</p>
+                  </div>
+                </div>
+              </div>
+              {order.deliveryPhotoUrls?.length > 0 ? (
+                <div>
+                  <p className="text-[11px] text-gray-400 font-bold uppercase mb-2">Yuborilgan rasmlar</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {order.deliveryPhotoUrls.map((url, i) => (
+                      <a key={i} href={`${FILE_BASE_URL}${url}`} target="_blank" rel="noreferrer"
+                        className="aspect-square rounded-xl overflow-hidden border border-gray-200 block">
+                        <img src={`${FILE_BASE_URL}${url}`} alt="" className="w-full h-full object-cover" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400">Bu order uchun rasm topilmadi</p>
+              )}
+            </div>
           </div>
         ) : (
           <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-center gap-3">
@@ -327,6 +440,18 @@ export default function DriverOrderDetail() {
           </div>
         )}
       </div>
+
+      {showReturnModal && (
+        <ReturnToDocumentModal
+          order={order}
+          onClose={() => setShowReturnModal(false)}
+          onDone={() => {
+            setShowReturnModal(false);
+            qc.invalidateQueries(['orders']);
+            navigate('/driver');
+          }}
+        />
+      )}
     </div>
   );
 }

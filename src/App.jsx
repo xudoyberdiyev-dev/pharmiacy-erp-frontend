@@ -49,6 +49,7 @@ import DocumentReadyPage from './pages/document/DocumentReadyPage';
 import DocumentHistoryPage from './pages/document/DocumentHistoryPage';
 import DocumentReturnedPage from './pages/document/DocumentReturnedPage';
 import DocumentReturnedFromAccountantPage from './pages/document/DocumentReturnedFromAccountantPage';
+import DocumentReturnedFromDriverPage from './pages/document/DocumentReturnedFromDriverPage';
 import DocumentReturnDetailPage from './pages/document/DocumentReturnDetailPage';
 import DocumentEtirozlarPage from './pages/document/DocumentEtirozlarPage';
 import PublicOrderInfoPage from './pages/public/PublicOrderInfoPage';
@@ -56,6 +57,7 @@ import DriverMobileLayout from './components/layout/DriverMobileLayout';
 import DriverPanel from './pages/driver/DriverPanel';
 import DriverOrderDetail from './pages/driver/DriverOrderDetail';
 import DriverProfile from './pages/driver/DriverProfile';
+import DriverHistoryPage from './pages/driver/DriverHistoryPage';
 import BugalterPanelOne from './pages/accountant/BugalterPanelOne';
 import BugalterPanelTvo from './pages/accountant/BugalterPanelTvo';
 import AccountantHistoryPage from './pages/accountant/AccountantHistoryPage';
@@ -182,6 +184,7 @@ function AppRoutes() {
         <Route path="history" element={<DocumentHistoryPage />} />
         <Route path="returned" element={<DocumentReturnedPage />} />
         <Route path="returned-from-accountant" element={<DocumentReturnedFromAccountantPage />} />
+        <Route path="returned-from-driver" element={<DocumentReturnedFromDriverPage />} />
         <Route path="etirozlar" element={<DocumentEtirozlarPage />} />
         <Route path="orders/:id/return" element={<DocumentReturnDetailPage />} />
       </Route>
@@ -189,6 +192,7 @@ function AppRoutes() {
       <Route path="/driver" element={<ProtectedRoute roles={['DRIVER']}><DriverMobileLayout /></ProtectedRoute>}>
         <Route index element={<DriverPanel />} />
         <Route path="orders/:id" element={<DriverOrderDetail />} />
+        <Route path="history" element={<DriverHistoryPage />} />
         <Route path="profile" element={<DriverProfile />} />
       </Route>
 

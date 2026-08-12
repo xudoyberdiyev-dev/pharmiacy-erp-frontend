@@ -58,6 +58,7 @@ export const orderAPI = {
   returnToDocument: (id, reason) => api.patch(`/orders/${id}/return-to-document`, { reason }),
   returnToAccountant1: (id, reason) => api.patch(`/orders/${id}/return-to-accountant1`, { reason }),
   getReturnedFromAccountant2: () => api.get('/orders/returned-from-accountant2'),
+  driverReturnToDocument: (id, reason) => api.patch(`/orders/${id}/driver-return-to-document`, { reason }),
 };
 
 // ===== PICKER =====
@@ -123,6 +124,7 @@ export const documentAPI = {
   getFullyReturned: () => api.get('/document/orders/fully-returned'),
   returnToChecking: (id, reason) => api.patch(`/document/orders/${id}/return-to-checking`, { reason }),
   getReturnedFromAccountant: () => api.get('/document/orders/returned-from-accountant'),
+  getReturnedFromDriver: () => api.get('/document/orders/returned-from-driver'),
   resendToAccountant: (id, totalAmount) => api.patch(`/document/orders/${id}/resend`, { totalAmount }),
   returnToPending: (orderIds) => api.patch('/document/orders/return-to-pending', { orderIds }),
   updateAmount: (id, totalAmount) => api.patch(`/document/orders/${id}/amount`, { totalAmount }),
