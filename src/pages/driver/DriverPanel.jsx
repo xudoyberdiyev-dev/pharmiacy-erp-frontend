@@ -27,11 +27,17 @@ function ConfirmChecklist({ orders, onDone }) {
   };
 
   const allChecked = orders.length > 0 && checked.size === orders.length;
+  const toggleAll = () => setChecked(allChecked ? new Set() : new Set(orders.map(o => o.id)));
 
+  // Haydovchi faqat hozir mashinaga ortilgan orderlarni tasdiqlashi kerak
+  // bo'lishi mumkin — qolganlari keyinroq (masalan ikkinchi reysda) alohida
+  // tasdiqlanadi. Shuning uchun belgilanganlarning HAMMASI emas, faqat
+  // TANLANGANLARI yuboriladi, va tugma kamida bitta belgilansa yoqiladi.
   const mutation = useMutation({
-    mutationFn: () => orderAPI.driverConfirm(orders.map(o => o.id)),
+    mutationFn: () => orderAPI.driverConfirm([...checked]),
     onSuccess: (res) => {
       toast.success(res.data.message || 'Buyurtmalar tasdiqlandi');
+      setChecked(new Set());
       qc.invalidateQueries(['orders', 'driver']);
       onDone?.();
     },
@@ -42,11 +48,11 @@ function ConfirmChecklist({ orders, onDone }) {
     <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 space-y-3">
       <div className="flex items-center gap-2">
         <ClipboardCheck size={18} className="text-amber-600 shrink-0" />
-        <div>
+        <div className="flex-1 min-w-0">
           <p className="font-black text-amber-900 text-sm">Yangi biriktirilgan buyurtmalar</p>
           <p className="text-xs text-amber-700">
-            Safarga chiqishdan oldin har birini ko'zdan kechirib, mashinaga ortilganini belgilang — shunda hech biri
-            unutilib qolmaydi.
+            Mashinaga ortilganlarini belgilab tasdiqlang — xohlagancha tanlashingiz mumkin, qolganlarini keyinroq
+            alohida tasdiqlaysiz.
           </p>
         </div>
       </div>
@@ -77,16 +83,23 @@ function ConfirmChecklist({ orders, onDone }) {
       </div>
 
       <button
+        onClick={toggleAll}
+        className="text-xs font-bold text-amber-700 underline underline-offset-2"
+      >
+        {allChecked ? 'Hammasini bekor qilish' : 'Hammasini belgilash'}
+      </button>
+
+      <button
         onClick={() => mutation.mutate()}
-        disabled={!allChecked || mutation.isPending}
+        disabled={checked.size === 0 || mutation.isPending}
         className="w-full flex items-center justify-center gap-2 bg-amber-500 disabled:bg-gray-300 text-white rounded-xl py-3 text-sm font-bold active:opacity-90 transition-colors"
       >
         <ClipboardCheck size={16} />
         {mutation.isPending
           ? 'Tasdiqlanmoqda...'
-          : allChecked
-            ? `Barchasini tasdiqlayman (${checked.size}/${orders.length})`
-            : `Avval hammasini belgilang (${checked.size}/${orders.length})`}
+          : checked.size === 0
+            ? "Kamida bittasini belgilang"
+            : `Tanlanganlarni tasdiqlayman (${checked.size}/${orders.length})`}
       </button>
     </div>
   );
