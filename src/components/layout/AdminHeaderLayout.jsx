@@ -137,7 +137,7 @@ export default function AdminHeaderLayout() {
   // hozirgina yetkazib bergan orderlar uchun admin panelida hech qanday
   // belgi chiqmay, "tasdiqlash yo'q" degan noto'g'ri taassurot qoldirardi.
   const pendingCount = stats?.pendingAdminConfirmCount ?? 0;
-  const overdueCount = stats?.pendingAdminConfirm?.length ?? 0;
+  const overdueCount = stats?.pendingAdminConfirmOverdueCount ?? 0;
 
   const initials = user?.fullName?.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase() || '?';
 
@@ -204,14 +204,12 @@ export default function AdminHeaderLayout() {
                   <p className="text-[13px] font-semibold text-gray-900">{user?.fullName}</p>
                   <p className="text-[11px] text-gray-400">{user?.phone}</p>
                 </div>
-                {isSuperAdmin && (
-                  <button
-                    onClick={() => { setShowProfileEdit(true); setDropOpen(false); }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] text-gray-600 hover:bg-gray-50 transition-colors"
-                  >
-                    <Pencil size={14} /> Profilni tahrirlash
-                  </button>
-                )}
+                <button
+                  onClick={() => { setShowProfileEdit(true); setDropOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  <Pencil size={14} /> Profilni tahrirlash
+                </button>
                 <div className="mx-3 border-t border-gray-100 my-1" />
                 <button
                   onClick={() => { logout(); navigate('/login'); }}

@@ -135,7 +135,7 @@ export default function SuperAdminStats() {
         <StatCard label="Yetkazildi" value={s.completedOrders} icon={CheckCircle} color="bg-green-600" onClick={() => setActiveCategory('delivered')} />
         <StatCard label="Kechikkan orderlar" value={s.lateOrders} icon={AlertCircle} color="bg-red-600" alert={s.lateOrders > 0} onClick={() => setActiveCategory('late')} />
         <StatCard label="Jami orderlar" value={s.totalOrders} icon={TrendingUp} color="bg-gray-600" onClick={() => setActiveCategory('total')} />
-        <StatCard label="48s tasdiqlanmagan" value={s.pendingAdminConfirm?.length} icon={Clock} color="bg-amber-500" alert={s.pendingAdminConfirm?.length > 0} onClick={() => setActiveCategory('pending48')} />
+        <StatCard label="48s tasdiqlanmagan" value={s.pendingAdminConfirmOverdueCount} icon={Clock} color="bg-amber-500" alert={s.pendingAdminConfirmOverdueCount > 0} onClick={() => setActiveCategory('pending48')} />
       </div>
 
       {activeCategory && (

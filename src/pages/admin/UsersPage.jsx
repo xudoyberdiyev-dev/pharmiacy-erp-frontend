@@ -49,10 +49,12 @@ function UserModal({ user, onClose }) {
     role:     user?.role     || 'PICKER',
   });
 
+  const roleChanged = isEdit && form.role !== user.role;
+
   const mutation = useMutation({
     mutationFn: () => {
       if (isEdit) {
-        const data = { fullName: form.fullName, phone: form.phone };
+        const data = { fullName: form.fullName, phone: form.phone, role: form.role };
         if (form.password) data.password = form.password;
         return userAPI.update(user.id, data);
       }
@@ -107,13 +109,17 @@ function UserModal({ user, onClose }) {
               </button>
             </div>
           </div>
-          {!isEdit && (
-            <div>
-              <label className="label">Lavozim *</label>
-              <select className="input" value={form.role} onChange={set('role')}>
-                {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-              </select>
-            </div>
+          <div>
+            <label className="label">Lavozim *</label>
+            <select className="input" value={form.role} onChange={set('role')}>
+              {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+            </select>
+          </div>
+          {roleChanged && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+              Lavozim "{ROLES.find(r => r.value === user.role)?.label}"dan "{ROLES.find(r => r.value === form.role)?.label}"ga o'zgartiriladi —
+              xodim keyingi safar tizimga kirganda yangi rolining paneliga o'tadi. Avvalgi buyurtma/jarima tarixi o'zgarmaydi.
+            </p>
           )}
           {isEdit && (
             <p className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">

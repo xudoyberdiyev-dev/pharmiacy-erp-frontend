@@ -39,7 +39,7 @@ export default function AdminDashboard() {
   });
 
   const orders = ordersRes?.data?.data || [];
-  const pendingCount = statsRes?.pendingAdminConfirm?.length ?? 0;
+  const pendingCount = statsRes?.pendingAdminConfirmOverdueCount ?? 0;
 
   return (
     <div className="space-y-6">

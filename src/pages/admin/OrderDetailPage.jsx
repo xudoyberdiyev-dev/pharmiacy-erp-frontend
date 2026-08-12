@@ -6,7 +6,7 @@ import StatusBadge from '../../components/shared/StatusBadge';
 import NotFoundState from '../../components/shared/NotFoundState';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
-import { ArrowLeft, CheckCircle, Clock, User, Truck, Package, FileText, MapPin } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Clock, User, Truck, Package, FileText, MapPin, Undo2, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { actionMeta, ROLE_LABELS, ETIROV_TYPE_LABELS } from '../../lib/activityLabels';
 import { formatSum } from '../../lib/format';
@@ -29,6 +29,77 @@ function Section({ title, icon: Icon, children }) {
         {title}
       </h3>
       {children}
+    </div>
+  );
+}
+
+// Order bir vaqtning o'zida faqat bitta "hozir qaytarilgan" holatda bo'ladi
+// (returnedTo*At maydonlaridan faqat bittasi to'ldirilgan bo'ladi, tuzatilib
+// qayta yuborilganda tozalanadi) — shu sababli birinchi topilgani ko'rsatiladi.
+function activeReturn(o) {
+  if (o.returnedToMarkingAt) return { label: 'Checker → Marker', at: o.returnedToMarkingAt };
+  if (o.returnedToPickingAt) return { label: 'Marker → Picker', at: o.returnedToPickingAt };
+  if (o.returnedToCheckingAt) return { label: 'Hujjatchi → Checker', at: o.returnedToCheckingAt };
+  if (o.returnedToDocumentAt) return { label: '1-bugalter → Hujjatchi', at: o.returnedToDocumentAt };
+  if (o.returnedToAccountant1At) return { label: `2-bugalter → 1-bugalter${o.acct1ConfirmedBy?.fullName ? ` (${o.acct1ConfirmedBy.fullName})` : ''}`, at: o.returnedToAccountant1At };
+  if (o.returnedToDocumentByDriverAt) return { label: `Haydovchi${o.returnedToDocumentByDriverUser?.fullName ? ` (${o.returnedToDocumentByDriverUser.fullName})` : ''} → Hujjatchi`, at: o.returnedToDocumentByDriverAt };
+  return null;
+}
+
+// ── Qaytarish holati — checker/marker/hujjatchi/bugalter/haydovchi zanjiridagi
+// hozirgi (hali tuzatilmagan) qaytarish + tovar qaytarilgan/butunlay qaytarilgan
+// doimiy holatlar. Order sahifasi "hammasini ko'rish" uchun mo'ljallangan
+// bo'lgani sabab, bu ma'lumot boshqa hech qayerda ko'rinmaydi — shu yerda.
+function ReturnStatusSection({ o }) {
+  const active = activeReturn(o);
+  if (!active && !o.hasReturnedGoods && !o.fullyReturnedAt) return null;
+
+  return (
+    <div className="card border-2 border-amber-200 bg-amber-50/40 space-y-3">
+      <h3 className="font-semibold text-amber-800 flex items-center gap-2">
+        <Undo2 size={16} /> Qaytarish holati
+      </h3>
+
+      {active && (
+        <div className="flex items-start gap-2.5 p-3 bg-white rounded-xl border border-amber-200">
+          <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-amber-800">Hozir qaytarilgan: {active.label}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{format(new Date(active.at), 'dd.MM.yyyy HH:mm')}</p>
+            {o.returnReason && <p className="text-sm text-gray-700 mt-1.5 italic">"{o.returnReason}"</p>}
+          </div>
+        </div>
+      )}
+
+      {o.hasReturnedGoods && (
+        <div className="flex items-start gap-2.5 p-3 bg-white rounded-xl border border-amber-200">
+          <Package size={15} className="text-amber-600 shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-amber-800">
+              Tovar qaytarilgan{o.returnedAmount ? ` — ${formatSum(o.returnedAmount)} so'm` : ''}
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {o.returnedGoodsAt ? format(new Date(o.returnedGoodsAt), 'dd.MM.yyyy HH:mm') : '—'}
+              {o.returnedGoodsBy?.fullName ? ` · ${o.returnedGoodsBy.fullName}` : ''}
+            </p>
+            {o.returnedGoodsNote && <p className="text-sm text-gray-700 mt-1.5 italic">"{o.returnedGoodsNote}"</p>}
+          </div>
+        </div>
+      )}
+
+      {o.fullyReturnedAt && (
+        <div className="flex items-start gap-2.5 p-3 bg-white rounded-xl border border-red-200">
+          <AlertTriangle size={15} className="text-red-600 shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-red-700">Butunlay qaytarilgan (RETURNED)</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {format(new Date(o.fullyReturnedAt), 'dd.MM.yyyy HH:mm')}
+              {o.fullyReturnedBy?.fullName ? ` · ${o.fullyReturnedBy.fullName}` : ''}
+            </p>
+            {o.fullyReturnedReason && <p className="text-sm text-gray-700 mt-1.5 italic">"{o.fullyReturnedReason}"</p>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -96,6 +167,8 @@ export default function OrderDetailPage() {
           </button>
         )}
       </div>
+
+      <ReturnStatusSection o={o} />
 
       <div className="grid md:grid-cols-2 gap-6">
         {/* Asosiy ma'lumotlar */}
