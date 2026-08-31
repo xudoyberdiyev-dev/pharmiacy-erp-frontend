@@ -8,9 +8,12 @@ import {
   LayoutDashboard, Users, Package, Truck, ClipboardCheck, AlertTriangle,
   History, BarChart3, ClipboardList, ShieldCheck, ChevronDown, LogOut,
   UserCog, TrendingUp, MapPinned, Bell as BellIcon, Map, Gauge, Pencil, X,
+  ChevronsLeft, ChevronsRight,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import NotificationBell from './NotificationBell';
+
+const SIDEBAR_COLLAPSED_KEY = 'admin-sidebar-collapsed';
 
 function ProfileEditModal({ user, onClose }) {
   const { updateUser } = useAuth();
@@ -67,43 +70,85 @@ function ProfileEditModal({ user, onClose }) {
   );
 }
 
-function Badge({ count, color = 'red' }) {
+// collapsed=true bo'lsa raqamsiz kichik nuqta sifatida ko'rsatiladi — sidebar
+// torayganda ham tasdiqlash/muddati o'tgan bandlari e'tibordan chetda qolmasin.
+function Badge({ count, color = 'red', collapsed }) {
   if (!count) return null;
   const c = {
-    red: 'bg-red-500 text-white animate-pulse',
+    red: 'bg-red-500 text-white',
     amber: 'bg-amber-400 text-white',
   }[color];
+  if (collapsed) {
+    return <span className={`absolute top-1 right-1 w-2 h-2 rounded-full ${c} animate-pulse`} />;
+  }
   return (
-    <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-black rounded-full ${c}`}>
+    <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-black rounded-full shrink-0 animate-pulse ${c}`}>
       {count > 99 ? '99+' : count}
     </span>
   );
 }
 
-const ADMIN_NAV = [
-  { to: '/admin', end: true, label: 'Bosh sahifa', icon: LayoutDashboard },
-  { to: '/admin/clients', end: false, label: 'Mijozlar', icon: Users },
-  { to: '/admin/orders', end: false, label: 'Buyurtmalar', icon: Package },
-  { to: '/admin/approvals', end: false, label: 'Tasdiqlash', icon: ClipboardCheck, badgeKey: 'pending' },
-  { to: '/admin/overdue', end: false, label: "Muddati o'tgan", icon: AlertTriangle, badgeKey: 'overdue' },
-  { to: '/admin/confirmation-history', end: false, label: 'Tasdiqlash tarixi', icon: History },
-  { to: '/admin/vehicles', end: false, label: 'Mashinalar', icon: Truck },
-  { to: '/admin/users', end: false, label: 'Xodimlar', icon: Users },
-  { to: '/admin/monitoring', end: false, label: 'Monitoring', icon: LayoutDashboard },
+// Nav guruhlarga bo'lingan — har bir guruh mantiqiy jihatdan bog'liq
+// sahifalarni birlashtiradi, sidebar torayganda ham navigatsiya tushunarli bo'lsin.
+const ADMIN_NAV_GROUPS = [
+  {
+    title: 'Asosiy',
+    items: [
+      { to: '/admin', end: true, label: 'Bosh sahifa', icon: LayoutDashboard },
+      { to: '/admin/orders', end: false, label: 'Buyurtmalar', icon: Package },
+      { to: '/admin/clients', end: false, label: 'Mijozlar', icon: Users },
+    ],
+  },
+  {
+    title: 'Tasdiqlash',
+    items: [
+      { to: '/admin/approvals', end: false, label: 'Tasdiqlash', icon: ClipboardCheck, badgeKey: 'pending' },
+      { to: '/admin/overdue', end: false, label: "Muddati o'tgan", icon: AlertTriangle, badgeKey: 'overdue' },
+      { to: '/admin/confirmation-history', end: false, label: 'Tasdiqlash tarixi', icon: History },
+    ],
+  },
+  {
+    title: 'Resurslar',
+    items: [
+      { to: '/admin/vehicles', end: false, label: 'Mashinalar', icon: Truck },
+      { to: '/admin/users', end: false, label: 'Xodimlar', icon: Users },
+    ],
+  },
+  {
+    title: 'Kuzatuv',
+    items: [
+      { to: '/admin/monitoring', end: false, label: 'Monitoring', icon: LayoutDashboard },
+    ],
+  },
 ];
 
 // SUPER_ADMIN has its own separate panel — none of ADMIN's pages are shared.
 // Read-only statistics/monitoring only, plus the one write action: creating ADMIN accounts.
-const SUPER_ADMIN_NAV = [
-  { to: '/superadmin', end: true, label: 'Statistika', icon: BarChart3 },
-  { to: '/superadmin/admins', end: false, label: 'Adminlar', icon: UserCog },
-  { to: '/superadmin/employee-performance', end: false, label: 'Xodimlar samaradorligi', icon: Gauge },
-  { to: '/superadmin/sales', end: false, label: 'Sotuv statistikasi', icon: TrendingUp },
-  { to: '/superadmin/regions', end: false, label: 'Hudud tahlili', icon: MapPinned },
-  { to: '/superadmin/monitoring', end: false, label: 'Monitoring', icon: LayoutDashboard },
-  { to: '/superadmin/alerts', end: false, label: 'Kechikishlar', icon: BellIcon },
-  { to: '/superadmin/drivers-map', end: false, label: 'Haydovchilar xaritasi', icon: Map },
-  { to: '/superadmin/activity', end: false, label: 'Faoliyat tarixi', icon: ClipboardList },
+const SUPER_ADMIN_NAV_GROUPS = [
+  {
+    title: 'Analitika',
+    items: [
+      { to: '/superadmin', end: true, label: 'Statistika', icon: BarChart3 },
+      { to: '/superadmin/sales', end: false, label: 'Sotuv statistikasi', icon: TrendingUp },
+      { to: '/superadmin/regions', end: false, label: 'Hudud tahlili', icon: MapPinned },
+      { to: '/superadmin/employee-performance', end: false, label: 'Xodimlar samaradorligi', icon: Gauge },
+    ],
+  },
+  {
+    title: 'Boshqaruv',
+    items: [
+      { to: '/superadmin/admins', end: false, label: 'Adminlar', icon: UserCog },
+    ],
+  },
+  {
+    title: 'Kuzatuv',
+    items: [
+      { to: '/superadmin/monitoring', end: false, label: 'Monitoring', icon: LayoutDashboard },
+      { to: '/superadmin/alerts', end: false, label: 'Kechikishlar', icon: BellIcon },
+      { to: '/superadmin/drivers-map', end: false, label: 'Haydovchilar xaritasi', icon: Map },
+      { to: '/superadmin/activity', end: false, label: 'Faoliyat tarixi', icon: ClipboardList },
+    ],
+  },
 ];
 
 export default function AdminHeaderLayout() {
@@ -111,6 +156,7 @@ export default function AdminHeaderLayout() {
   const navigate = useNavigate();
   const [dropOpen, setDropOpen] = useState(false);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1');
   const dropRef = useRef(null);
 
   useEffect(() => {
@@ -119,8 +165,16 @@ export default function AdminHeaderLayout() {
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
+  const toggleCollapsed = () => {
+    setCollapsed((v) => {
+      const next = !v;
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? '1' : '0');
+      return next;
+    });
+  };
+
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
-  const NAV = isSuperAdmin ? SUPER_ADMIN_NAV : ADMIN_NAV;
+  const NAV_GROUPS = isSuperAdmin ? SUPER_ADMIN_NAV_GROUPS : ADMIN_NAV_GROUPS;
 
   // Only ADMIN's nav has the Tasdiqlash/Muddati o'tgan badge counts — skip the query entirely for SUPER_ADMIN.
   const { data: stats } = useQuery({
@@ -142,67 +196,99 @@ export default function AdminHeaderLayout() {
   const initials = user?.fullName?.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase() || '?';
 
   return (
-    <div className="min-h-screen bg-[#F5F6FA] flex flex-col">
-      <header className="bg-white/85 backdrop-blur-md border-b border-gray-100 sticky top-0 z-40 shadow-sm">
-        <div className="max-w-screen-2xl mx-auto px-4 h-[60px] flex items-center gap-3">
-          <div className="flex items-center gap-2 shrink-0 mr-1">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-200">
-              <ShieldCheck size={15} className="text-white" strokeWidth={2.5} />
-            </div>
-            <div className="hidden sm:block">
-              <p className="font-bold text-gray-900 text-[14px] leading-tight tracking-tight">Pharmacy <span className="text-blue-600">ERP</span></p>
-              <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">
+    <div className="min-h-screen bg-[#F5F6FA] flex">
+      {/* ── SIDEBAR ─────────────────────────────────────────────────────────── */}
+      <aside
+        className={`${collapsed ? 'w-16' : 'w-64'} shrink-0 bg-white border-r border-gray-100 flex flex-col sticky top-0 h-screen transition-all duration-150 z-40`}
+      >
+        {/* Logo */}
+        <div className={`h-[52px] flex items-center border-b border-gray-100 shrink-0 ${collapsed ? 'justify-center px-2' : 'gap-2 px-3'}`}>
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-200 shrink-0">
+            <ShieldCheck size={14} className="text-white" strokeWidth={2.5} />
+          </div>
+          {!collapsed && (
+            <div className="min-w-0">
+              <p className="font-bold text-gray-900 text-[13.5px] leading-tight tracking-tight truncate">Pharmacy <span className="text-blue-600">ERP</span></p>
+              <p className="text-[9px] font-bold text-blue-500 uppercase tracking-widest truncate">
                 {isSuperAdmin ? 'Super Admin Panel' : 'Admin Panel'}
               </p>
             </div>
-          </div>
+          )}
+        </div>
 
-          <nav className="flex items-center gap-0.5 flex-1 overflow-x-auto scrollbar-none">
-            {NAV.map(({ to, end, label, icon: Icon, badgeKey }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={end}
-                className={({ isActive }) =>
-                  `flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[13px] font-semibold whitespace-nowrap transition-all ${
-                    isActive
-                      ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-200'
-                      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
-                  }`
-                }
-              >
-                <Icon size={14} strokeWidth={2} />
-                <span className="hidden lg:inline">{label}</span>
-                {badgeKey === 'pending' && <Badge count={pendingCount} color="amber" />}
-                {badgeKey === 'overdue' && <Badge count={overdueCount} color="red" />}
-              </NavLink>
-            ))}
-          </nav>
+        {/* Nav — guruhlangan */}
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2 px-2 space-y-3">
+          {NAV_GROUPS.map((group) => (
+            <div key={group.title}>
+              {!collapsed && (
+                <p className="px-2.5 mb-1 text-[10px] font-black text-gray-400 uppercase tracking-wider">{group.title}</p>
+              )}
+              <div className="space-y-0.5">
+                {group.items.map(({ to, end, label, icon: Icon, badgeKey }) => (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    end={end}
+                    title={collapsed ? label : undefined}
+                    className={({ isActive }) =>
+                      `relative flex items-center gap-2.5 rounded-lg text-[13px] font-semibold transition-all ${
+                        collapsed ? 'justify-center px-0 py-2' : 'px-2.5 py-1.5'
+                      } ${
+                        isActive
+                          ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-200'
+                          : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
+                      }`
+                    }
+                  >
+                    <Icon size={15} strokeWidth={2} className="shrink-0" />
+                    {!collapsed && <span className="truncate flex-1">{label}</span>}
+                    {badgeKey === 'pending' && <Badge count={pendingCount} color="amber" collapsed={collapsed} />}
+                    {badgeKey === 'overdue' && <Badge count={overdueCount} color="red" collapsed={collapsed} />}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+          ))}
+        </nav>
 
+        {/* Collapse toggle */}
+        <button
+          onClick={toggleCollapsed}
+          title={collapsed ? "Sidebar'ni kengaytirish" : "Sidebar'ni yig'ish"}
+          className="mx-2 mb-2 h-8 rounded-lg border border-gray-100 flex items-center justify-center gap-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-50 text-[11px] font-bold transition-colors shrink-0"
+        >
+          {collapsed ? <ChevronsRight size={13} /> : <><ChevronsLeft size={13} /> Yig'ish</>}
+        </button>
+      </aside>
+
+      {/* ── CONTENT ─────────────────────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top header bar — profil (hamma uchun) + bildirishnoma (faqat super admin) */}
+        <div className="h-14 flex items-center justify-end gap-2 px-4 border-b border-gray-100 bg-white/85 backdrop-blur-md sticky top-0 z-30 shrink-0">
           {isSuperAdmin && <NotificationBell />}
 
-          <div className="relative shrink-0" ref={dropRef}>
+          <div className="relative" ref={dropRef}>
             <button
               onClick={() => setDropOpen((v) => !v)}
-              className="flex items-center gap-2 pl-2 pr-2.5 py-1.5 rounded-xl hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-gray-50 transition-colors"
             >
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-sm shrink-0">
                 {initials}
               </div>
-              <div className="hidden sm:block text-left">
-                <p className="text-[12px] font-semibold text-gray-900 leading-tight">{user?.fullName}</p>
+              <div className="text-left min-w-0 hidden sm:block">
+                <p className="text-[12px] font-semibold text-gray-900 leading-tight truncate">{user?.fullName}</p>
                 <p className="text-[10px] text-blue-500 font-bold leading-tight">
                   {isSuperAdmin ? 'Super Admin' : 'Admin'}
                 </p>
               </div>
-              <ChevronDown size={12} className={`text-gray-400 transition-transform ${dropOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown size={12} className={`text-gray-400 transition-transform shrink-0 ${dropOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {dropOpen && (
-              <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50">
+              <div className="absolute right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50 w-56">
                 <div className="px-4 py-2.5 border-b border-gray-50">
-                  <p className="text-[13px] font-semibold text-gray-900">{user?.fullName}</p>
-                  <p className="text-[11px] text-gray-400">{user?.phone}</p>
+                  <p className="text-[13px] font-semibold text-gray-900 truncate">{user?.fullName}</p>
+                  <p className="text-[11px] text-gray-400 truncate">{user?.phone}</p>
                 </div>
                 <button
                   onClick={() => { setShowProfileEdit(true); setDropOpen(false); }}
@@ -221,11 +307,11 @@ export default function AdminHeaderLayout() {
             )}
           </div>
         </div>
-      </header>
 
-      <main className="flex-1 max-w-screen-2xl mx-auto w-full px-4 py-6">
-        <Outlet />
-      </main>
+        <main className="flex-1 max-w-screen-2xl w-full mx-auto px-4 py-6">
+          <Outlet />
+        </main>
+      </div>
 
       {showProfileEdit && <ProfileEditModal user={user} onClose={() => setShowProfileEdit(false)} />}
     </div>
