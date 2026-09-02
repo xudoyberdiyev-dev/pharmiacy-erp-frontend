@@ -4,6 +4,7 @@ import { orderAPI } from '../../api';
 import { format } from 'date-fns';
 import { Calendar, Package, CheckCircle2, AlertTriangle, Truck, History } from 'lucide-react';
 import { formatSum } from '../../lib/format';
+import SearchBar from '../../components/shared/SearchBar';
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -59,10 +60,12 @@ function OrderRow({ order }) {
 
 export default function ConfirmationHistoryPage() {
   const [date, setDate] = useState(today());
+  const [search, setSearch] = useState('');
+  const isSearching = !!search;
 
   const { data, isLoading } = useQuery({
-    queryKey: ['orders', 'confirmation-history', date],
-    queryFn: () => orderAPI.getConfirmationHistory({ date }),
+    queryKey: ['orders', 'confirmation-history', date, search],
+    queryFn: () => orderAPI.getConfirmationHistory(isSearching ? { search } : { date }),
     select: (r) => r.data,
   });
 
@@ -71,7 +74,7 @@ export default function ConfirmationHistoryPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center">
@@ -81,17 +84,34 @@ export default function ConfirmationHistoryPage() {
           </h1>
           <p className="text-sm text-gray-400 mt-0.5 ml-10 font-medium">Admin tomonidan tasdiqlangan buyurtmalar</p>
         </div>
-        <label className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm cursor-pointer hover:border-blue-300 transition-colors">
+        <label
+          className={`flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm transition-colors ${
+            isSearching ? 'opacity-40 pointer-events-none' : 'cursor-pointer hover:border-blue-300'
+          }`}
+          title={isSearching ? "Qidiruv vaqtida sana e'tiborga olinmaydi — butun tarix bo'ylab qidiriladi" : undefined}
+        >
           <Calendar size={14} className="text-blue-500" />
           <input
             type="date"
             value={date}
             max={today()}
             onChange={(e) => setDate(e.target.value)}
-            className="text-sm font-bold text-gray-700 outline-none cursor-pointer bg-transparent"
+            disabled={isSearching}
+            className="text-sm font-bold text-gray-700 outline-none cursor-pointer bg-transparent disabled:cursor-not-allowed"
           />
         </label>
       </div>
+
+      <SearchBar
+        value={search}
+        onChange={setSearch}
+        placeholder="Faktura, shartnoma raqami, INN yoki klient nomi bo'yicha qidirish..."
+      />
+      {isSearching && (
+        <p className="text-xs text-gray-400 -mt-3 px-1">
+          Qidiruv butun tasdiqlash tarixi bo'ylab (sanadan qat'iy nazar) olib borilmoqda
+        </p>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <StatCard icon={Package} label="Jami tasdiqlangan" value={stats.total} color="text-blue-600" bg="bg-blue-50" />
@@ -113,13 +133,19 @@ export default function ConfirmationHistoryPage() {
           <div className="w-14 h-14 mx-auto bg-blue-50 rounded-2xl flex items-center justify-center mb-3">
             <History size={24} className="text-blue-200" />
           </div>
-          <p className="text-gray-400 text-sm font-semibold">Bu kunda tasdiqlangan buyurtmalar yo'q</p>
-          <p className="text-gray-300 text-xs mt-1">{format(new Date(date + 'T00:00:00'), 'dd.MM.yyyy')}</p>
+          <p className="text-gray-400 text-sm font-semibold">
+            {isSearching ? 'Qidiruvga mos tasdiqlangan buyurtmalar topilmadi' : "Bu kunda tasdiqlangan buyurtmalar yo'q"}
+          </p>
+          {!isSearching && (
+            <p className="text-gray-300 text-xs mt-1">{format(new Date(date + 'T00:00:00'), 'dd.MM.yyyy')}</p>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
           <p className="text-xs text-gray-400 font-bold uppercase tracking-wider px-1">
-            {orders.length} ta order — {format(new Date(date + 'T00:00:00'), 'dd.MM.yyyy')}
+            {isSearching
+              ? `${orders.length} ta natija topildi`
+              : `${orders.length} ta order — ${format(new Date(date + 'T00:00:00'), 'dd.MM.yyyy')}`}
           </p>
           {orders.map((o) => <OrderRow key={o.id} order={o} />)}
         </div>

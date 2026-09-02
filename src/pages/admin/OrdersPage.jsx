@@ -80,7 +80,7 @@ export default function OrdersPage() {
       <SearchBar
         value={search}
         onChange={v => { setSearch(v); setPage(1); }}
-        placeholder="Faktura yoki klient nomi bo'yicha qidirish..."
+        placeholder="Faktura, shartnoma raqami, INN yoki klient nomi bo'yicha qidirish..."
       />
 
       {/* Status filter */}
