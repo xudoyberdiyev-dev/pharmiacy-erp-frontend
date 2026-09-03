@@ -83,6 +83,9 @@ export const markerAPI = {
   getMine: () => api.get('/marker/orders/mine'),
   getReturned: () => api.get('/marker/orders/returned'),
   getEtirozli: () => api.get('/marker/orders/etirozli'),
+  getEtirozliReceived: () => api.get('/marker/etirozlar-received'),
+  acceptEtirov: (etirovId) => api.patch(`/marker/etirozlar/${etirovId}/accept`),
+  rejectEtirov: (etirovId, data) => api.patch(`/marker/etirozlar/${etirovId}/reject`, data),
   accept: (id) => api.patch(`/marker/orders/${id}/accept`),
   complete: (id, formData) => api.patch(`/marker/orders/${id}/complete`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -108,6 +111,7 @@ export const checkerAPI = {
   getReturned: () => api.get('/checker/orders/returned'),
   getEtirozli: () => api.get('/checker/etirozlar'),
   respondEtirov: (id, data) => api.patch(`/checker/etirozlar/${id}/respond`, data),
+  raiseEtirov: (id, data) => api.post(`/checker/orders/${id}/etirov`, data),
 };
 
 // ===== DOCUMENT =====

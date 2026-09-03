@@ -7,9 +7,21 @@ import { getErrorMessage } from '../../lib/errors';
 import { format } from 'date-fns';
 import {
   CheckCircle2, Clock, AlertTriangle, Zap, Package,
-  TrendingUp, X, User, FileSpreadsheet, Eye, Box, Plus, Minus, Printer, RotateCcw
+  TrendingUp, X, User, FileSpreadsheet, Eye, Box, Plus, Minus, Printer, RotateCcw, AlertCircle
 } from 'lucide-react';
 import { formatSum } from '../../lib/format';
+
+// ── Etiroz types (WRONG_AMOUNT/WRONG_DOCUMENT_NUMBER/ILLEGIBLE_DOCUMENT hujjat
+// bilan bog'liq bo'lgani uchun bu yerda yo'q — faqat mahsulot aniqligi bilan
+// bog'liq turlar, marker→picker etirozidagi bilan bir xil ro'yxat) ──────────
+const ETIROV_TYPES = [
+  { value: 'WRONG_QUANTITY',   label: 'Dori miqdori noto\'g\'ri (kam yoki ko\'p)' },
+  { value: 'WRONG_PRODUCT',    label: 'Noto\'g\'ri dori olib kelindi' },
+  { value: 'WRONG_SERIES',     label: 'Dorining seriyasi boshqa' },
+  { value: 'DAMAGED',          label: 'Dori shikastlangan / yaroqsiz' },
+  { value: 'MISSING_PRODUCT',  label: 'Dori ro\'yxatdagi mahsulot yo\'q' },
+  { value: 'OTHER',            label: 'Boshqa sabab (qo\'lda yozing)' },
+];
 
 const BOX_TYPES = [
   { value: 'SBOR',     label: 'Sbor' },
@@ -353,6 +365,132 @@ function DetailModal({ order, index, onClose, onComplete }) {
   );
 }
 
+// ── Etiroz bildirish modali (orderni qaytarmasdan, picker yoki markerga) ─────
+// Diqqat: submit bosilgan zahoti tanlangan xodimga DARHOL 5 ball jarima
+// yoziladi — order hech qayerga qaytmaydi, checker checkingni davom ettiraveradi.
+function EtirozModal({ order, onClose, onDone }) {
+  const [target, setTarget] = useState(order.assignedPicker ? 'PICKER' : 'MARKER');
+  const [selected, setSelected] = useState([]);
+  const [comment, setComment] = useState('');
+
+  const toggleType = (value) => {
+    setSelected(prev => prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value]);
+  };
+
+  const targetName = target === 'PICKER' ? order.assignedPicker?.fullName : order.marker?.fullName;
+
+  const mutation = useMutation({
+    mutationFn: () => checkerAPI.raiseEtirov(order.id, { target, types: selected, comment: comment.trim() || undefined }),
+    onSuccess: (res) => {
+      toast.success(res.data.message || 'Etiroz yuborildi');
+      onDone();
+      onClose();
+    },
+    onError: e => toast.error(getErrorMessage(e)),
+  });
+
+  const canSubmit = selected.length > 0 && !(selected.includes('OTHER') && !comment.trim());
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+          <div>
+            <h3 className="font-black text-gray-900">Etiroz bildirish</h3>
+            <p className="text-xs text-gray-400 mt-0.5">#{order.invoiceNumber} · {order.client?.orgName}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors">
+            <X size={16} className="text-gray-400" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-5 space-y-4">
+          {/* Kimga */}
+          <div>
+            <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-2">Kimga qaratilgan?</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setTarget('PICKER')} disabled={!order.assignedPicker}
+                className={`flex items-center gap-2 px-3.5 py-3 rounded-xl border-2 text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                  target === 'PICKER' ? 'border-teal-500 bg-teal-50' : 'border-gray-100 hover:border-teal-200'
+                }`}>
+                <User size={14} className={target === 'PICKER' ? 'text-teal-600' : 'text-gray-400'} />
+                <div className="min-w-0">
+                  <p className={`text-xs font-black ${target === 'PICKER' ? 'text-teal-800' : 'text-gray-600'}`}>Picker</p>
+                  <p className="text-[10px] text-gray-400 truncate">{order.assignedPicker?.fullName || '—'}</p>
+                </div>
+              </button>
+              <button type="button" onClick={() => setTarget('MARKER')} disabled={!order.marker}
+                className={`flex items-center gap-2 px-3.5 py-3 rounded-xl border-2 text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                  target === 'MARKER' ? 'border-purple-500 bg-purple-50' : 'border-gray-100 hover:border-purple-200'
+                }`}>
+                <User size={14} className={target === 'MARKER' ? 'text-purple-600' : 'text-gray-400'} />
+                <div className="min-w-0">
+                  <p className={`text-xs font-black ${target === 'MARKER' ? 'text-purple-800' : 'text-gray-600'}`}>Marker</p>
+                  <p className="text-[10px] text-gray-400 truncate">{order.marker?.fullName || '—'}</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Sabablar */}
+          <div className="space-y-2">
+            <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider">Sabab(lar)ni tanlang — bir nechtasi mumkin</p>
+            {ETIROV_TYPES.map(t => {
+              const checked = selected.includes(t.value);
+              return (
+                <button key={t.value} onClick={() => toggleType(t.value)}
+                  className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl border-2 text-left transition-all ${
+                    checked ? 'border-red-400 bg-red-50' : 'border-gray-100 hover:border-red-200 hover:bg-red-50/30'
+                  }`}>
+                  <div className={`w-4 h-4 rounded shrink-0 border-2 flex items-center justify-center ${
+                    checked ? 'border-red-500 bg-red-500' : 'border-gray-300'
+                  }`}>
+                    {checked && <CheckCircle2 size={11} className="text-white" strokeWidth={3} />}
+                  </div>
+                  <span className={`text-sm font-semibold ${checked ? 'text-red-800' : 'text-gray-700'}`}>{t.label}</span>
+                </button>
+              );
+            })}
+            {selected.includes('OTHER') && (
+              <textarea
+                value={comment}
+                onChange={e => setComment(e.target.value)}
+                placeholder="Batafsil izoh yozing..."
+                rows={3}
+                className="w-full mt-2 px-3.5 py-3 rounded-xl border-2 border-gray-200 focus:border-red-400 outline-none text-sm resize-none transition-colors"
+              />
+            )}
+          </div>
+
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 font-medium flex gap-2">
+            <AlertCircle size={14} className="shrink-0 mt-0.5" />
+            Order hech qayerga qaytmaydi, checking davom etadi. Lekin{' '}
+            <strong>{targetName || 'tanlangan xodim'}ga darhol 5 ball jarima yoziladi</strong>{' '}
+            — javob berish-bermasligidan qat'iy nazar.
+          </p>
+        </div>
+
+        <div className="px-5 pb-5 pt-3 border-t border-gray-100 shrink-0 flex gap-3">
+          <button onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">
+            Bekor qilish
+          </button>
+          <button
+            onClick={() => mutation.mutate()}
+            disabled={!canSubmit || mutation.isPending}
+            className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 text-white text-sm font-bold
+              hover:from-red-600 hover:to-rose-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+          >
+            {mutation.isPending
+              ? <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Yuborilmoqda...</>
+              : `Etiroz yuborish${selected.length > 1 ? ` (${selected.length} ta)` : ''}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Markinga/pikingga qaytarish modali (sababi so'raladi) ─────────────────────
 // target: 'marking' — xato belgilashda (marker qayta yuklaydi)
 //         'picking' — xato yig'ishning o'zida (marking butunlay o'tkazib yuboriladi)
@@ -437,7 +575,9 @@ function MineCard({ order, index }) {
   const [done, setDone] = useState(false);
   const [returnTarget, setReturnTarget] = useState(null); // null | 'marking' | 'picking'
   const [returnedTo, setReturnedTo] = useState(null); // null | 'marking' | 'picking'
+  const [showEtiroz, setShowEtiroz] = useState(false);
   const isOverdue = order.checkingDeadline && new Date(order.checkingDeadline) < new Date();
+  const canEtiroz = !!(order.assignedPicker || order.marker);
   const qc = useQueryClient();
 
   if (returnedTo) {
@@ -486,6 +626,13 @@ function MineCard({ order, index }) {
             qc.invalidateQueries(['checker-mine']);
             qc.invalidateQueries(['checker-available']);
           }}
+        />
+      )}
+      {showEtiroz && (
+        <EtirozModal
+          order={order}
+          onClose={() => setShowEtiroz(false)}
+          onDone={() => qc.invalidateQueries(['checker-mine'])}
         />
       )}
 
@@ -581,6 +728,16 @@ function MineCard({ order, index }) {
               <RotateCcw size={13} /> Pikingga qaytarish
             </button>
           </div>
+          {canEtiroz && (
+            <button
+              onClick={() => setShowEtiroz(true)}
+              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold
+                border-2 border-gray-200 text-gray-600 bg-gray-50 hover:bg-gray-100 transition-all"
+              title="Orderni qaytarmasdan, faqat etiroz bildirish (darhol 5 ball jarima)"
+            >
+              <AlertCircle size={13} /> Etiroz bildirish (qaytarmasdan)
+            </button>
+          )}
         </div>
       </div>
     </>

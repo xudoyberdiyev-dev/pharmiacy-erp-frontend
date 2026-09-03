@@ -34,6 +34,7 @@ import MarkerAvailablePage from './pages/marker/MarkerAvailablePage';
 import MarkerMinePage from './pages/marker/MarkerMinePage';
 import MarkerReturnedPage from './pages/marker/MarkerReturnedPage';
 import MarkerEtirozliPage from './pages/marker/MarkerEtirozliPage';
+import MarkerEtirozlarReceivedPage from './pages/marker/MarkerEtirozlarReceivedPage';
 import MarkerHistoryPage from './pages/marker/MarkerHistoryPage';
 import CheckerLayout from './components/layout/CheckerLayout';
 import CheckerAvailablePage from './pages/checker/CheckerAvailablePage';
@@ -165,6 +166,7 @@ function AppRoutes() {
         <Route path="mine" element={<MarkerMinePage />} />
         <Route path="returned" element={<MarkerReturnedPage />} />
         <Route path="etirozli" element={<MarkerEtirozliPage />} />
+        <Route path="etirozlar-received" element={<MarkerEtirozlarReceivedPage />} />
         <Route path="history" element={<MarkerHistoryPage />} />
       </Route>
       {/* CHECKER */}

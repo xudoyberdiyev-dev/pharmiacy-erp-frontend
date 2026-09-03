@@ -12,6 +12,7 @@ function Badge({ count, color = 'gray' }) {
     violet: 'bg-violet-500 text-white',
     amber:  'bg-amber-400 text-white animate-pulse',
     green:  'bg-green-500 text-white',
+    red:    'bg-red-500 text-white animate-pulse',
   }[color] || 'bg-gray-400 text-white';
   return (
     <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-black rounded-full ${c}`}>
@@ -56,14 +57,22 @@ export default function MarkerLayout() {
     refetchInterval: 30000,
     select: r => r.data.data || [],
   });
+  const { data: etirozliReceived } = useQuery({
+    queryKey: ['marker-etirozli-received'],
+    queryFn: markerAPI.getEtirozliReceived,
+    refetchInterval: 30000,
+    select: r => r.data.data || [],
+  });
   // faqat hali javob berilmagan (PENDING) etirozlarni sanaymiz
   const etirozliCount = etirozli?.filter(o => (o.etirozlar || []).some(e => e.status === 'PENDING')).length || 0;
+  const etirozliReceivedCount = etirozliReceived?.filter(o => (o.etirozlar || []).some(e => e.status === 'PENDING')).length || 0;
 
   const NAV = [
     { to: '/marker',          end: true,  label: 'Mavjud buyurtmalar',   icon: Package,      badge: available?.length || 0, badgeColor: 'purple' },
     { to: '/marker/mine',     end: false, label: 'Mening buyurtmalarim', icon: Zap,          badge: mine?.length || 0,      badgeColor: 'green'  },
     { to: '/marker/returned', end: false, label: 'Qaytgan buyurtmalar',  icon: RotateCcw,    badge: returned?.length || 0,  badgeColor: 'amber'  },
     { to: '/marker/etirozli', end: false, label: 'Etirozli',          icon: AlertCircle,  badge: etirozliCount,          badgeColor: 'amber'  },
+    { to: '/marker/etirozlar-received', end: false, label: 'Menga etirozlar', icon: AlertCircle, badge: etirozliReceivedCount, badgeColor: 'red' },
     { to: '/marker/history',  end: false, label: 'Tarix',             icon: Clock,        badge: 0,                     badgeColor: 'purple' },
   ];
 

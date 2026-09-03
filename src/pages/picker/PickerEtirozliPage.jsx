@@ -220,8 +220,15 @@ function EtirozliCard({ order }) {
               {e.status === 'REJECTED' && <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-red-100 text-red-700 border border-red-200">Qabul qilinmadi ✗</span>}
             </div>
             {e.comment && <p className="text-[11px] text-gray-600 font-medium mb-1">"{e.comment}"</p>}
+            {e.fromRole === 'CHECKER' && (
+              <p className="text-[11px] text-red-600 font-semibold mb-1">
+                ⚠ Checker etirozi — 5 ball jarima allaqachon yozilgan (javobingiz jarimani bekor qilmaydi)
+              </p>
+            )}
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-gray-400 font-medium">Marker · {format(new Date(e.createdAt), 'dd.MM HH:mm')}</span>
+              <span className="text-[10px] text-gray-400 font-medium">
+                {e.fromRole === 'CHECKER' ? 'Checker' : 'Marker'} · {format(new Date(e.createdAt), 'dd.MM HH:mm')}
+              </span>
             </div>
 
             {/* Action buttons for PENDING etirovlar */}
@@ -273,7 +280,7 @@ export default function PickerEtirozliPage() {
           Etirozli orderlar
         </h1>
         <p className="text-sm text-gray-400 mt-0.5 ml-10 font-medium">
-          Marker tomonidan etirozlar bildirilgan orderlaringiz
+          Marker yoki Checker tomonidan etirozlar bildirilgan orderlaringiz
         </p>
       </div>
 
