@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderAPI, checkerAPI } from '../../api';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
-import { ArrowLeft, Printer, Building2, MapPin, FileSpreadsheet, Package, Pencil, X, Minus, Plus, Save, Box } from 'lucide-react';
+import { ArrowLeft, Printer, Building2, MapPin, FileSpreadsheet, Package, Pencil, X, Minus, Plus, Save, Box, RotateCcw } from 'lucide-react';
 import NotFoundState from '../../components/shared/NotFoundState';
 
 const BOX_TYPE_LABELS = { SBOR: 'Sbor', ORIGINAL: 'Original', XALTA: 'Xalta' };
@@ -42,6 +42,10 @@ function formatDateTime(value) {
 function Label({ order, box }) {
   const color = BOX_TYPE_COLORS[box.type] || BOX_TYPE_COLORS.SBOR;
   const { date, time } = formatDateTime(order.checkingDoneAt);
+  // Checker stiker uchun tahrirlagan bo'lsa (labelOrgName/labelAddress) —
+  // o'shani, aks holda klientning asl nomi/manzilini ko'rsatadi.
+  const orgName = order.labelOrgName || order.client?.orgName;
+  const address = order.labelAddress || order.client?.address;
 
   return (
     <div
@@ -54,10 +58,10 @@ function Label({ order, box }) {
     >
       <div style={{ padding: '0.26cm 0.3cm', borderBottom: '1px solid #E5E7EB' }} className="overflow-hidden">
         <p className="text-[18px] font-black text-gray-900 leading-tight truncate">
-          {order.client?.orgName}
+          {orgName}
         </p>
         <p className="text-[14px] text-gray-500 leading-tight truncate mt-0.5">
-          {order.client?.address || '—'}
+          {address || '—'}
         </p>
       </div>
 
@@ -97,6 +101,99 @@ function Label({ order, box }) {
           <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Vaqt</p>
           <p className="text-[13px] font-bold text-gray-700">{time}</p>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Stiker matnini (tashkilot nomi/manzil) tahrirlash paneli — klientning
+// o'z yozuvini o'zgartirmasdan, faqat SHU order stikeri uchun bekor qiladi.
+// Bo'sh qoldirilsa/"Aslicha qaytarish" bosilsa — klientning haqiqiy nomi/
+// manzili qaytariladi.
+function EditLabelPanel({ order, onClose }) {
+  const qc = useQueryClient();
+  const [orgName, setOrgName] = useState(order.labelOrgName || order.client?.orgName || '');
+  const [address, setAddress] = useState(order.labelAddress || order.client?.address || '');
+  const isOverridden = !!(order.labelOrgName || order.labelAddress);
+
+  const mutation = useMutation({
+    mutationFn: (data) => checkerAPI.updateLabel(order.id, data),
+    onSuccess: () => {
+      toast.success('Stiker ma\'lumotlari yangilandi');
+      qc.invalidateQueries({ queryKey: ['order', order.id] });
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const resetToDefault = () => {
+    setOrgName(order.client?.orgName || '');
+    setAddress(order.client?.address || '');
+    mutation.mutate({ labelOrgName: '', labelAddress: '' });
+  };
+
+  const canSave = orgName.trim().length > 0;
+
+  return (
+    <div className="no-print bg-white rounded-2xl border-2 border-sky-200 shadow-sm p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-sky-100 flex items-center justify-center">
+            <Building2 size={15} className="text-sky-600" />
+          </div>
+          <div>
+            <p className="font-black text-gray-900">Stiker matnini tahrirlash</p>
+            <p className="text-[11px] text-gray-400">Faqat shu stikerda ko'rinadi — klient yozuvi o'zgarmaydi</p>
+          </div>
+        </div>
+        <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors">
+          <X size={16} />
+        </button>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5">Tashkilot nomi</label>
+          <input
+            value={orgName}
+            onChange={e => setOrgName(e.target.value)}
+            placeholder={order.client?.orgName}
+            className="w-full px-3.5 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl text-sm font-semibold focus:outline-none focus:border-sky-400 focus:bg-white transition-all"
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1.5">Manzil</label>
+          <input
+            value={address}
+            onChange={e => setAddress(e.target.value)}
+            placeholder={order.client?.address || '—'}
+            className="w-full px-3.5 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl text-sm font-semibold focus:outline-none focus:border-sky-400 focus:bg-white transition-all"
+          />
+        </div>
+      </div>
+
+      {isOverridden && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 font-medium">
+          Bu stikerda klientning asl nomi/manzili o'rniga tahrirlangan matn ko'rsatilmoqda.
+        </p>
+      )}
+
+      <div className="flex gap-2.5 pt-1">
+        {isOverridden && (
+          <button
+            onClick={resetToDefault}
+            disabled={mutation.isPending}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold text-gray-500 bg-gray-50 hover:bg-gray-100 transition-colors disabled:opacity-50"
+          >
+            <RotateCcw size={14} /> Aslicha qaytarish
+          </button>
+        )}
+        <button
+          onClick={() => mutation.mutate({ labelOrgName: orgName, labelAddress: address })}
+          disabled={!canSave || mutation.isPending}
+          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 shadow-md shadow-sky-200 transition-all disabled:opacity-50"
+        >
+          <Save size={15} /> {mutation.isPending ? 'Saqlanmoqda...' : 'Saqlash'}
+        </button>
       </div>
     </div>
   );
@@ -319,22 +416,27 @@ export default function CheckerPrintPage() {
         </div>
       </div>
 
-      {editing && <EditBoxesPanel order={order} onClose={() => setEditing(false)} />}
+      {editing && (
+        <div className="space-y-4">
+          <EditLabelPanel order={order} onClose={() => setEditing(false)} />
+          <EditBoxesPanel order={order} onClose={() => setEditing(false)} />
+        </div>
+      )}
 
       {/* Order summary — screen only */}
       <div className="no-print bg-white rounded-2xl border border-gray-100 shadow-sm p-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="flex items-center gap-2">
           <Building2 size={14} className="text-gray-400" />
           <div>
-            <p className="text-[10px] text-gray-400 font-bold uppercase">Tashkilot</p>
-            <p className="text-sm font-bold text-gray-800 truncate max-w-[140px]">{order.client?.orgName}</p>
+            <p className="text-[10px] text-gray-400 font-bold uppercase">Tashkilot {order.labelOrgName && <span className="text-sky-500 normal-case">(tahrirlangan)</span>}</p>
+            <p className="text-sm font-bold text-gray-800 truncate max-w-[140px]">{order.labelOrgName || order.client?.orgName}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <MapPin size={14} className="text-gray-400" />
           <div>
-            <p className="text-[10px] text-gray-400 font-bold uppercase">Manzil</p>
-            <p className="text-sm font-bold text-gray-800 truncate max-w-[140px]">{order.client?.address || '—'}</p>
+            <p className="text-[10px] text-gray-400 font-bold uppercase">Manzil {order.labelAddress && <span className="text-sky-500 normal-case">(tahrirlangan)</span>}</p>
+            <p className="text-sm font-bold text-gray-800 truncate max-w-[140px]">{order.labelAddress || order.client?.address || '—'}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

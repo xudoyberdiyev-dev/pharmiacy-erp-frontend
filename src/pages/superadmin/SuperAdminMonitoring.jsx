@@ -217,7 +217,7 @@ export default function SuperAdminMonitoring() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2.5 flex-wrap">
                         <span className="font-mono font-black text-sm text-gray-900">{order.invoiceNumber}</span>
-                        <StatusBadge status={order.status} />
+                        <StatusBadge status={order.status} order={order} />
                         <StagePipeline status={order.status} deliveryStartedAt={order.deliveryStartedAt} />
                         <OrderChangeBadges order={order} />
                         {isLate && (

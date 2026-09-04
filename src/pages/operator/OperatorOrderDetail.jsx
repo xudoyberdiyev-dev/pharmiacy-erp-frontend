@@ -10,6 +10,7 @@ import { getErrorMessage } from '../../lib/errors';
 import NotFoundState from '../../components/shared/NotFoundState';
 import ClientSelect from '../../components/shared/ClientSelect';
 import { formatSum } from '../../lib/format';
+import { inTransitLabel } from '../../lib/orderStatusLabel';
 import {
   ArrowLeft, Pencil, X, Check, Save, Upload,
   FileSpreadsheet, Clock, User, Building2, AlertTriangle,
@@ -27,15 +28,16 @@ const STATUS_CFG = {
   CANCELLED:  { label: 'Bekor',                color: '#DC2626', bg: '#FEF2F2', dot: '#F87171', border: '#FECACA' },
 };
 
-function StatusBadge({ status, large }) {
+function StatusBadge({ status, large, order }) {
   const c = STATUS_CFG[status] || STATUS_CFG.NEW;
+  const label = status === 'IN_TRANSIT' ? inTransitLabel(order) : c.label;
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-xl font-bold border ${large ? 'px-3.5 py-1.5 text-sm' : 'px-2.5 py-1 text-xs'}`}
       style={{ color: c.color, background: c.bg, borderColor: c.border }}
     >
       <span className="w-2 h-2 rounded-full" style={{ background: c.dot }} />
-      {c.label}
+      {label}
     </span>
   );
 }
@@ -164,7 +166,7 @@ export default function OperatorOrderDetail() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-lg font-black text-gray-900 font-mono">#{order.invoiceNumber}</h1>
-              <StatusBadge status={order.status} large />
+              <StatusBadge status={order.status} order={order} large />
             </div>
             <p className="text-xs text-gray-400 mt-0.5 font-medium">{format(new Date(order.createdAt), 'dd.MM.yyyy HH:mm')} · {order.createdBy?.fullName}</p>
           </div>

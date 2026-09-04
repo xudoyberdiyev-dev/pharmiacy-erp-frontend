@@ -10,6 +10,7 @@ import {
   BarChart3, Zap, Users
 } from 'lucide-react';
 import { formatSum } from '../../lib/format';
+import { inTransitLabel } from '../../lib/orderStatusLabel';
 
 // ── Animated counter ──────────────────────────────────────────────────────────
 function useCountUp(target, duration = 900) {
@@ -43,13 +44,14 @@ const STATUS_CFG = {
   DELIVERED:  { label: 'Yetkazildi',  color: '#16A34A', bg: '#F0FDF4', dot: '#22C55E' },
 };
 
-function StatusBadge({ status }) {
+function StatusBadge({ status, order }) {
   const c = STATUS_CFG[status] || STATUS_CFG.NEW;
+  const label = status === 'IN_TRANSIT' ? inTransitLabel(order) : c.label;
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold"
       style={{ color: c.color, background: c.bg }}>
       <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.dot }} />
-      {c.label}
+      {label}
     </span>
   );
 }
@@ -358,7 +360,7 @@ export default function OperatorDashboard() {
                         <p className="text-sm font-bold text-gray-900">{formatSum(o.totalAmount)}</p>
                         <p className="text-[11px] text-gray-400">so'm</p>
                       </td>
-                      <td className="px-5 py-3.5"><StatusBadge status={o.status} /></td>
+                      <td className="px-5 py-3.5"><StatusBadge status={o.status} order={o} /></td>
                       <td className="px-5 py-3.5">
                         <p className={`text-sm font-semibold ${late ? 'text-red-500' : 'text-gray-600'}`}>
                           {o.pickingDeadline ? format(new Date(o.pickingDeadline), 'HH:mm') : '—'}

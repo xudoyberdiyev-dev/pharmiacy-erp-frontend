@@ -41,7 +41,7 @@ function HistoryRow({ o, onDownload, downloading, onCancel, cancelling, onRestor
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-mono text-sm font-black text-gray-900">{o.invoiceNumber}</span>
-          <StatusBadge status={o.status} />
+          <StatusBadge status={o.status} order={o} />
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
             <FileCheck2 size={10} /> № {o.dispatchDocument?.documentNumber ?? '—'}
           </span>

@@ -183,7 +183,7 @@ export default function DriverPanel() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-mono font-black text-sm text-gray-900">#{order.invoiceNumber}</span>
-                  <StatusBadge status={order.status} />
+                  <StatusBadge status={order.status} order={order} />
                 </div>
                 <p className="font-bold text-gray-800 text-sm truncate">{order.client?.orgName}</p>
                 <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
@@ -220,7 +220,7 @@ export default function DriverPanel() {
                   <span className="font-mono text-sm font-bold text-gray-800">#{order.invoiceNumber}</span>
                   <span className="text-xs text-gray-400 ml-2 truncate">{order.client?.orgName}</span>
                 </div>
-                <StatusBadge status={order.status} />
+                <StatusBadge status={order.status} order={order} />
               </button>
             ))}
           </div>

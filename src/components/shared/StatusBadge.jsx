@@ -1,3 +1,5 @@
+import { inTransitLabel } from '../../lib/orderStatusLabel';
+
 const STATUS_MAP = {
   NEW:        { label: 'Yangi',        cls: 'badge-new' },
   PICKING:    { label: "Yig'ilmoqda",  cls: 'badge-picking' },
@@ -10,7 +12,12 @@ const STATUS_MAP = {
   RETURNED:   { label: 'Qaytgan',      cls: 'badge-new' },
 };
 
-export default function StatusBadge({ status }) {
+// `order` — ixtiyoriy: berilsa va IN_TRANSIT statusida bo'lsa, haydovchiga
+// biriktirilgan/tasdiqlangan bosqichiga qarab aniqroq label ko'rsatiladi
+// ("Yuklanmoqda" / "Safarga tayyorlanmoqda" / "Yo'lda"). Berilmasa — eski
+// (status'gagina qarab) xatti-harakat saqlanadi, hech joy buzilmaydi.
+export default function StatusBadge({ status, order }) {
   const s = STATUS_MAP[status] || { label: status, cls: 'badge-new' };
-  return <span className={s.cls}>{s.label}</span>;
+  const label = status === 'IN_TRANSIT' ? inTransitLabel(order) : s.label;
+  return <span className={s.cls}>{label}</span>;
 }

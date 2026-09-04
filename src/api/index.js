@@ -108,6 +108,7 @@ export const checkerAPI = {
   returnToPicking: (id, reason) => api.patch(`/checker/orders/${id}/return-to-picking`, { reason }),
   complete:     (id, data) => api.patch(`/checker/orders/${id}/complete`, data),
   updateBoxes:  (id, data) => api.patch(`/checker/orders/${id}/boxes`, data),
+  updateLabel:  (id, data) => api.patch(`/checker/orders/${id}/label`, data),
   getReturned: () => api.get('/checker/orders/returned'),
   getEtirozli: () => api.get('/checker/etirozlar'),
   respondEtirov: (id, data) => api.patch(`/checker/etirozlar/${id}/respond`, data),

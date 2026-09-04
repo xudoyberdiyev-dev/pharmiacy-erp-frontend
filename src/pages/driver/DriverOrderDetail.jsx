@@ -8,7 +8,7 @@ import StatusBadge from '../../components/shared/StatusBadge';
 import NotFoundState from '../../components/shared/NotFoundState';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
-import { ArrowLeft, MapPin, Camera, CheckCircle, Navigation, X, Package, Banknote, AlertCircle, Truck, Images, Undo2 } from 'lucide-react';
+import { ArrowLeft, MapPin, Camera, CheckCircle, X, Package, Banknote, AlertCircle, Truck, Images, Undo2 } from 'lucide-react';
 import { formatSum } from '../../lib/format';
 import heic2any from 'heic2any';
 
@@ -71,19 +71,6 @@ const MAX_PHOTOS = 4;
 // xabar bilan qaytarib, foydalanuvchini keraksiz "Yetkazdim" bosib xato
 // olishdan asraydi.
 const MAX_PHOTO_SIZE_BYTES = 15 * 1024 * 1024;
-
-// Backend statsController.js dagi getDriverLocations bilan bir xil formula —
-// driver o'zining hozirgi joylashuvidan mijozgacha taxminiy masofa/ETA'ni
-// ko'rishi uchun (o'rtacha 35 km/soat tezlik).
-const AVERAGE_SPEED_KMH = 35;
-function haversineKm(lat1, lon1, lat2, lon2) {
-  const R = 6371;
-  const toRad = (v) => (v * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 export default function DriverOrderDetail() {
   const { id } = useParams();
@@ -153,16 +140,6 @@ export default function DriverOrderDetail() {
     onError: e => toast.error(getErrorMessage(e)),
   });
 
-  const openMaps = () => {
-    const lat = order?.client?.latitude;
-    const lon = order?.client?.longitude;
-    if (lat == null || lon == null) {
-      toast.error('Bu mijoz uchun manzil koordinatasi kiritilmagan');
-      return;
-    }
-    window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`, '_blank');
-  };
-
   const addPhotos = async (files) => {
     const incoming = Array.from(files);
 
@@ -221,7 +198,7 @@ export default function DriverOrderDetail() {
           <div className="flex-1 min-w-0">
             <p className="font-mono font-black text-sm text-gray-900 truncate">#{order.invoiceNumber}</p>
           </div>
-          <StatusBadge status={order.status} />
+          <StatusBadge status={order.status} order={order} />
         </div>
       </div>
 
@@ -252,11 +229,6 @@ export default function DriverOrderDetail() {
             </div>
           </div>
         </div>
-
-        <button onClick={openMaps}
-          className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-2xl py-3.5 text-sm font-bold text-gray-700 active:bg-gray-50">
-          <Navigation size={17} className="text-[#3B5BFD]" /> Xaritada ochish
-        </button>
 
         {isActive && (
           <button onClick={() => setShowReturnModal(true)}
@@ -306,26 +278,10 @@ export default function DriverOrderDetail() {
                 </p>
               </>
             ) : position ? (
-              <>
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shrink-0" />
-                  <p className="text-sm font-bold text-green-700">GPS faol — joylashuvingiz ko'rinmoqda</p>
-                </div>
-                {(() => {
-                  const clientLat = order.client?.latitude;
-                  const clientLon = order.client?.longitude;
-                  if (clientLat == null || clientLon == null) {
-                    return <p className="text-xs text-gray-400 mt-2">Masofa hisoblanmoqda...</p>;
-                  }
-                  const km = haversineKm(position.latitude, position.longitude, clientLat, clientLon);
-                  const etaMin = Math.round((km / AVERAGE_SPEED_KMH) * 60);
-                  return (
-                    <p className="text-xs text-gray-500 mt-2">
-                      ~{Math.round(km * 10) / 10} km qoldi · ~{etaMin} daqiqada yetib borasiz
-                    </p>
-                  );
-                })()}
-              </>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shrink-0" />
+                <p className="text-sm font-bold text-green-700">GPS faol — joylashuvingiz ko'rinmoqda</p>
+              </div>
             ) : (
               <>
                 <div className="flex items-center gap-2">

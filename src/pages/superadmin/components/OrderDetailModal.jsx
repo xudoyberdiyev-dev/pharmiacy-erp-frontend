@@ -56,7 +56,7 @@ export default function OrderDetailModal({ category, range, onClose }) {
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-mono font-bold text-sm">{o.invoiceNumber}</span>
-                  <StatusBadge status={o.status} />
+                  <StatusBadge status={o.status} order={o} />
                 </div>
                 <p className="font-medium text-gray-800 mt-1">{o.client?.orgName}</p>
                 <div className="flex items-start gap-1 text-xs text-gray-500 mt-0.5">

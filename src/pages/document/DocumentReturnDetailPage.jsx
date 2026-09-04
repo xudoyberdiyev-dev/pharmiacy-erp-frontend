@@ -96,7 +96,7 @@ export default function DocumentReturnDetailPage() {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-black text-gray-900 font-mono">#{order.invoiceNumber}</h1>
-            <StatusBadge status={order.status} />
+            <StatusBadge status={order.status} order={order} />
             {order.hasReturnedGoods && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold bg-red-50 text-red-700 border border-red-100">
                 Qaytarilgan tovarlar mavjud

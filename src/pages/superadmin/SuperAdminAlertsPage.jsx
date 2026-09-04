@@ -180,7 +180,7 @@ export default function SuperAdminAlertsPage() {
                       <p className="font-bold text-gray-900 text-sm">{n.title}</p>
                       {n.order && (
                         <span className="inline-flex items-center gap-1 text-[11px] text-gray-400">
-                          hozirgi holat: <StatusBadge status={n.order.status} />
+                          hozirgi holat: <StatusBadge status={n.order.status} order={n.order} />
                         </span>
                       )}
                     </div>

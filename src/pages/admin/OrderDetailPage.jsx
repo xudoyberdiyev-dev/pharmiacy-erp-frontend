@@ -141,7 +141,7 @@ export default function OrderDetailPage() {
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-bold font-mono">#{o.invoiceNumber}</h1>
-            <StatusBadge status={o.status} />
+            <StatusBadge status={o.status} order={o} />
             {o.adminConfirmed && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
                 <CheckCircle size={12} /> Admin tasdiqlagan

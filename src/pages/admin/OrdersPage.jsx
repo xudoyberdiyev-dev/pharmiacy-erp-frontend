@@ -142,7 +142,7 @@ export default function OrdersPage() {
                           <p className="text-[10px] text-gray-400 font-normal mt-0.5">statistikaga kirmaydi</p>
                         )}
                       </td>
-                      <td className="px-6 py-3"><StatusBadge status={order.status} /></td>
+                      <td className="px-6 py-3"><StatusBadge status={order.status} order={order} /></td>
                       <td className="px-6 py-3 text-sm text-gray-500">
                         {order.pickingDeadline ? format(new Date(order.pickingDeadline), 'dd.MM HH:mm') : '—'}
                       </td>

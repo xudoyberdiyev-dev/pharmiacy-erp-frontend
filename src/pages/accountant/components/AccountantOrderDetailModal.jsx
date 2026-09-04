@@ -104,7 +104,7 @@ export default function AccountantOrderDetailModal({ order, step, onClose }) {
   return (
     <Modal title={`Buyurtma ${order.invoiceNumber}`} onClose={onClose} wide>
       <div className="flex items-center gap-2 flex-wrap mb-4">
-        <StatusBadge status={order.status} />
+        <StatusBadge status={order.status} order={order} />
         <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full ${order.acct1Confirmed ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
           <CheckCircle2 size={12} /> 1-tasdiqlash
         </span>

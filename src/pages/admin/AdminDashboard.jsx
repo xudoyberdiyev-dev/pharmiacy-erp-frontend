@@ -96,7 +96,7 @@ export default function AdminDashboard() {
                   <td className="px-6 py-3 font-mono text-sm font-medium">{order.invoiceNumber}</td>
                   <td className="px-6 py-3 text-sm">{order.client?.orgName || '—'}</td>
                   <td className="px-6 py-3 text-sm font-medium">{formatSum(order.totalAmount)} so'm</td>
-                  <td className="px-6 py-3"><StatusBadge status={order.status} /></td>
+                  <td className="px-6 py-3"><StatusBadge status={order.status} order={order} /></td>
                   <td className="px-6 py-3 text-sm text-gray-500">{format(new Date(order.createdAt), 'dd.MM HH:mm')}</td>
                   <td className="px-6 py-3">
                     <button

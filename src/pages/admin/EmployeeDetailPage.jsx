@@ -192,7 +192,7 @@ function OrderCard({ order, userId, stage, showLateness }) {
           <p className="font-mono font-black text-sm text-gray-900">#{order.invoiceNumber}</p>
           <p className="text-xs text-gray-400">{order.client?.orgName}</p>
         </div>
-        <StatusBadge status={order.status} />
+        <StatusBadge status={order.status} order={order} />
       </div>
 
       {/* Lateness — faqat deadline tushunchasi bor rollarda ko'rsatiladi */}

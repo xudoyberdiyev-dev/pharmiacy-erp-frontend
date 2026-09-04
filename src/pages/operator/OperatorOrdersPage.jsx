@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
 import { formatSum } from '../../lib/format';
+import { inTransitLabel } from '../../lib/orderStatusLabel';
 import {
   Plus, Search, Eye, Pencil, Trash2,
   Package, X, AlertTriangle, ArrowRight,
@@ -24,13 +25,14 @@ const STATUS_CFG = {
   CANCELLED:  { label: 'Bekor',                         color: '#DC2626', bg: '#FEF2F2', dot: '#F87171', border: '#FECACA' },
 };
 
-function StatusBadge({ status }) {
+function StatusBadge({ status, order }) {
   const c = STATUS_CFG[status] || STATUS_CFG.NEW;
+  const label = status === 'IN_TRANSIT' ? inTransitLabel(order) : c.label;
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border"
       style={{ color: c.color, background: c.bg, borderColor: c.border }}>
       <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.dot }} />
-      {c.label}
+      {label}
     </span>
   );
 }
@@ -266,7 +268,7 @@ export default function OperatorOrdersPage() {
                         <p className="text-sm font-black text-gray-900 whitespace-nowrap">{formatSum(o.totalAmount)}</p>
                         <p className="text-[11px] text-gray-400">so'm</p>
                       </td>
-                      <td className="px-5 py-3.5"><StatusBadge status={o.status} /></td>
+                      <td className="px-5 py-3.5"><StatusBadge status={o.status} order={o} /></td>
                       <td className="px-5 py-3.5">
                         <p className={`text-sm font-semibold ${late ? 'text-red-500' : 'text-gray-600'}`}>
                           {o.pickingDeadline ? format(new Date(o.pickingDeadline), 'dd.MM HH:mm') : '—'}

@@ -121,7 +121,7 @@ export default function DriverHistoryPage() {
             >
               <div className="flex items-center justify-between gap-2 mb-1">
                 <span className="font-mono font-black text-sm text-gray-900">#{order.invoiceNumber}</span>
-                <StatusBadge status={order.status} />
+                <StatusBadge status={order.status} order={order} />
               </div>
               <p className="text-sm font-semibold text-gray-700 truncate">{order.client?.orgName}</p>
               <div className="flex items-center justify-between mt-1.5">
