@@ -1,12 +1,60 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { statsAPI } from '../../api';
 import StatusBadge from '../../components/shared/StatusBadge';
 import Pagination from '../../components/shared/Pagination';
 import OrderChangeBadges from '../accountant/components/OrderChangeBadges';
-import { MapPin, Clock, Package, Truck, RefreshCw, Calendar, Footprints, Tag, CheckCircle2, AlertTriangle, Layers, ArrowRight, Hourglass, Wallet } from 'lucide-react';
+import { MapPin, Clock, Package, Truck, RefreshCw, Calendar, Footprints, Tag, CheckCircle2, AlertTriangle, Layers, ArrowRight, Hourglass, Wallet, TimerOff, Timer } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatSum } from '../../lib/format';
+
+// Har bir bosqichda joriy order aynan QAYSI deadline maydoniga qarab
+// "kechikkan/qolgan vaqt" hisoblanishini belgilaydi — checkLate funksiyasi
+// bilan bir xil mantiq (NEW va PICKING ikkalasi ham pickingDeadline'ga qarab).
+const DEADLINE_FIELD = { NEW: 'pickingDeadline', PICKING: 'pickingDeadline', MARKING: 'markingDeadline', CHECKING: 'checkingDeadline' };
+
+// Bosqichda qancha vaqt qolgani/kechikkanini daqiqada hisoblaydi. IN_TRANSIT
+// uchun aniq muddat (deadline) tushunchasi yo'q — shuning uchun "kechikkan"
+// emas, safarga chiqqanidan/yo'lga chiqqanidan beri o'tgan vaqt ko'rsatiladi
+// (informatsion, qizil emas).
+function timeInfo(order, nowTs) {
+  const field = DEADLINE_FIELD[order.status];
+  if (field && order[field]) {
+    const diffMin = Math.round((nowTs - new Date(order[field]).getTime()) / 60000);
+    if (diffMin >= 0) return { late: true, minutes: diffMin, text: `${diffMin} daq kechikdi` };
+    return { late: false, minutes: -diffMin, text: `${-diffMin} daq qoldi` };
+  }
+  if (order.status === 'IN_TRANSIT') {
+    const since = order.deliveryStartedAt || order.dispatchedAt;
+    if (since) {
+      const elapsedMin = Math.max(0, Math.round((nowTs - new Date(since).getTime()) / 60000));
+      return {
+        late: false, elapsed: true, minutes: elapsedMin,
+        text: order.deliveryStartedAt ? `${elapsedMin} daqiqadan beri yo'lda` : `${elapsedMin} daqiqadan beri safarga tayyor`,
+      };
+    }
+  }
+  return null;
+}
+
+function TimeInfoBadge({ order, nowTs }) {
+  const info = timeInfo(order, nowTs);
+  if (!info) return null;
+  if (info.elapsed) {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">
+        <Timer size={10} /> {info.text}
+      </span>
+    );
+  }
+  return (
+    <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${
+      info.late ? 'text-red-600 bg-red-50' : 'text-blue-600 bg-blue-50'
+    }`}>
+      {info.late ? <TimerOff size={10} /> : <Timer size={10} />} {info.text}
+    </span>
+  );
+}
 
 // IN_TRANSIT'ni ikkiga ajratamiz — hujjatlashtirilib safarga tayyor
 // (haydovchi hali yo'lga chiqmagan) va haqiqatan yo'lda (Sales sahifasidagi
@@ -53,6 +101,14 @@ export default function SuperAdminMonitoring() {
   const [page, setPage] = useState(1);
   const limit = 20;
 
+  // Har bir orderning "N daqiqa qoldi/kechikdi" matni jonli (ma'lumot qayta
+  // so'ralmasa ham) yangilanib tursin uchun — 30s'da bir marta qayta render.
+  const [nowTs, setNowTs] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNowTs(Date.now()), 30000);
+    return () => clearInterval(t);
+  }, []);
+
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['monitoring', from, to, status, page],
     queryFn: () => statsAPI.getMonitoring({ from, to, status: status || undefined, page, limit }),
@@ -61,6 +117,7 @@ export default function SuperAdminMonitoring() {
   });
 
   const activeOrders = data?.data || [];
+  const lateCounts = data?.lateCounts || {};
   const counts = data?.counts || {};
   const priceSummary = data?.priceSummary || { totalAmount: 0, changedCount: 0 };
   const totalActive = STAGES.reduce((s, k) => s + (counts[k] || 0), 0);
@@ -132,20 +189,30 @@ export default function SuperAdminMonitoring() {
           const meta = STAGE_META[s];
           const Icon = meta.icon;
           const isSelected = status === s;
+          const lateCount = lateCounts[s] || 0;
           return (
             <button
               key={s}
+              title={lateCount > 0 ? `${lateCount} ta muddati o'tgan — bosing, ro'yxatda ko'ring` : `${meta.label} bosqichidagi orderlarni ko'rish uchun bosing`}
               onClick={() => { setStatus(prev => prev === s ? '' : s); setPage(1); }}
-              className={`bg-white rounded-2xl border-2 p-4 text-left shadow-sm transition-all ${
+              className={`bg-white rounded-2xl border-2 p-4 text-left shadow-sm transition-all relative ${
                 isSelected ? '' : 'border-transparent hover:border-gray-200'
               }`}
               style={isSelected ? { borderColor: meta.color } : undefined}
             >
+              {lateCount > 0 && (
+                <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-0.5 text-[10px] font-black text-red-600 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-full animate-pulse">
+                  <TimerOff size={9} /> {lateCount}
+                </span>
+              )}
               <div className={`w-9 h-9 ${meta.bg} rounded-xl flex items-center justify-center mb-2`}>
                 <Icon size={16} className={meta.text} />
               </div>
               <p className="text-2xl font-black text-gray-900">{counts[s] ?? 0}</p>
               <p className="text-xs text-gray-500 font-medium">{meta.label}</p>
+              {lateCount > 0 && (
+                <p className="text-[10px] text-red-500 font-bold mt-0.5">{lateCount} ta kechikkan</p>
+              )}
             </button>
           );
         })}
@@ -202,7 +269,8 @@ export default function SuperAdminMonitoring() {
 
         <div className="space-y-2.5">
           {activeOrders.map(order => {
-            const isLate = checkLate(order);
+            const info = timeInfo(order, nowTs);
+            const isLate = !!info?.late;
             const meta = order.status === 'IN_TRANSIT'
               ? (order.deliveryStartedAt ? STAGE_META.IN_TRANSIT_ACTIVE : STAGE_META.IN_TRANSIT_READY)
               : STAGE_META[order.status];
@@ -220,11 +288,7 @@ export default function SuperAdminMonitoring() {
                         <StatusBadge status={order.status} order={order} />
                         <StagePipeline status={order.status} deliveryStartedAt={order.deliveryStartedAt} />
                         <OrderChangeBadges order={order} />
-                        {isLate && (
-                          <span className="inline-flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
-                            <AlertTriangle size={11} /> Kechikmoqda
-                          </span>
-                        )}
+                        <TimeInfoBadge order={order} nowTs={nowTs} />
                       </div>
                       <p className="font-bold text-gray-800 mt-1.5 truncate">{order.client?.orgName}</p>
                       <div className="flex items-start gap-1 text-xs text-gray-400 mt-0.5">
@@ -277,16 +341,3 @@ export default function SuperAdminMonitoring() {
   );
 }
 
-function checkLate(order) {
-  const now = new Date();
-  if (order.status === 'NEW' || order.status === 'PICKING') {
-    return order.pickingDeadline && new Date(order.pickingDeadline) < now;
-  }
-  if (order.status === 'MARKING') {
-    return order.markingDeadline && new Date(order.markingDeadline) < now;
-  }
-  if (order.status === 'CHECKING') {
-    return order.checkingDeadline && new Date(order.checkingDeadline) < now;
-  }
-  return false;
-}
