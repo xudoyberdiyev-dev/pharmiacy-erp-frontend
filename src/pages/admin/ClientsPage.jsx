@@ -7,9 +7,9 @@ import { Plus, MapPin, Phone, Building2, X, Pencil, Power, Users } from 'lucide-
 import Pagination from '../../components/shared/Pagination';
 import SearchBar from '../../components/shared/SearchBar';
 import PhoneInput from '../../components/shared/PhoneInput';
-import { REGIONS, regionLabel } from '../../utils/regions';
+import { REGIONS, regionLabel, districtsFor } from '../../utils/regions';
 
-const EMPTY_FORM = { orgName: '', inn: '', phone: '', address: '', region: '', longitude: '', latitude: '' };
+const EMPTY_FORM = { orgName: '', inn: '', phone: '', address: '', region: '', district: '' };
 
 function ClientModal({ client, onClose }) {
   const qc = useQueryClient();
@@ -22,8 +22,7 @@ function ClientModal({ client, onClose }) {
           phone: client.phone || '',
           address: client.address,
           region: client.region || '',
-          longitude: client.longitude,
-          latitude: client.latitude,
+          district: client.district || '',
         }
       : EMPTY_FORM
   );
@@ -39,15 +38,17 @@ function ClientModal({ client, onClose }) {
   });
 
   const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
+  const districts = districtsFor(form.region);
+  const canSubmit = form.orgName.trim() && form.region && form.district.trim() && form.address.trim();
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
-        <div className="flex items-center justify-between p-6 border-b">
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-6 border-b shrink-0">
           <h2 className="font-semibold text-lg">{isEdit ? 'Mijozni tahrirlash' : 'Yangi mijozy qo\'shish'}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
         </div>
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4 overflow-y-auto">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Tashkilot nomi *</label>
@@ -69,34 +70,47 @@ function ClientModal({ client, onClose }) {
             <label className="label">Telefon <span className="text-gray-400 font-normal">(ixtiyoriy)</span></label>
             <PhoneInput value={form.phone} onChange={v => setForm(p => ({ ...p, phone: v }))} />
           </div>
-          <div>
-            <label className="label">Manzil *</label>
-            <input className="input" placeholder="Toshkent, Yunusobod tumani" value={form.address} onChange={set('address')} />
-          </div>
-          <div>
-            <label className="label">Viloyat</label>
-            <select className="input" value={form.region} onChange={set('region')}>
-              <option value="">Tanlanmagan</option>
-              {REGIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-            </select>
-          </div>
+
+          {/* Viloyat → tuman/shahar bosqichma-bosqich — tuman ro'yxati tanlangan
+              viloyatga qarab almashadi, shuning uchun viloyat o'zgarsa eski
+              tuman qiymati (boshqa viloyatga tegishli bo'lib qolmasligi uchun) tozalanadi. */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="label">Longitude *</label>
-              <input className="input" type="number" step="any" placeholder="69.2401" value={form.longitude} onChange={set('longitude')} />
+              <label className="label">Viloyat *</label>
+              <select
+                className="input"
+                value={form.region}
+                onChange={e => setForm(p => ({ ...p, region: e.target.value, district: '' }))}
+              >
+                <option value="">Tanlang</option>
+                {REGIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+              </select>
             </div>
             <div>
-              <label className="label">Latitude *</label>
-              <input className="input" type="number" step="any" placeholder="41.2995" value={form.latitude} onChange={set('latitude')} />
+              <label className="label">Tuman/Shahar *</label>
+              <select
+                className="input disabled:bg-gray-50 disabled:text-gray-400"
+                value={form.district}
+                onChange={set('district')}
+                disabled={!form.region}
+              >
+                <option value="">{form.region ? 'Tanlang' : 'Avval viloyatni tanlang'}</option>
+                {districts.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
             </div>
           </div>
+
+          <div>
+            <label className="label">To'liq manzil *</label>
+            <input className="input" placeholder="Ko'cha, uy raqami, mo'ljal..." value={form.address} onChange={set('address')} />
+          </div>
         </div>
-        <div className="flex gap-3 p-6 border-t">
+        <div className="flex gap-3 p-6 border-t shrink-0">
           <button onClick={onClose} className="btn-secondary flex-1">Bekor qilish</button>
           <button
             onClick={() => mutation.mutate()}
-            disabled={mutation.isPending}
-            className="btn-primary flex-1"
+            disabled={mutation.isPending || !canSubmit}
+            className="btn-primary flex-1 disabled:opacity-50"
           >
             {mutation.isPending ? 'Saqlanmoqda...' : 'Saqlash'}
           </button>
@@ -244,13 +258,19 @@ export default function ClientsPage() {
                     <MapPin size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />
                     <span className="line-clamp-2">{client.address}</span>
                   </div>
-                  <div className="text-xs text-gray-400">
-                    📍 {client.latitude?.toFixed(4)}, {client.longitude?.toFixed(4)}
-                  </div>
-                  {client.region && (
-                    <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium bg-purple-50 text-purple-600">
-                      {regionLabel(client.region)}
-                    </span>
+                  {(client.region || client.district) && (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {client.region && (
+                        <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium bg-purple-50 text-purple-600">
+                          {regionLabel(client.region)}
+                        </span>
+                      )}
+                      {client.district && (
+                        <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-600">
+                          {client.district}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
                 <div className="mt-4 flex gap-2">
