@@ -13,6 +13,7 @@ import {
 import { COLOR } from './design/tokens';
 import { invalidateOperatorData } from './useOperatorData';
 import { StatusBadge, Panel } from './design/components';
+import { fmtMinutes } from './format';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Operator Panel — Yangi buyurtma (Phase 05 of the redesign)
@@ -21,15 +22,15 @@ import { StatusBadge, Panel } from './design/components';
 // two-step wizard and validation rules as before; the surface, the review
 // block ("Tekshirish") and the success/error panels are new.
 //
-// One resolved tension, not a silent regression: the design labels the
-// three duration fields in "soat" (hours), where the old UI — and the
-// backend's pickingDuration/markingDuration/checkingDuration columns —
-// are plain minutes. A literal whole-hour-only field would lose real
-// precision the old UI had (a 20 or 45-minute picking window is common
-// for small orders). So this field accepts a decimal hour value (e.g.
-// "0.75" for 45 minutes) and converts to minutes on submit
-// (Math.round(hours * 60)) — the "soat" suffix and visual language match
-// the design exactly, nothing the old flow could express is lost.
+// Durations are entered in MINUTES ("daqiqa"), exactly as the backend
+// stores them (pickingDuration / markingDuration / checkingDuration) and
+// as this form always worked. The design canvas drew these fields in
+// "soat" (hours); that was overruled by the product owner — a 20 or
+// 45-minute window is a normal case, and minutes need no conversion.
+//
+// Layout: the form fills the workspace like the Dashboard does (the
+// design's 840px centred column is dropped by request); wide screens get
+// multi-column field grids instead of stretched single inputs.
 // ─────────────────────────────────────────────────────────────────────────
 
 const inputCls = "h-10 px-3 rounded-lg text-sm outline-none transition-colors";
@@ -59,24 +60,26 @@ function FieldError({ children }) {
   );
 }
 
-function DurationInput({ label, value, onChange, error, focusColor }) {
+function DurationInput({ label, value, onChange, error }) {
+  const mins = parseInt(value, 10);
   return (
     <label className="flex flex-col gap-1.5">
       <Label required>{label}</Label>
       <span className="flex items-center h-10 rounded-lg overflow-hidden" style={inputStyle(error)}>
         <input
           aria-label={label}
-          inputMode="decimal"
+          inputMode="numeric"
           value={value}
-          onChange={e => onChange(e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1'))}
+          onChange={e => onChange(e.target.value.replace(/D/g, ''))}
           placeholder="Muddatni kiriting"
           className="flex-1 min-w-0 h-full border-0 outline-none px-3 text-sm font-semibold text-right"
           style={{ fontVariantNumeric: 'tabular-nums', color: COLOR.textPrimary }}
         />
         <span className="px-3 h-full flex items-center text-xs font-medium shrink-0" style={{ borderLeft: `1px solid ${COLOR.border}`, background: COLOR.subtleSurface, color: COLOR.textTertiary, fontFamily: "'JetBrains Mono', monospace" }}>
-          soat
+          daqiqa
         </span>
       </span>
+      {mins >= 60 && !error && <span className="text-xs" style={{ color: COLOR.textMuted }}>= {fmtMinutes(mins)}</span>}
       <FieldError>{error}</FieldError>
     </label>
   );
@@ -113,7 +116,21 @@ function StepIndicator({ step }) {
   ];
   return (
     <Panel className="!rounded-xl">
-      <div className="flex items-center gap-4 px-6 py-5">
+      {/* Mobile: one compact card — title, "1 / 2", two progress bars */}
+      <div className="sm:hidden px-4 py-3.5 flex flex-col gap-2.5">
+        <div className="flex items-center justify-between gap-2.5">
+          <span className="text-[13px] font-semibold" style={{ color: COLOR.textPrimary }}>{items[step - 1].title}</span>
+          <span className="text-xs font-medium" style={{ fontFamily: "'JetBrains Mono', monospace", color: COLOR.textTertiary }}>{step} / 2</span>
+        </div>
+        <div className="flex gap-1.5">
+          <span className="flex-1 h-1 rounded-sm" style={{ background: COLOR.primary }} />
+          <span className="flex-1 h-1 rounded-sm" style={{ background: step > 1 ? COLOR.primary : COLOR.border }} />
+        </div>
+        <span className="text-xs inline-flex items-center gap-1.5" style={{ color: step > 1 ? COLOR.success : COLOR.textTertiary }}>
+          {step > 1 ? <><Check size={14} /> 1-qadam yakunlandi</> : items[0].sub}
+        </span>
+      </div>
+      <div className="hidden sm:flex items-center gap-4 px-6 py-5">
         {items.map((it, i) => {
           const done = step > it.n, active = step === it.n;
           return (
@@ -154,7 +171,7 @@ export default function OperatorCreateOrder() {
 
   const [form, setForm] = useState({
     clientId: '', contractNumber: '', invoiceNumber: '', lotNumber: '', totalAmount: '',
-    pickingHours: '', markingHours: '', checkingHours: '',
+    pickingMinutes: '', markingMinutes: '', checkingMinutes: '',
     assignedPickerId: '', markerId: '', checkerId: '',
   });
   const set = k => v => setForm(p => ({ ...p, [k]: typeof v === 'object' && v?.target ? v.target.value : v }));
@@ -179,9 +196,9 @@ export default function OperatorCreateOrder() {
       fd.append('invoiceNumber', form.invoiceNumber);
       if (form.lotNumber) fd.append('lotNumber', form.lotNumber);
       fd.append('totalAmount', form.totalAmount);
-      fd.append('pickingMinutes', String(Math.round(parseFloat(form.pickingHours) * 60)));
-      fd.append('markingMinutes', String(Math.round(parseFloat(form.markingHours) * 60)));
-      fd.append('checkingMinutes', String(Math.round(parseFloat(form.checkingHours) * 60)));
+      fd.append('pickingMinutes', String(parseInt(form.pickingMinutes, 10)));
+      fd.append('markingMinutes', String(parseInt(form.markingMinutes, 10)));
+      fd.append('checkingMinutes', String(parseInt(form.checkingMinutes, 10)));
       if (form.assignedPickerId) fd.append('assignedPickerId', form.assignedPickerId);
       if (form.markerId) fd.append('markerId', form.markerId);
       if (form.checkerId) fd.append('checkerId', form.checkerId);
@@ -209,9 +226,9 @@ export default function OperatorCreateOrder() {
 
   const validateStep2 = () => {
     const e = {};
-    if (!(parseFloat(form.pickingHours) > 0)) e.pickingHours = 'Muddat 0 dan katta bo\'lishi kerak.';
-    if (!(parseFloat(form.markingHours) > 0)) e.markingHours = 'Muddat 0 dan katta bo\'lishi kerak.';
-    if (!(parseFloat(form.checkingHours) > 0)) e.checkingHours = 'Muddat 0 dan katta bo\'lishi kerak.';
+    if (!(parseInt(form.pickingMinutes, 10) > 0)) e.pickingMinutes = 'Muddat 0 dan katta bo\'lishi kerak.';
+    if (!(parseInt(form.markingMinutes, 10) > 0)) e.markingMinutes = 'Muddat 0 dan katta bo\'lishi kerak.';
+    if (!(parseInt(form.checkingMinutes, 10) > 0)) e.checkingMinutes = 'Muddat 0 dan katta bo\'lishi kerak.';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -226,16 +243,16 @@ export default function OperatorCreateOrder() {
 
   const resetAll = () => {
     setStep(1); setExcel(null); setErrors({}); setSubmitError(null); setCreated(null);
-    setForm({ clientId: '', contractNumber: '', invoiceNumber: '', lotNumber: '', totalAmount: '', pickingHours: '', markingHours: '', checkingHours: '', assignedPickerId: '', markerId: '', checkerId: '' });
+    setForm({ clientId: '', contractNumber: '', invoiceNumber: '', lotNumber: '', totalAmount: '', pickingMinutes: '', markingMinutes: '', checkingMinutes: '', assignedPickerId: '', markerId: '', checkerId: '' });
   };
 
   // ── Success panel (replaces the wizard) ──────────────────────────────
   if (created) {
     return (
-      <div className="max-w-[840px] mx-auto">
+      <div className="w-full">
         <Panel className="!border-[#BBF7D0]">
-          <div className="p-6 flex flex-col gap-4">
-            <div className="flex gap-3 items-start">
+          <div className="p-6 grid grid-cols-1 xl:grid-cols-2 gap-x-10 gap-y-5 items-start">
+            <div className="flex gap-3 items-start xl:col-start-1 xl:row-start-1">
               <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: COLOR.successSoft, color: COLOR.success }}>
                 <CheckCircle2 size={20} />
               </span>
@@ -244,7 +261,7 @@ export default function OperatorCreateOrder() {
                 <p className="text-[13px] mt-1" style={{ color: COLOR.textSecondary }}>Buyurtma tizimga qo'shildi va keyingi jarayon uchun tayyor.</p>
               </div>
             </div>
-            <div className="rounded-[10px] p-3.5 flex flex-col gap-2.5" style={{ border: `1px solid ${COLOR.border}`, background: COLOR.subtleSurface }}>
+            <div className="rounded-[10px] p-3.5 flex flex-col gap-2.5 xl:col-start-2 xl:row-start-1 xl:row-span-2" style={{ border: `1px solid ${COLOR.border}`, background: COLOR.subtleSurface }}>
               <div className="flex items-center justify-between gap-3">
                 <span className="text-xs" style={{ color: COLOR.textTertiary }}>Buyurtma</span>
                 <span className="text-[13px] font-medium" style={{ fontFamily: "'JetBrains Mono', monospace" }}>#{created.invoiceNumber}</span>
@@ -258,7 +275,7 @@ export default function OperatorCreateOrder() {
                 <StatusBadge status={created.status || 'NEW'} order={created} />
               </div>
             </div>
-            <div className="flex flex-wrap gap-2 items-center">
+            <div className="flex flex-wrap gap-2 items-center xl:col-start-1 xl:row-start-2">
               {created.id && (
                 <button onClick={() => navigate(`/operator/orders/${created.id}`)} className="inline-flex items-center gap-2 h-10 px-4 rounded-lg text-sm font-semibold text-white" style={{ background: COLOR.primary }}>
                   <Eye size={18} /> Buyurtmani ko'rish
@@ -278,7 +295,7 @@ export default function OperatorCreateOrder() {
   }
 
   return (
-    <div className="max-w-[840px] mx-auto flex flex-col gap-6">
+    <div className="w-full flex flex-col gap-6">
 
       {/* ── Header ── */}
       <div className="flex flex-col gap-3">
@@ -309,7 +326,7 @@ export default function OperatorCreateOrder() {
                 <FieldError>{errors.clientId}</FieldError>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
                 <label className="flex flex-col gap-1.5">
                   <Label required>Shartnoma raqami</Label>
                   <input value={form.contractNumber} onChange={set('contractNumber')} placeholder="Masalan: SH-2026-0048" className={inputCls} style={{ ...inputStyle(errors.contractNumber), fontFamily: "'JetBrains Mono', monospace", fontWeight: 500 }} />
@@ -392,9 +409,9 @@ export default function OperatorCreateOrder() {
             </div>
             <div className="p-5 flex flex-col gap-5">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <DurationInput label="Terish muddati" value={form.pickingHours} onChange={set('pickingHours')} error={errors.pickingHours} />
-                <DurationInput label="Markirovka muddati" value={form.markingHours} onChange={set('markingHours')} error={errors.markingHours} />
-                <DurationInput label="Tekshirish muddati" value={form.checkingHours} onChange={set('checkingHours')} error={errors.checkingHours} />
+                <DurationInput label="Terish muddati" value={form.pickingMinutes} onChange={set('pickingMinutes')} error={errors.pickingMinutes} />
+                <DurationInput label="Markirovka muddati" value={form.markingMinutes} onChange={set('markingMinutes')} error={errors.markingMinutes} />
+                <DurationInput label="Tekshirish muddati" value={form.checkingMinutes} onChange={set('checkingMinutes')} error={errors.checkingMinutes} />
               </div>
               <div className="h-px" style={{ background: COLOR.borderSubtle }} />
               <div className="flex flex-col gap-3.5">
@@ -418,7 +435,7 @@ export default function OperatorCreateOrder() {
               <Eye size={18} style={{ color: COLOR.textTertiary }} />
               <span className="text-base font-semibold" style={{ color: COLOR.textPrimary }}>Tekshirish</span>
             </div>
-            <div className="px-5 pb-4 pt-1 grid grid-cols-1 sm:grid-cols-2 gap-x-8">
+            <div className="px-5 pb-4 pt-1 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-8">
               {[
                 ['Mijoz', selectedClient?.orgName || '—'],
                 ['Shartnoma raqami', form.contractNumber || '—', true],
@@ -426,9 +443,9 @@ export default function OperatorCreateOrder() {
                 ['Lot raqami', form.lotNumber || '—', true],
                 ['Summa', <>{formatSum(parseFloat(form.totalAmount) || 0)} <span style={{ color: COLOR.textTertiary, fontSize: 12 }}>UZS</span></>],
                 ['Excel fayl', excel?.name || '—'],
-                ['Terish muddati', form.pickingHours ? `${form.pickingHours} soat` : '—'],
-                ['Markirovka muddati', form.markingHours ? `${form.markingHours} soat` : '—'],
-                ['Tekshirish muddati', form.checkingHours ? `${form.checkingHours} soat` : '—'],
+                ['Terish muddati', form.pickingMinutes ? `${form.pickingMinutes} daqiqa${parseInt(form.pickingMinutes, 10) >= 60 ? ` (${fmtMinutes(form.pickingMinutes)})` : ''}` : '—'],
+                ['Markirovka muddati', form.markingMinutes ? `${form.markingMinutes} daqiqa${parseInt(form.markingMinutes, 10) >= 60 ? ` (${fmtMinutes(form.markingMinutes)})` : ''}` : '—'],
+                ['Tekshirish muddati', form.checkingMinutes ? `${form.checkingMinutes} daqiqa${parseInt(form.checkingMinutes, 10) >= 60 ? ` (${fmtMinutes(form.checkingMinutes)})` : ''}` : '—'],
               ].map(([label, value, mono], i) => (
                 <div key={i} className="flex flex-col gap-1 py-3" style={{ borderBottom: `1px solid ${COLOR.borderSubtle}` }}>
                   <span className="text-xs" style={{ color: COLOR.textTertiary }}>{label}</span>

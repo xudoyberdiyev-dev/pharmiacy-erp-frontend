@@ -89,13 +89,17 @@ export default function OperatorProfile() {
   const canSubmit = pw.oldPassword && pw.newPassword && pw.confirmPassword;
 
   return (
-    <div className="max-w-[880px] mx-auto flex flex-col gap-6">
+    <div className="w-full flex flex-col gap-6">
       <div className="flex flex-col gap-1.5">
         <div className="text-[11px] font-semibold tracking-widest" style={{ color: COLOR.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>ACCOUNT SETTINGS</div>
         <h1 className="text-[30px] font-bold leading-tight" style={{ letterSpacing: '-0.025em', color: COLOR.textPrimary }}>Profil</h1>
         <p className="text-sm" style={{ color: COLOR.textSecondary }}>Hisob ma'lumotlaringizni ko'ring va parolingizni boshqaring.</p>
       </div>
 
+      {/* Two columns on wide screens (account on the left, password on the
+          right) so the page fills the workspace instead of a centred strip */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+      <div className="flex flex-col gap-6 min-w-0">
       {/* ── Overview ── */}
       <Panel>
         <div className="p-5 flex flex-wrap gap-4 items-center">
@@ -140,6 +144,7 @@ export default function OperatorProfile() {
         </div>
       </Panel>
 
+      </div>
       {/* ── Password change ── */}
       <Panel>
         <PanelHeader title="Parolni o'zgartirish" description="Hisobingiz xavfsizligi uchun yangi parolni kiriting." />
@@ -169,7 +174,7 @@ export default function OperatorProfile() {
             </div>
           )}
 
-          <div className="max-w-[440px] flex flex-col gap-4">
+          <div className="flex flex-col gap-4">
             <PasswordField
               label="Joriy parol" value={pw.oldPassword} show={show.old}
               onChange={e => setPw(p => ({ ...p, oldPassword: e.target.value }))}
@@ -218,6 +223,7 @@ export default function OperatorProfile() {
           </div>
         </form>
       </Panel>
+      </div>
     </div>
   );
 }

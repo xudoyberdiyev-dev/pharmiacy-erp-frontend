@@ -9,7 +9,7 @@ import {
   Search, ChevronDown, ChevronLeft, ChevronRight, Plus, X, SearchX, FilterX, ClipboardList,
 } from 'lucide-react';
 import { COLOR, STATUS, STATUS_ORDER } from './design/tokens';
-import { StatusBadge, Skel, EmptyState, ErrorState, Panel, RowMenu, CancelDialog, focusRing, rowFocus, th, thRight, td, tdRight } from './design/components';
+import { StatusBadge, Skel, EmptyState, ErrorState, Panel, RowMenu, CancelDialog, focusRing, rowFocus, th, thRight, td, tdRight, tableCls } from './design/components';
 import { useLatePipeline, lateOrdersFrom, useCancelOrder } from './useOperatorData';
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -195,7 +195,7 @@ export default function OperatorOrdersPage() {
           )
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full" style={{ minWidth: 1140, borderCollapse: 'collapse' }}>
+            <table className={`w-full ${tableCls}`} style={{ minWidth: 1140, borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: COLOR.subtleSurface }}>
                   <th style={th}>BUYURTMA</th>

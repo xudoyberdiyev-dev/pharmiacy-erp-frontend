@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { COLOR } from './design/tokens';
 import { invalidateOperatorData, useCancelOrder } from './useOperatorData';
+import { fmtMinutes as fmtHM } from './format';
 import { StatusBadge, Skel, Panel, PanelHeader, EmptyState, ErrorState } from './design/components';
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -37,13 +38,6 @@ const STAGES = [
   { key: 'DELIVERED', label: 'Yetkazildi' },
 ];
 const STAGE_KEYS = STAGES.map(s => s.key);
-
-function fmtHM(mins) {
-  if (!mins && mins !== 0) return null;
-  const h = Math.floor(mins / 60), m = mins % 60;
-  if (h > 0) return `${h} soat${m > 0 ? ` ${m} daqiqa` : ''}`;
-  return `${m} daqiqa`;
-}
 
 const inputCls = "h-10 px-3 rounded-lg text-sm outline-none";
 const inputStyle = { border: `1px solid ${COLOR.borderStrong}`, color: COLOR.textPrimary, background: COLOR.surface };
@@ -104,7 +98,7 @@ function ProcessTimeline({ order }) {
                   </span>
                   <span className="text-xs" style={{ color: COLOR.textTertiary, fontVariantNumeric: 'tabular-nums' }}>
                     {done && doneAt && order.createdAt ? fmtHM(Math.round((doneAt - new Date(order.createdAt)) / 60000)) || '—'
-                      : isCurrent && stage.durationKey && order[stage.durationKey] ? `${fmtHM(order[stage.durationKey])} belgilangan`
+                      : stage.durationKey && order[stage.durationKey] ? `${fmtHM(order[stage.durationKey])} belgilangan`
                       : !stage.deadlineKey || !order[stage.deadlineKey] ? "Muddat belgilanmagan" : ''}
                   </span>
                   {isCurrent && late && (
@@ -180,9 +174,9 @@ export default function OperatorOrderDetail() {
       invoiceNumber: order.invoiceNumber,
       lotNumber: order.lotNumber || '',
       totalAmount: order.totalAmount,
-      pickingHours: order.pickingDuration ? String(order.pickingDuration / 60) : '',
-      markingHours: order.markingDuration ? String(order.markingDuration / 60) : '',
-      checkingHours: order.checkingDuration ? String(order.checkingDuration / 60) : '',
+      pickingMinutes: order.pickingDuration ? String(order.pickingDuration) : '',
+      markingMinutes: order.markingDuration ? String(order.markingDuration) : '',
+      checkingMinutes: order.checkingDuration ? String(order.checkingDuration) : '',
       assignedPickerId: order.assignedPickerId || '',
       markerId: order.markerId || '',
       checkerId: order.checkerId || '',
@@ -206,9 +200,9 @@ export default function OperatorOrderDetail() {
       fd.append('invoiceNumber', editForm.invoiceNumber);
       fd.append('lotNumber', editForm.lotNumber || '');
       fd.append('totalAmount', editForm.totalAmount);
-      fd.append('pickingMinutes', String(Math.round(parseFloat(editForm.pickingHours) * 60)));
-      fd.append('markingMinutes', String(Math.round(parseFloat(editForm.markingHours) * 60)));
-      fd.append('checkingMinutes', String(Math.round(parseFloat(editForm.checkingHours) * 60)));
+      fd.append('pickingMinutes', String(parseInt(editForm.pickingMinutes, 10)));
+      fd.append('markingMinutes', String(parseInt(editForm.markingMinutes, 10)));
+      fd.append('checkingMinutes', String(parseInt(editForm.checkingMinutes, 10)));
       if (editForm.assignedPickerId) fd.append('assignedPickerId', editForm.assignedPickerId);
       if (editForm.markerId) fd.append('markerId', editForm.markerId);
       if (editForm.checkerId) fd.append('checkerId', editForm.checkerId);
@@ -218,6 +212,12 @@ export default function OperatorOrderDetail() {
     onSuccess: () => { toast.success('Buyurtma yangilandi'); qc.invalidateQueries({ queryKey: ['order', id] }); invalidateOperatorData(qc); setEditing(false); },
     onError: e => toast.error(getErrorMessage(e)),
   });
+
+  const save = () => {
+    const bad = ['pickingMinutes', 'markingMinutes', 'checkingMinutes'].some(k => !(parseInt(editForm[k], 10) > 0));
+    if (bad) return toast.error("Barcha bosqich muddatlarini daqiqada kiriting (0 dan katta).");
+    updateMutation.mutate();
+  };
 
   const cancelMutation = useCancelOrder(() => { qc.invalidateQueries({ queryKey: ['order', id] }); setCancelOpen(false); });
 
@@ -318,7 +318,7 @@ export default function OperatorOrderDetail() {
                 <button onClick={() => setEditing(false)} className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg text-sm font-semibold" style={{ border: `1px solid ${COLOR.borderStrong}`, color: COLOR.textPrimary, background: COLOR.surface }}>
                   <X size={16} /> Bekor
                 </button>
-                <button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending} className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg text-sm font-semibold text-white disabled:opacity-70" style={{ background: COLOR.primary }}>
+                <button onClick={save} disabled={updateMutation.isPending} className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg text-sm font-semibold text-white disabled:opacity-70" style={{ background: COLOR.primary }}>
                   {updateMutation.isPending ? <><Loader2 size={16} className="animate-spin" /> Saqlanmoqda...</> : <><Save size={16} /> Saqlash</>}
                 </button>
               </>
@@ -374,9 +374,9 @@ export default function OperatorOrderDetail() {
                   </label>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1" style={{ borderTop: `1px solid ${COLOR.borderSubtle}` }}>
-                  <DurationField label="Terish muddati" value={editForm.pickingHours} onChange={setE('pickingHours')} />
-                  <DurationField label="Markirovka muddati" value={editForm.markingHours} onChange={setE('markingHours')} />
-                  <DurationField label="Tekshirish muddati" value={editForm.checkingHours} onChange={setE('checkingHours')} />
+                  <DurationField label="Terish muddati" value={editForm.pickingMinutes} onChange={setE('pickingMinutes')} />
+                  <DurationField label="Markirovka muddati" value={editForm.markingMinutes} onChange={setE('markingMinutes')} />
+                  <DurationField label="Tekshirish muddati" value={editForm.checkingMinutes} onChange={setE('checkingMinutes')} />
                 </div>
                 <p className="text-xs" style={{ color: COLOR.textMuted }}>Bu vaqt faqat hali boshlanmagan bosqichlarga ta'sir qiladi.</p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -563,8 +563,8 @@ function DurationField({ label, value, onChange }) {
     <label className="flex flex-col gap-1.5">
       <span className="text-[13px] font-medium" style={{ color: '#334155' }}>{label}</span>
       <span className="flex items-center h-10 rounded-lg overflow-hidden" style={inputStyle}>
-        <input inputMode="decimal" value={value} onChange={e => onChange(e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1'))} className="flex-1 min-w-0 h-full border-0 outline-none px-3 text-sm font-semibold text-right" style={{ fontVariantNumeric: 'tabular-nums' }} />
-        <span className="px-3 h-full flex items-center text-xs font-medium shrink-0" style={{ borderLeft: `1px solid ${COLOR.border}`, background: COLOR.subtleSurface, color: COLOR.textTertiary, fontFamily: "'JetBrains Mono', monospace" }}>soat</span>
+        <input inputMode="numeric" value={value} onChange={e => onChange(e.target.value.replace(/\D/g, ''))} className="flex-1 min-w-0 h-full border-0 outline-none px-3 text-sm font-semibold text-right" style={{ fontVariantNumeric: 'tabular-nums' }} />
+        <span className="px-3 h-full flex items-center text-xs font-medium shrink-0" style={{ borderLeft: `1px solid ${COLOR.border}`, background: COLOR.subtleSurface, color: COLOR.textTertiary, fontFamily: "'JetBrains Mono', monospace" }}>daqiqa</span>
       </span>
     </label>
   );

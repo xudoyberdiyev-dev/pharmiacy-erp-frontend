@@ -10,7 +10,7 @@ import { formatSum } from '../../lib/format';
 import { COLOR, STATUS, STATUS_ORDER } from './design/tokens';
 import {
   StatusBadge, Skel, Spinner, EmptyState, ErrorState, SecondaryButton, Panel, PanelHeader,
-  RowMenu, CancelDialog, focusRing, rowFocus, th, thRight, td, tdRight,
+  RowMenu, CancelDialog, focusRing, rowFocus, th, thRight, td, tdRight, tableCls,
 } from './design/components';
 import {
   useOrderCounts, useTodayOrders, useLatePipeline, lateOrdersFrom, useCancelOrder, LATE_CANDIDATE_LIMIT,
@@ -85,7 +85,7 @@ function StatusDistribution({ query }) {
   const header = (total) => (
     <div className="flex flex-wrap items-start justify-between gap-3 px-6 py-5" style={{ borderBottom: `1px solid ${COLOR.borderSubtle}` }}>
       <div className="flex flex-col gap-1">
-        <span className="text-base font-semibold" style={{ color: COLOR.textPrimary }}>Buyurtmalar holati</span>
+        <h2 className="text-base font-semibold" style={{ color: COLOR.textPrimary }}>Buyurtmalar holati</h2>
         <p className="text-[13px]" style={{ color: COLOR.textTertiary }}>Buyurtmalarning joriy jarayon bo'yicha taqsimoti.</p>
       </div>
       {total != null && (
@@ -302,7 +302,7 @@ export default function OperatorDashboard() {
           <>
             {/* desktop / tablet: table */}
             <div className="hidden md:block overflow-x-auto">
-              <table className="w-full" style={{ minWidth: 820, borderCollapse: 'collapse' }}>
+              <table className={`w-full ${tableCls}`} style={{ minWidth: 820, borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: COLOR.subtleSurface }}>
                     <th style={th}>BUYURTMA</th><th style={th}>TASHKILOT</th><th style={th}>HOLAT</th>
@@ -314,7 +314,7 @@ export default function OperatorDashboard() {
                     const severe = overMin >= 120;
                     return (
                       <tr key={o.id} className={`cursor-pointer transition-colors ${rowFocus}`} {...rowProps(o)}>
-                        <td style={{ ...td, borderLeft: `3px solid ${severe ? COLOR.danger : COLOR.warning}`, fontFamily: "'JetBrains Mono', monospace", fontWeight: 500, color: COLOR.textPrimary }}>#{o.invoiceNumber}</td>
+                        <td style={{ ...td, borderLeft: `3px solid ${severe ? COLOR.danger : COLOR.warning}`, fontFamily: "'JetBrains Mono', monospace", fontWeight: 500, color: COLOR.textPrimary, whiteSpace: 'nowrap' }}>#{o.invoiceNumber}</td>
                         <td style={{ ...td, fontWeight: 500 }}>{o.client?.orgName}</td>
                         <td style={td}><StatusBadge status={o.status} order={o} /></td>
                         <td style={{ ...tdRight, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: severe ? '#B91C1C' : '#B45309', whiteSpace: 'nowrap' }}>{fmtDuration(overMin)}</td>
@@ -389,7 +389,7 @@ export default function OperatorDashboard() {
         ) : (
           <>
             <div className="hidden md:block overflow-x-auto">
-              <table className="w-full" style={{ minWidth: 820, borderCollapse: 'collapse' }}>
+              <table className={`w-full ${tableCls}`} style={{ minWidth: 820, borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: COLOR.subtleSurface }}>
                     <th style={th}>BUYURTMA</th><th style={th}>TASHKILOT</th><th style={thRight}>SUMMA</th>
@@ -399,7 +399,7 @@ export default function OperatorDashboard() {
                 <tbody>
                   {today.data.rows.map(o => (
                     <tr key={o.id} className={`cursor-pointer transition-colors ${rowFocus}`} {...rowProps(o)}>
-                      <td style={{ ...td, fontFamily: "'JetBrains Mono', monospace", fontWeight: 500, color: COLOR.textPrimary }}>#{o.invoiceNumber}</td>
+                      <td style={{ ...td, fontFamily: "'JetBrains Mono', monospace", fontWeight: 500, color: COLOR.textPrimary, whiteSpace: 'nowrap' }}>#{o.invoiceNumber}</td>
                       <td style={{ ...td, fontWeight: 500 }}>{o.client?.orgName}</td>
                       <td style={{ ...tdRight, fontWeight: 600, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{formatSum(o.totalAmount)}</td>
                       <td style={td}><StatusBadge status={o.status} order={o} /></td>

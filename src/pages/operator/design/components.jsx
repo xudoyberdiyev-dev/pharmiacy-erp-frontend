@@ -13,7 +13,8 @@ import { inTransitLabel } from '../../../lib/orderStatusLabel';
 // Keyboard-focus treatment from the design canvas (3px indigo ring). Kept
 // as full literal class strings so Tailwind's scanner picks them up.
 export const focusRing = 'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[rgba(79,70,229,0.28)]';
-export const rowFocus = 'focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_3px_rgba(79,70,229,0.28)]';
+// (outline, not box-shadow: box-shadow doesn't render on collapsed-border table rows)
+export const rowFocus = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:-outline-offset-[3px] focus-visible:outline-[rgba(79,70,229,0.28)]';
 
 // ── Status badge — single source of truth for how a status renders ───────
 // IN_TRANSIT keeps the existing inTransitLabel() sub-states (Yuklanmoqda /
@@ -127,7 +128,7 @@ export function PanelHeader({ title, description, action, icon: Icon, iconColor 
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2.5">
           {Icon && <Icon size={18} style={{ color: iconColor || COLOR.textTertiary }} />}
-          <span className="text-base font-semibold" style={{ color: COLOR.textPrimary }}>{title}</span>
+          <h2 className="text-base font-semibold" style={{ color: COLOR.textPrimary }}>{title}</h2>
         </div>
         {description && <p className="text-[13px]" style={{ color: COLOR.textTertiary }}>{description}</p>}
       </div>
@@ -136,9 +137,15 @@ export function PanelHeader({ title, description, action, icon: Icon, iconColor 
   );
 }
 
-export const th = { textAlign: 'left', padding: '10px 24px', borderBottom: `1px solid ${COLOR.border}`, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 600, letterSpacing: '.08em', color: COLOR.textTertiary, whiteSpace: 'nowrap' };
+// Table cell metrics from the design canvas: 16px inner column padding,
+// 24px at the first/last column edge. Applied as classes on the <table>
+// (tableCls) rather than inline, so the edge columns can override the
+// inner ones. (Uniform 24px on every cell — what this was — left the
+// organisation column ~75px wide at 1280px and wrapped names onto 3 lines.)
+export const tableCls = '[&_th]:px-4 [&_th]:py-2.5 [&_td]:px-4 [&_td]:py-3 [&_th:first-child]:pl-6 [&_td:first-child]:pl-6 [&_th:last-child]:pr-6 [&_td:last-child]:pr-6';
+export const th = { textAlign: 'left', borderBottom: `1px solid ${COLOR.border}`, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 600, letterSpacing: '.08em', color: COLOR.textTertiary, whiteSpace: 'nowrap' };
 export const thRight = { ...th, textAlign: 'right' };
-export const td = { padding: '12px 24px', borderBottom: `1px solid ${COLOR.borderSubtle}`, fontSize: 13 };
+export const td = { borderBottom: `1px solid ${COLOR.borderSubtle}`, fontSize: 13 };
 export const tdRight = { ...td, textAlign: 'right' };
 
 // ── Row action menu ────────────────────────────────────────────────────
