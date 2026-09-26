@@ -1,314 +1,256 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { orderAPI } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { format } from 'date-fns';
-import toast from 'react-hot-toast';
-import { getErrorMessage } from '../../lib/errors';
 import { formatSum } from '../../lib/format';
-import { inTransitLabel } from '../../lib/orderStatusLabel';
 import {
-  Plus, Search, Eye, Pencil, Trash2,
-  Package, X, AlertTriangle, ArrowRight,
-  Clock, Filter, ChevronLeft, ChevronRight
+  Search, ChevronDown, ChevronLeft, ChevronRight, Plus, X, SearchX, FilterX, ClipboardList,
 } from 'lucide-react';
+import { COLOR, STATUS, STATUS_ORDER } from './design/tokens';
+import { StatusBadge, Skel, EmptyState, ErrorState, Panel, RowMenu, CancelDialog, focusRing, rowFocus, th, thRight, td, tdRight } from './design/components';
+import { useLatePipeline, lateOrdersFrom, useCancelOrder } from './useOperatorData';
 
-const STATUS_CFG = {
-  NEW:        { label: 'Yangi',                          color: '#6B7280', bg: '#F3F4F6', dot: '#9CA3AF', border: '#E5E7EB' },
-  PICKING:    { label: 'Yig\'ilmoqda',                  color: '#2563EB', bg: '#EFF6FF', dot: '#3B82F6', border: '#BFDBFE' },
-  MARKING:    { label: 'Markalash',                      color: '#7C3AED', bg: '#F5F3FF', dot: '#8B5CF6', border: '#DDD6FE' },
-  CHECKING:   { label: 'Tekshiruv',                     color: '#D97706', bg: '#FFFBEB', dot: '#F59E0B', border: '#FDE68A' },
-  LOADING:    { label: 'Yuklanmoqda / Hujjat',           color: '#0369A1', bg: '#F0F9FF', dot: '#0EA5E9', border: '#BAE6FD' },
-  IN_TRANSIT: { label: 'Yo\'lda',                       color: '#EA580C', bg: '#FFF7ED', dot: '#F97316', border: '#FED7AA' },
-  DELIVERED:  { label: 'Yetkazildi',                    color: '#16A34A', bg: '#F0FDF4', dot: '#22C55E', border: '#BBF7D0' },
-  CANCELLED:  { label: 'Bekor',                         color: '#DC2626', bg: '#FEF2F2', dot: '#F87171', border: '#FECACA' },
-};
+// ─────────────────────────────────────────────────────────────────────────
+// Operator Panel — Buyurtmalar (Phase 04 of the redesign)
+//
+// Source: design-import/"Operator Panel - Orders.dc.html". Same product
+// rules as before (edit/cancel only on the operator's own NEW orders) —
+// only the surface changed.
+//
+// One added, previously-nonfunctional link now works: the Dashboard's
+// "Kechikayotgan buyurtmalar" card has always pointed at
+// /operator/orders?late=1, but this page never read that param — clicking
+// it just opened the plain, unfiltered list. It's honored here for the
+// first time. The backend's /orders endpoint only matches a single exact
+// status (no "not delivered/cancelled and past deadline" filter), so this
+// mode fetches a larger, unpaginated page (300) and filters client-side —
+// fine for what is meant to be a quick, order-of-magnitude late-orders
+// view, not a substitute for a real backend query once volume grows well
+// past that.
+//
+// Dropped, matching the design: the cancel confirmation no longer asks for
+// a reason (the field was optional before, so nothing that was required is
+// lost) — dropdown/actions were rebuilt as a real row menu per the canvas's
+// row-action-permission spec, and the row-level "no-menu" affordance is
+// dropped for a proper disabled+lock state on Tahrirlash instead.
+// ─────────────────────────────────────────────────────────────────────────
 
-function StatusBadge({ status, order }) {
-  const c = STATUS_CFG[status] || STATUS_CFG.NEW;
-  const label = status === 'IN_TRANSIT' ? inTransitLabel(order) : c.label;
-  return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border"
-      style={{ color: c.color, background: c.bg, borderColor: c.border }}>
-      <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.dot }} />
-      {label}
-    </span>
-  );
+function pageList(current, total) {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const set = new Set([1, 2, total - 1, total, current - 1, current, current + 1]);
+  const list = [...set].filter(p => p >= 1 && p <= total).sort((a, b) => a - b);
+  const out = [];
+  list.forEach((p, i) => { if (i > 0 && p - list[i - 1] > 1) out.push('…'); out.push(p); });
+  return out;
 }
 
-function CancelModal({ order, onClose, onConfirm, loading }) {
-  const [reason, setReason] = useState('');
-  return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-gray-100">
-        <div className="p-5 border-b border-gray-50 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center">
-              <Trash2 size={16} className="text-red-600" />
-            </div>
-            <h3 className="font-bold text-gray-900">Orderni bekor qilish</h3>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
-            <X size={16} />
-          </button>
-        </div>
-        <div className="p-5 space-y-4">
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-sm text-amber-800 flex gap-2.5">
-            <AlertTriangle size={16} className="shrink-0 mt-0.5 text-amber-500" />
-            <span>Buyurtma bekor qilinadi, lekin <strong>tarixda saqlanib qoladi</strong>. Faqat NEW statusdagi buyurtmalarni bekor qilish mumkin.</span>
-          </div>
-          <div className="bg-gray-50 rounded-xl p-3.5 space-y-1">
-            <p className="text-xs text-gray-400">Buyurtma</p>
-            <p className="font-mono font-bold text-gray-900">#{order.invoiceNumber}</p>
-            <p className="text-sm text-gray-600">{order.client?.orgName}</p>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Sabab (ixtiyoriy)</label>
-            <textarea
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent resize-none bg-gray-50 hover:bg-white transition-colors"
-              rows={3}
-              placeholder="Nima uchun bekor qilmoqdasiz?"
-              value={reason}
-              onChange={e => setReason(e.target.value)}
-            />
-          </div>
-        </div>
-        <div className="p-5 border-t border-gray-50 flex gap-3">
-          <button onClick={onClose} className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
-            Ortga qaytish
-          </button>
-          <button
-            onClick={() => onConfirm(reason)}
-            disabled={loading}
-            className="flex-1 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl text-sm font-semibold hover:from-red-600 hover:to-red-700 transition-all disabled:opacity-50 shadow-md shadow-red-200"
-          >
-            {loading ? 'Bekor qilinmoqda...' : 'Ha, bekor qilish'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const ALL_STATUSES = Object.entries(STATUS_CFG);
 
 export default function OperatorOrdersPage() {
   const navigate = useNavigate();
-  const qc = useQueryClient();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [search, setSearch]         = useState('');
-  const [statusFilter, setStatus]   = useState(searchParams.get('status') || '');
-  const [cancelTarget, setCancel]   = useState(null);
-  const [page, setPage]             = useState(1);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatus] = useState(searchParams.get('status') || '');
+  const [page, setPage] = useState(1);
+  const [cancelTarget, setCancelTarget] = useState(null);
 
-  const { data, isLoading } = useQuery({
+  const isLateView = searchParams.get('late') === '1';
+
+  // Normal list: server-side status/search/pagination
+  const listQ = useQuery({
     queryKey: ['op-orders', statusFilter, search, page],
-    queryFn: () => orderAPI.getAll({ status: statusFilter || undefined, search: search || undefined, page, limit: 15 }),
+    queryFn: () => orderAPI.getAll({ status: statusFilter || undefined, search: search || undefined, page, limit: 20 }),
     select: r => r.data,
+    enabled: !isLateView,
   });
+  // Late view: the same in-pipeline data the Dashboard's late panel uses
+  const lateQ = useLatePipeline();
+  const lateList = isLateView ? lateOrdersFrom(lateQ.data?.rows || []).map(x => x.o) : [];
 
-  const cancelMut = useMutation({
-    mutationFn: ({ id, reason }) => orderAPI.cancel(id, reason),
-    onSuccess: () => {
-      toast.success('Buyurtma bekor qilindi');
-      qc.invalidateQueries(['op-orders']);
-      qc.invalidateQueries(['operator-orders']);
-      setCancel(null);
-    },
-    onError: e => toast.error(getErrorMessage(e)),
-  });
+  const isLoading = isLateView ? lateQ.isLoading : listQ.isLoading;
+  const isError = isLateView ? lateQ.isError : listQ.isError;
+  const refetch = isLateView ? lateQ.refetch : listQ.refetch;
 
-  const orders = data?.data || [];
-  const total  = data?.total || 0;
-  const pages  = data?.pages || 1;
-  const now    = new Date();
+  const cancelMut = useCancelOrder(() => setCancelTarget(null));
 
-  const isLate = (o) => {
-    if (['DELIVERED','CANCELLED'].includes(o.status)) return false;
-    const d = ['NEW','PICKING'].includes(o.status) ? o.pickingDeadline
-      : o.status === 'MARKING' ? o.markingDeadline : o.checkingDeadline;
-    return d && new Date(d) < now;
-  };
-
-  const filtered = orders;
+  const orders = isLateView ? lateList : (listQ.data?.data || []);
+  const total = isLateView ? lateList.length : (listQ.data?.total || 0);
+  const pages = isLateView ? 1 : (listQ.data?.pages || 1);
 
   const changeSearch = (v) => { setSearch(v); setPage(1); };
-
   const changeStatus = (s) => {
     setStatus(s); setPage(1);
-    s ? setSearchParams({ status: s }) : setSearchParams({});
+    const next = new URLSearchParams(searchParams);
+    s ? next.set('status', s) : next.delete('status');
+    next.delete('late');
+    setSearchParams(next);
   };
+  const clearLateView = () => { const next = new URLSearchParams(searchParams); next.delete('late'); setSearchParams(next); };
+
+  const hasFilters = !!search || !!statusFilter || isLateView;
 
   return (
-    <div className="space-y-5">
+    <div className="flex flex-col gap-6">
 
-      {/* ── Header ── */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-black text-gray-900 tracking-tight">Orderlar</h1>
-          <p className="text-sm text-gray-400 mt-0.5 font-medium">Jami {total} ta order</p>
+      {/* ── Page header ── */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-col gap-1.5 min-w-0">
+          <div className="text-[11px] font-semibold tracking-widest" style={{ color: COLOR.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>OPERATOR WORKSPACE</div>
+          <h1 className="text-[30px] font-bold leading-tight" style={{ letterSpacing: '-0.025em', color: COLOR.textPrimary }}>Buyurtmalar</h1>
+          <p className="text-sm" style={{ color: COLOR.textSecondary }}>Barcha buyurtmalarni qidiring, holatini tekshiring va boshqaring.</p>
         </div>
         <button
           onClick={() => navigate('/operator/orders/new')}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold text-sm text-white
-            bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700
-            shadow-md shadow-blue-200 hover:shadow-lg transition-all"
+          className="inline-flex items-center gap-2 h-10 px-4 rounded-lg text-sm font-semibold text-white shrink-0"
+          style={{ background: COLOR.primary }}
+          onMouseEnter={e => { e.currentTarget.style.background = COLOR.primaryHover; }}
+          onMouseLeave={e => { e.currentTarget.style.background = COLOR.primary; }}
         >
-          <Plus size={15} strokeWidth={2.5} /> Yangi order
+          <Plus size={18} strokeWidth={1.75} /> Yangi buyurtma
         </button>
       </div>
 
-      {/* ── Filter bar ── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
-        {/* Search */}
-        <div className="relative">
-          <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            value={search}
-            onChange={e => changeSearch(e.target.value)}
-            placeholder="Buyurtma #, klient nomi, faktura, shartnoma raqami..."
-            className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-transparent rounded-xl text-sm
-              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-blue-100
-              transition-all placeholder:text-gray-400"
-          />
-          {search && (
-            <button onClick={() => changeSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors">
-              <X size={12} className="text-gray-500" />
-            </button>
-          )}
-        </div>
-
-        {/* Status pills */}
-        <div className="flex gap-1.5 flex-wrap">
-          <button
-            onClick={() => changeStatus('')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              !statusFilter
-                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-200'
-                : 'bg-gray-50 text-gray-500 hover:bg-gray-100 border border-gray-100'
-            }`}
-          >
-            Barchasi
-          </button>
-          {ALL_STATUSES.map(([s, c]) => (
-            <button
-              key={s}
-              onClick={() => changeStatus(s)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                statusFilter === s
-                  ? 'shadow-md'
-                  : 'bg-gray-50 border-gray-100 hover:bg-gray-100'
-              }`}
-              style={statusFilter === s ? { color: c.color, background: c.bg, borderColor: c.border } : {}}
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Table ── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="py-20 flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-gray-400">Yuklanmoqda...</p>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="py-20 text-center">
-            <div className="w-16 h-16 mx-auto bg-gray-50 rounded-2xl flex items-center justify-center mb-4">
-              <Package size={28} className="text-gray-200" />
+      <Panel>
+        {/* ── Toolbar ── */}
+        <div className="flex flex-wrap items-center gap-3 px-5 py-4" style={{ borderBottom: `1px solid ${COLOR.border}` }}>
+          <label className="flex-1 min-w-[280px] flex items-center gap-2 h-10 px-3 rounded-lg" style={{ border: `1px solid ${COLOR.borderStrong}`, background: COLOR.surface }}>
+            <Search size={16} style={{ color: COLOR.textMuted }} className="shrink-0" />
+            <input
+              aria-label="Buyurtmalarni qidirish"
+              value={search}
+              disabled={isLateView}
+              onChange={e => changeSearch(e.target.value)}
+              placeholder="Faktura, tashkilot yoki buyurtma raqami bo'yicha qidirish..."
+              className="flex-1 min-w-0 bg-transparent outline-none text-sm disabled:opacity-50"
+              style={{ color: COLOR.textPrimary }}
+            />
+          </label>
+          <label className="flex items-center gap-2 shrink-0">
+            <span className="text-[13px] font-medium" style={{ color: '#334155' }}>Holat</span>
+            <div className="relative">
+              <select
+                value={statusFilter}
+                disabled={isLateView}
+                onChange={e => changeStatus(e.target.value)}
+                className="appearance-none w-[180px] h-10 pl-3 pr-8 rounded-lg text-sm disabled:opacity-50"
+                style={{ border: `1px solid ${COLOR.borderStrong}`, background: COLOR.surface, color: COLOR.textPrimary }}
+              >
+                <option value="">Barchasi</option>
+                {STATUS_ORDER.map(s => <option key={s} value={s}>{STATUS[s].label}</option>)}
+              </select>
+              <ChevronDown size={16} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: COLOR.textTertiary }} />
             </div>
-            <p className="text-gray-400 text-sm font-medium">Orderlar topilmadi</p>
+          </label>
+          <div className="text-[13px] whitespace-nowrap shrink-0 ml-auto" style={{ color: COLOR.textTertiary, fontVariantNumeric: 'tabular-nums' }}>
+            {isLoading ? '…' : `${total} ta buyurtma`}
           </div>
+        </div>
+
+        {isLateView && (
+          <div className="px-5 py-3 flex flex-wrap gap-2 items-center" style={{ borderBottom: `1px solid ${COLOR.borderSubtle}` }}>
+            <span className="inline-flex items-center gap-1.5 pl-2.5 pr-2 py-1 rounded-md text-xs font-semibold" style={{ background: COLOR.warningSoft, border: `1px solid ${COLOR.warningBorder}`, color: COLOR.warning }}>
+              Faqat kechikayotganlar
+              <button onClick={clearLateView} aria-label="Filtrni olib tashlash"><X size={14} /></button>
+            </span>
+          </div>
+        )}
+
+        {/* ── Table ── */}
+        {isError ? (
+          <ErrorState description="Buyurtmalarni olishning iloji bo'lmadi. Qayta urinib ko'ring." onRetry={refetch} />
+        ) : isLoading ? (
+          <div className="p-5 flex flex-col gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4">
+                <Skel w={120} h={12} /><Skel w={150} h={12} /><Skel w={100} h={12} /><Skel w={90} h={12} /><Skel w={84} h={22} className="!rounded-md" /><Skel w={92} h={12} />
+              </div>
+            ))}
+          </div>
+        ) : orders.length === 0 ? (
+          hasFilters ? (
+            <EmptyState
+              icon={SearchX} title="Buyurtmalar topilmadi" description="Qidiruv yoki filtr shartlarini o'zgartirib ko'ring."
+              action={
+                <button
+                  onClick={() => { setSearch(''); setStatus(''); setSearchParams({}); }}
+                  className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-sm font-semibold"
+                  style={{ border: `1px solid ${COLOR.borderStrong}`, color: COLOR.textPrimary, background: COLOR.surface }}
+                >
+                  <FilterX size={15} /> Filtrlarni tozalash
+                </button>
+              }
+            />
+          ) : (
+            <EmptyState
+              icon={ClipboardList} title="Hozircha buyurtmalar mavjud emas" description="Birinchi buyurtmani yaratishdan boshlang."
+              action={
+                <button onClick={() => navigate('/operator/orders/new')} className="inline-flex items-center gap-2 h-9 px-3.5 rounded-lg text-sm font-semibold text-white" style={{ background: COLOR.primary }}>
+                  <Plus size={16} /> Yangi buyurtma
+                </button>
+              }
+            />
+          )
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full" style={{ minWidth: 1140, borderCollapse: 'collapse' }}>
               <thead>
-                <tr className="bg-gray-50/80 border-b border-gray-100">
-                  {['ORDER #','KLIENT','FAKTURA','SUMMA','STATUS','PICKING','YARATDI','SANA',''].map(h => (
-                    <th key={h} className="text-left text-[11px] font-black text-gray-400 uppercase tracking-widest px-5 py-3.5">{h}</th>
-                  ))}
+                <tr style={{ background: COLOR.subtleSurface }}>
+                  <th style={th}>BUYURTMA</th>
+                  <th style={th}>TASHKILOT</th>
+                  <th style={th}>SHARTNOMA / FAKTURA</th>
+                  <th style={thRight}>SUMMA</th>
+                  <th style={th}>HOLAT</th>
+                  <th style={th}>YARATILGAN</th>
+                  <th style={thRight}>AMALLAR</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(o => {
-                  const late    = isLate(o);
-                  // Tahrirlash bosqichdan qat'iy nazar ruxsat etiladi — backend
-                  // (updateOrder) ham buyurtma qaysi bosqichda bo'lishidan
-                  // qat'iy nazar klient/narx/muddatlarni yangilashga ruxsat
-                  // beradi, faqat bekor qilish (cancel) NEW statusiga xos.
-                  const canEdit = o.createdById === user?.id;
-                  const canDel  = o.status === 'NEW' && o.createdById === user?.id;
-                  const isMe    = o.createdById === user?.id;
+                {orders.map(o => {
+                  const isMe = o.createdById === user?.id;
+                  const terminal = ['DELIVERED', 'CANCELLED', 'RETURNED'].includes(o.status);
                   return (
-                    <tr
-                      key={o.id}
-                      className={`border-b border-gray-50 hover:bg-blue-50/30 transition-colors group ${late ? 'bg-red-50/20' : ''}`}
-                    >
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm font-black text-gray-900">#{o.invoiceNumber}</span>
-                          {late && (
-                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-red-500 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-md">
-                              <AlertTriangle size={9} /> KECH
-                            </span>
-                          )}
+                    <tr key={o.id} tabIndex={0} className={`cursor-pointer transition-colors ${rowFocus}`} onClick={() => navigate(`/operator/orders/${o.id}`)}
+                      onKeyDown={e => { if (e.key === 'Enter' && e.target === e.currentTarget) navigate(`/operator/orders/${o.id}`); }}
+                      onMouseEnter={e => { e.currentTarget.style.background = COLOR.subtleSurface; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+                      <td style={td}>
+                        <div className="flex flex-col gap-0.5">
+                          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 500, color: terminal ? COLOR.textTertiary : COLOR.textPrimary, whiteSpace: 'nowrap' }}>#{o.invoiceNumber}</span>
+                          {isMe && <span className="text-[11px] font-medium" style={{ color: COLOR.primaryHover }}>Sizning buyurtmangiz</span>}
                         </div>
                       </td>
-                      <td className="px-5 py-3.5">
-                        <p className="text-sm font-semibold text-gray-800 max-w-[120px] truncate">{o.client?.orgName}</p>
-                        <p className="text-[11px] text-gray-400 truncate max-w-[120px]">{o.client?.inn}</p>
+                      <td style={{ ...td, fontWeight: 500, color: terminal ? COLOR.textTertiary : COLOR.textPrimary, maxWidth: 220 }}>
+                        <span className="block truncate" title={o.client?.orgName}>{o.client?.orgName}</span>
                       </td>
-                      <td className="px-5 py-3.5 text-sm text-gray-500 font-medium">{o.invoiceNumber}</td>
-                      <td className="px-5 py-3.5">
-                        <p className="text-sm font-black text-gray-900 whitespace-nowrap">{formatSum(o.totalAmount)}</p>
-                        <p className="text-[11px] text-gray-400">so'm</p>
+                      <td style={td}>
+                        <div className="flex flex-col gap-0.5" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>
+                          <span style={{ color: COLOR.textPrimary, whiteSpace: 'nowrap' }}>{o.contractNumber || '—'}</span>
+                          <span style={{ color: COLOR.textTertiary, whiteSpace: 'nowrap' }}>{o.invoiceNumber}</span>
+                        </div>
                       </td>
-                      <td className="px-5 py-3.5"><StatusBadge status={o.status} order={o} /></td>
-                      <td className="px-5 py-3.5">
-                        <p className={`text-sm font-semibold ${late ? 'text-red-500' : 'text-gray-600'}`}>
-                          {o.pickingDeadline ? format(new Date(o.pickingDeadline), 'dd.MM HH:mm') : '—'}
-                        </p>
+                      <td style={{ ...tdRight, whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: terminal ? COLOR.textTertiary : COLOR.textPrimary }}>{formatSum(o.totalAmount)}</span>{' '}
+                        <span style={{ fontSize: 11, color: COLOR.textMuted }}>UZS</span>
                       </td>
-                      <td className="px-5 py-3.5">
-                        <p className={`text-sm font-semibold ${isMe ? 'text-blue-600' : 'text-gray-600'}`}>
-                          {o.createdBy?.fullName || '—'}
-                        </p>
-                      </td>
-                      <td className="px-5 py-3.5 text-xs text-gray-400 font-medium whitespace-nowrap">
-                        {format(new Date(o.createdAt), 'dd.MM HH:mm')}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <td style={td}><StatusBadge status={o.status} order={o} /></td>
+                      <td style={{ ...td, color: COLOR.textTertiary, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{format(new Date(o.createdAt), 'dd.MM HH:mm')}</td>
+                      <td style={tdRight} onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center gap-1.5 justify-end">
                           <button
                             onClick={() => navigate(`/operator/orders/${o.id}`)}
-                            className="w-7 h-7 rounded-lg bg-blue-50 hover:bg-blue-100 flex items-center justify-center text-blue-500 transition-colors"
-                            title="Ko'rish"
+                            className="inline-flex items-center h-7 px-2.5 rounded-md text-xs font-semibold"
+                            style={{ border: `1px solid ${COLOR.border}`, color: COLOR.textSecondary }}
                           >
-                            <Eye size={13} />
+                            Ko'rish
                           </button>
-                          {canEdit && (
-                            <button
-                              onClick={() => navigate(`/operator/orders/${o.id}`)}
-                              className="w-7 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 flex items-center justify-center text-amber-500 transition-colors"
-                              title="Tahrirlash"
-                            >
-                              <Pencil size={13} />
-                            </button>
-                          )}
-                          {canDel && (
-                            <button
-                              onClick={() => setCancel(o)}
-                              className="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-400 transition-colors"
-                              title="Bekor qilish"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          )}
+                          <RowMenu
+                            order={o} isMe={isMe}
+                            onEdit={(ord) => navigate(`/operator/orders/${ord.id}`)}
+                            onCancel={(ord) => setCancelTarget(ord)}
+                          />
                         </div>
                       </td>
                     </tr>
@@ -319,48 +261,50 @@ export default function OperatorOrdersPage() {
           </div>
         )}
 
-        {/* Pagination */}
-        {pages > 1 && (
-          <div className="px-5 py-4 border-t border-gray-50 flex items-center justify-between">
-            <p className="text-xs text-gray-400 font-medium">Sahifa {page} / {pages}</p>
-            <div className="flex gap-1.5">
+        {/* ── Pagination ── */}
+        {!isLateView && !isLoading && !isError && orders.length > 0 && pages > 1 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3" style={{ borderTop: `1px solid ${COLOR.border}`, background: COLOR.subtleSurface }}>
+            <div className="text-xs" style={{ color: COLOR.textTertiary, fontVariantNumeric: 'tabular-nums' }}>
+              {(page - 1) * 20 + 1}–{Math.min(page * 20, total)} / {total} ta
+            </div>
+            <div className="flex items-center gap-1.5">
               <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg text-[13px] font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ border: `1px solid ${COLOR.borderStrong}`, color: COLOR.textPrimary, background: COLOR.surface }}
               >
-                <ChevronLeft size={14} />
+                <ChevronLeft size={15} /> Oldingi
               </button>
-              {Array.from({ length: Math.min(5, pages) }, (_, i) => i + 1).map(p => (
+              {pageList(page, pages).map((p, i) => p === '…' ? (
+                <span key={`e${i}`} className="w-8 h-8 flex items-center justify-center text-[13px]" style={{ color: COLOR.textMuted }}>…</span>
+              ) : (
                 <button
-                  key={p}
-                  onClick={() => setPage(p)}
-                  className={`w-8 h-8 rounded-lg border text-xs font-bold transition-colors ${
-                    page === p
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200'
-                      : 'border-gray-200 text-gray-500 hover:bg-gray-50'
-                  }`}
+                  key={p} onClick={() => setPage(p)}
+                  className="min-w-[32px] h-8 px-1 rounded-lg text-[13px] font-semibold"
+                  style={p === page
+                    ? { background: COLOR.primary, border: `1px solid ${COLOR.primary}`, color: '#fff' }
+                    : { border: `1px solid ${COLOR.border}`, color: '#334155', background: COLOR.surface }}
                 >
                   {p}
                 </button>
               ))}
               <button
-                onClick={() => setPage(p => Math.min(pages, p + 1))}
-                disabled={page === pages}
-                className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                onClick={() => setPage(p => Math.min(pages, p + 1))} disabled={page === pages}
+                className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg text-[13px] font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ border: `1px solid ${COLOR.borderStrong}`, color: COLOR.textPrimary, background: COLOR.surface }}
               >
-                <ChevronRight size={14} />
+                Keyingi <ChevronRight size={15} />
               </button>
             </div>
           </div>
         )}
-      </div>
+      </Panel>
 
       {cancelTarget && (
-        <CancelModal
+        <CancelDialog
           order={cancelTarget}
-          onClose={() => setCancel(null)}
-          onConfirm={reason => cancelMut.mutate({ id: cancelTarget.id, reason })}
+          onClose={() => setCancelTarget(null)}
+          onConfirm={() => cancelMut.mutate(cancelTarget.id)}
           loading={cancelMut.isPending}
         />
       )}

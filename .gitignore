@@ -17,6 +17,9 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 .DS_Store
+
+# Design canvas import (local reference only, not part of the app)
+design-import/
 *.suo
 *.ntvs*
 *.njsproj

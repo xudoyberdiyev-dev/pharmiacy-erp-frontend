@@ -1,91 +1,157 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { orderAPI, userAPI } from '../../api';
+import { orderAPI, userAPI, clientAPI } from '../../api';
 import { FILE_BASE_URL } from '../../api/axios';
+import ClientSelect from '../../components/shared/ClientSelect';
 import { useAuth } from '../../context/AuthContext';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
-import NotFoundState from '../../components/shared/NotFoundState';
-import ClientSelect from '../../components/shared/ClientSelect';
 import { formatSum } from '../../lib/format';
-import { inTransitLabel } from '../../lib/orderStatusLabel';
 import {
-  ArrowLeft, Pencil, X, Check, Save, Upload,
-  FileSpreadsheet, Clock, User, Building2, AlertTriangle,
-  Activity, Users, Hash
+  ArrowLeft, Pencil, X, Check, Save, Upload, FileSpreadsheet, Clock, User,
+  AlertTriangle, XCircle, Lock, Eye, CheckCircle2, ChevronDown, Loader2,
+  RefreshCw, FileQuestion, ShieldCheck, Plus, Package, Tag,
 } from 'lucide-react';
+import { COLOR } from './design/tokens';
+import { invalidateOperatorData, useCancelOrder } from './useOperatorData';
+import { StatusBadge, Skel, Panel, PanelHeader, EmptyState, ErrorState } from './design/components';
 
-const STATUS_CFG = {
-  NEW:        { label: 'Yangi',                color: '#6B7280', bg: '#F3F4F6', dot: '#9CA3AF', border: '#E5E7EB' },
-  PICKING:    { label: 'Yig\'ilmoqda',         color: '#2563EB', bg: '#EFF6FF', dot: '#3B82F6', border: '#BFDBFE' },
-  MARKING:    { label: 'Markalash',             color: '#7C3AED', bg: '#F5F3FF', dot: '#8B5CF6', border: '#DDD6FE' },
-  CHECKING:   { label: 'Tekshiruv',            color: '#D97706', bg: '#FFFBEB', dot: '#F59E0B', border: '#FDE68A' },
-  LOADING:    { label: 'Yuklanmoqda / Hujjat', color: '#0369A1', bg: '#F0F9FF', dot: '#0EA5E9', border: '#BAE6FD' },
-  IN_TRANSIT: { label: 'Yo\'lda',              color: '#EA580C', bg: '#FFF7ED', dot: '#F97316', border: '#FED7AA' },
-  DELIVERED:  { label: 'Yetkazildi',           color: '#16A34A', bg: '#F0FDF4', dot: '#22C55E', border: '#BBF7D0' },
-  CANCELLED:  { label: 'Bekor',                color: '#DC2626', bg: '#FEF2F2', dot: '#F87171', border: '#FECACA' },
-};
+// ─────────────────────────────────────────────────────────────────────────
+// Operator Panel — Buyurtma tafsilotlari (Phase 06 of the redesign)
+//
+// Source: design-import/"Operator Panel - Order Detail.dc.html". Same
+// permission rules as before (edit/cancel only on the operator's own Yangi
+// order). Not-found is a page-local state here (per the earlier agreed
+// decision) rather than the shared NotFoundState.jsx used by 4 other
+// panels, so this page's look never drifts their "not found" screen.
+// ─────────────────────────────────────────────────────────────────────────
 
-function StatusBadge({ status, large, order }) {
-  const c = STATUS_CFG[status] || STATUS_CFG.NEW;
-  const label = status === 'IN_TRANSIT' ? inTransitLabel(order) : c.label;
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-xl font-bold border ${large ? 'px-3.5 py-1.5 text-sm' : 'px-2.5 py-1 text-xs'}`}
-      style={{ color: c.color, background: c.bg, borderColor: c.border }}
-    >
-      <span className="w-2 h-2 rounded-full" style={{ background: c.dot }} />
-      {label}
-    </span>
-  );
+const STAGES = [
+  { key: 'PICKING', label: 'Terilmoqda', deadlineKey: 'pickingDeadline', doneKey: 'pickingDoneAt', durationKey: 'pickingDuration' },
+  { key: 'MARKING', label: 'Markirovka', deadlineKey: 'markingDeadline', doneKey: 'markingDoneAt', durationKey: 'markingDuration' },
+  { key: 'CHECKING', label: 'Tekshirilmoqda', deadlineKey: 'checkingDeadline', doneKey: 'checkingDoneAt', durationKey: 'checkingDuration' },
+  { key: 'LOADING', label: 'Yuklanmoqda' },
+  { key: 'IN_TRANSIT', label: "Yo'lda" },
+  { key: 'DELIVERED', label: 'Yetkazildi' },
+];
+const STAGE_KEYS = STAGES.map(s => s.key);
+
+function fmtHM(mins) {
+  if (!mins && mins !== 0) return null;
+  const h = Math.floor(mins / 60), m = mins % 60;
+  if (h > 0) return `${h} soat${m > 0 ? ` ${m} daqiqa` : ''}`;
+  return `${m} daqiqa`;
 }
 
-function DeadlineBar({ label, deadline, doneAt, color = 'blue' }) {
-  const now = new Date();
-  const d   = new Date(deadline);
-  const late = !doneAt && now > d;
-  const diffMs  = doneAt ? new Date(doneAt) - d : now - d;
-  const absMin  = Math.abs(Math.round(diffMs / 60000));
+const inputCls = "h-10 px-3 rounded-lg text-sm outline-none";
+const inputStyle = { border: `1px solid ${COLOR.borderStrong}`, color: COLOR.textPrimary, background: COLOR.surface };
+const cardLabel = { fontSize: 12, color: COLOR.textTertiary };
 
-  const colors = {
-    blue:   { icon: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-100', label: 'text-blue-700' },
-    purple: { icon: 'text-purple-500', bg: 'bg-purple-50', border: 'border-purple-100', label: 'text-purple-700' },
-    amber:  { icon: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100', label: 'text-amber-700' },
-  };
-  const c = colors[color];
-
+function InfoRow({ label, children, mono }) {
   return (
-    <div className={`flex items-center gap-4 p-4 rounded-2xl border ${late ? 'bg-red-50 border-red-100' : `${c.bg} ${c.border}`}`}>
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${late ? 'bg-red-100' : 'bg-white shadow-sm'}`}>
-        <Clock size={16} className={late ? 'text-red-500' : c.icon} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{label}</p>
-        <p className={`text-sm font-bold mt-0.5 ${late ? 'text-red-600' : 'text-gray-900'}`}>
-          {format(d, 'dd.MM.yyyy HH:mm')}
-        </p>
-      </div>
-      <div className="text-right shrink-0">
-        {doneAt ? (
-          <div>
-            <span className={`text-xs font-bold px-2 py-1 rounded-lg ${diffMs > 0 ? 'text-red-600 bg-red-50' : 'text-green-600 bg-green-50'}`}>
-              {diffMs > 0 ? `+${absMin} daq kech` : `${absMin} daq oldin`}
-            </span>
-            <p className="text-[11px] text-gray-400 mt-1">{format(new Date(doneAt), 'HH:mm')} da bajarildi</p>
-          </div>
-        ) : late ? (
-          <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-1 rounded-lg">+{absMin} daq o'tdi</span>
-        ) : (
-          <span className={`text-xs font-semibold ${c.label}`}>Kutilmoqda</span>
-        )}
-      </div>
+    <div className="flex flex-col gap-1 py-3" style={{ borderBottom: `1px solid ${COLOR.borderSubtle}` }}>
+      <span style={cardLabel}>{label}</span>
+      <span className="text-sm font-medium" style={{ fontFamily: mono ? "'JetBrains Mono', monospace" : undefined, color: COLOR.textPrimary, fontVariantNumeric: 'tabular-nums' }}>{children}</span>
     </div>
   );
 }
 
-const inp = "w-full px-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl text-sm font-medium focus:outline-none focus:border-blue-400 focus:bg-white focus:shadow-md focus:shadow-blue-100 transition-all";
+// ── Process timeline (6 stages) ───────────────────────────────────────
+function ProcessTimeline({ order }) {
+  const currentIdx = order.status === 'DELIVERED' ? STAGE_KEYS.length
+    : order.status === 'CANCELLED' || order.status === 'RETURNED' ? -2
+    : STAGE_KEYS.indexOf(order.status);
+  const now = new Date();
+
+  return (
+    <Panel>
+      <PanelHeader title="Jarayon va muddatlar" description="Buyurtma bosqichlari, belgilangan muddatlar va joriy holat." />
+      <div className="pt-6 pb-5 px-5 overflow-x-auto">
+        <div className="grid gap-0 relative" style={{ minWidth: 820, gridTemplateColumns: 'repeat(6, minmax(0,1fr))' }}>
+          <div className="absolute left-0 right-0 h-0.5 rounded-full" style={{ top: 15, background: COLOR.borderSubtle }} />
+          <div className="absolute left-0 h-0.5 rounded-full transition-all" style={{ top: 15, width: `${Math.max(0, Math.min(currentIdx, 6)) / 6 * 100}%`, background: COLOR.success }} />
+          {STAGES.map((stage, i) => {
+            const done = order.status === 'DELIVERED' || (order[stage.doneKey]) || (currentIdx >= 0 && i < currentIdx);
+            const isCurrent = currentIdx === i;
+            const cancelled = currentIdx === -2 && !done;
+            const deadline = stage.deadlineKey && order[stage.deadlineKey] ? new Date(order[stage.deadlineKey]) : null;
+            const doneAt = stage.doneKey && order[stage.doneKey] ? new Date(order[stage.doneKey]) : null;
+            const late = isCurrent && deadline && !doneAt && now > deadline;
+
+            return (
+              <div key={stage.key} className="flex flex-col gap-3 pr-4 relative">
+                <span
+                  className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 relative"
+                  style={done
+                    ? { background: COLOR.success, color: '#fff', border: `3px solid ${COLOR.surface}`, boxShadow: `0 0 0 1px ${COLOR.success}` }
+                    : isCurrent
+                      ? { background: COLOR.surface, color: late ? COLOR.danger : COLOR.warning, border: `3px solid ${COLOR.surface}`, boxShadow: `0 0 0 2px ${late ? COLOR.danger : COLOR.warning}` }
+                      : { background: COLOR.surface, color: COLOR.textDisabled, border: `3px solid ${COLOR.surface}`, boxShadow: `0 0 0 1px ${COLOR.border}` }}
+                >
+                  {done ? <Check size={16} /> : isCurrent ? <Clock size={16} /> : <span className="text-xs font-semibold">{i + 1}</span>}
+                </span>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[13px]" style={{ fontWeight: isCurrent ? 700 : 600, color: isCurrent ? COLOR.textPrimary : done ? COLOR.textPrimary : COLOR.textTertiary }}>{stage.label}</span>
+                  <span
+                    className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md w-fit"
+                    style={done ? { background: COLOR.successSoft, border: `1px solid ${COLOR.successBorder}`, color: COLOR.success }
+                      : isCurrent ? { background: COLOR.warningSoft, border: `1px solid ${COLOR.warningBorder}`, color: COLOR.warning }
+                      : { background: COLOR.mutedSurface, border: `1px solid ${COLOR.border}`, color: COLOR.textTertiary }}
+                  >
+                    {done ? 'Yakunlandi' : isCurrent ? 'Joriy bosqich' : cancelled ? 'Bekor qilindi' : 'Kutilmoqda'}
+                  </span>
+                  <span className="text-xs" style={{ color: COLOR.textTertiary, fontVariantNumeric: 'tabular-nums' }}>
+                    {done && doneAt && order.createdAt ? fmtHM(Math.round((doneAt - new Date(order.createdAt)) / 60000)) || '—'
+                      : isCurrent && stage.durationKey && order[stage.durationKey] ? `${fmtHM(order[stage.durationKey])} belgilangan`
+                      : !stage.deadlineKey || !order[stage.deadlineKey] ? "Muddat belgilanmagan" : ''}
+                  </span>
+                  {isCurrent && late && (
+                    <span className="text-[11px] font-semibold" style={{ color: COLOR.danger }}>{fmtHM(Math.round((now - deadline) / 60000))} kechikdi</span>
+                  )}
+                  {done && doneAt && deadline && (
+                    <span className="text-[11px] font-medium" style={{ color: doneAt > deadline ? COLOR.danger : COLOR.success }}>
+                      {doneAt > deadline ? `${fmtHM(Math.round((doneAt - deadline) / 60000))} kech` : "O'z vaqtida"}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+// ── Responsible-employee row ───────────────────────────────────────────
+function EmployeeRow({ person, role, done, active }) {
+  const initials = person?.fullName?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || '?';
+  return (
+    <div className="flex items-center gap-3 py-3" style={{ borderBottom: `1px solid ${COLOR.borderSubtle}` }}>
+      <span
+        className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-semibold shrink-0"
+        style={person ? { background: COLOR.infoSoft, color: COLOR.info } : { background: COLOR.mutedSurface, color: COLOR.textMuted }}
+      >
+        {person ? initials : <User size={16} />}
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-[13px] font-semibold truncate" style={{ color: person ? COLOR.textPrimary : COLOR.textMuted }}>{person?.fullName || 'Belgilanmagan'}</p>
+        <p className="text-xs" style={{ color: COLOR.textTertiary }}>{role}</p>
+      </div>
+      <span
+        className="text-[11px] font-semibold px-2 py-0.5 rounded-md shrink-0"
+        style={!person ? { background: COLOR.mutedSurface, border: `1px solid ${COLOR.border}`, color: COLOR.textTertiary }
+          : done ? { background: COLOR.successSoft, border: `1px solid ${COLOR.successBorder}`, color: COLOR.success }
+          : active ? { background: COLOR.warningSoft, border: `1px solid ${COLOR.warningBorder}`, color: COLOR.warning }
+          : { background: COLOR.mutedSurface, border: `1px solid ${COLOR.border}`, color: COLOR.textTertiary }}
+      >
+        {!person ? 'Ixtiyoriy' : done ? 'Yakunlandi' : active ? 'Jarayonda' : 'Kutilmoqda'}
+      </span>
+    </div>
+  );
+}
 
 export default function OperatorOrderDetail() {
   const { id } = useParams();
@@ -95,8 +161,9 @@ export default function OperatorOrderDetail() {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [newExcel, setNewExcel] = useState(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
 
-  const { data: order, isLoading, error } = useQuery({
+  const { data: order, isLoading, error, refetch } = useQuery({
     queryKey: ['order', id],
     queryFn: () => orderAPI.getOne(id),
     select: r => r.data.data,
@@ -113,9 +180,9 @@ export default function OperatorOrderDetail() {
       invoiceNumber: order.invoiceNumber,
       lotNumber: order.lotNumber || '',
       totalAmount: order.totalAmount,
-      pickingMinutes: order.pickingDuration,
-      markingMinutes: order.markingDuration,
-      checkingMinutes: order.checkingDuration,
+      pickingHours: order.pickingDuration ? String(order.pickingDuration / 60) : '',
+      markingHours: order.markingDuration ? String(order.markingDuration / 60) : '',
+      checkingHours: order.checkingDuration ? String(order.checkingDuration / 60) : '',
       assignedPickerId: order.assignedPickerId || '',
       markerId: order.markerId || '',
       checkerId: order.checkerId || '',
@@ -124,337 +191,421 @@ export default function OperatorOrderDetail() {
     setEditing(true);
   };
 
+  const { data: editClient } = useQuery({
+    queryKey: ['client-single', editForm.clientId],
+    queryFn: () => clientAPI.getOne(editForm.clientId),
+    select: r => r.data.data,
+    enabled: !!editForm.clientId && editing,
+  });
+
   const updateMutation = useMutation({
     mutationFn: () => {
       const fd = new FormData();
-      Object.entries(editForm).forEach(([k, v]) => fd.append(k, v));
+      fd.append('clientId', editForm.clientId);
+      fd.append('contractNumber', editForm.contractNumber);
+      fd.append('invoiceNumber', editForm.invoiceNumber);
+      fd.append('lotNumber', editForm.lotNumber || '');
+      fd.append('totalAmount', editForm.totalAmount);
+      fd.append('pickingMinutes', String(Math.round(parseFloat(editForm.pickingHours) * 60)));
+      fd.append('markingMinutes', String(Math.round(parseFloat(editForm.markingHours) * 60)));
+      fd.append('checkingMinutes', String(Math.round(parseFloat(editForm.checkingHours) * 60)));
+      if (editForm.assignedPickerId) fd.append('assignedPickerId', editForm.assignedPickerId);
+      if (editForm.markerId) fd.append('markerId', editForm.markerId);
+      if (editForm.checkerId) fd.append('checkerId', editForm.checkerId);
       if (newExcel) fd.append('productsExcel', newExcel);
       return orderAPI.update(id, fd);
     },
-    onSuccess: () => { toast.success('Buyurtma yangilandi'); qc.invalidateQueries(['order', id]); setEditing(false); },
+    onSuccess: () => { toast.success('Buyurtma yangilandi'); qc.invalidateQueries({ queryKey: ['order', id] }); invalidateOperatorData(qc); setEditing(false); },
     onError: e => toast.error(getErrorMessage(e)),
   });
 
-  const cancelMutation = useMutation({
-    mutationFn: () => orderAPI.cancel(id, 'Operator tomonidan bekor qilindi'),
-    onSuccess: () => { toast.success('Buyurtma bekor qilindi'); navigate('/operator/orders'); },
-    onError: e => toast.error(getErrorMessage(e)),
-  });
+  const cancelMutation = useCancelOrder(() => { qc.invalidateQueries({ queryKey: ['order', id] }); setCancelOpen(false); });
 
-  const setE = k => e => setEditForm(p => ({ ...p, [k]: e.target.value }));
+  const setE = k => e => setEditForm(p => ({ ...p, [k]: typeof e === 'object' && e?.target ? e.target.value : e }));
 
-  if (isLoading) return (
-    <div className="flex items-center justify-center py-20">
-      <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
-  if (!order) return <NotFoundState error={error} backTo="/operator/orders" />;
-
-  const canEdit   = order.createdById === user?.id;
-  const canCancel = order.status === 'NEW' && order.createdById === user?.id;
-
-  return (
-    <div className="max-w-3xl mx-auto space-y-5">
-
-      {/* ── Header ── */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/operator/orders')}
-            className="w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors shrink-0">
-            <ArrowLeft size={17} />
-          </button>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-lg font-black text-gray-900 font-mono">#{order.invoiceNumber}</h1>
-              <StatusBadge status={order.status} order={order} large />
-            </div>
-            <p className="text-xs text-gray-400 mt-0.5 font-medium">{format(new Date(order.createdAt), 'dd.MM.yyyy HH:mm')} · {order.createdBy?.fullName}</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          {!editing ? (
-            <>
-              {canEdit && (
-                <button onClick={startEdit}
-                  className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 rounded-xl text-sm font-bold transition-colors">
-                  <Pencil size={14} /> Tahrirlash
-                </button>
-              )}
-              {canCancel && (
-                <button
-                  onClick={() => { if (window.confirm('Orderni bekor qilmoqchimisiz?')) cancelMutation.mutate(); }}
-                  disabled={cancelMutation.isPending}
-                  className="flex items-center gap-1.5 px-3.5 py-2 bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 rounded-xl text-sm font-bold transition-colors disabled:opacity-50">
-                  <X size={14} /> Bekor qilish
-                </button>
-              )}
-            </>
-          ) : (
-            <>
-              <button onClick={() => setEditing(false)}
-                className="flex items-center gap-1.5 px-3.5 py-2 border-2 border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl text-sm font-bold transition-colors">
-                <X size={14} /> Bekor
-              </button>
-              <button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-200 hover:shadow-lg transition-all disabled:opacity-50">
-                <Save size={14} /> {updateMutation.isPending ? 'Saqlanmoqda...' : 'Saqlash'}
-              </button>
-            </>
-          )}
+  // ── Loading ──────────────────────────────────────────────────────────
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Panel><div className="p-6 flex flex-col gap-3"><Skel w={80} h={10} /><div className="flex gap-3 items-center"><Skel w={220} h={28} className="!rounded-md" /><Skel w={88} h={24} className="!rounded-md" /></div><Skel w={260} h={10} /></div></Panel>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {[0, 1].map(i => <Panel key={i}><div className="p-5 flex flex-col gap-3"><Skel w={140} h={12} /><div className="grid grid-cols-2 gap-4">{[0, 1, 2, 3].map(j => <div key={j} className="flex flex-col gap-1.5"><Skel w="60%" h={9} /><Skel w="85%" h={13} /></div>)}</div></div></Panel>)}
         </div>
       </div>
+    );
+  }
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+  // ── Error / not-found ────────────────────────────────────────────────
+  if (error || !order) {
+    const notFound = !error;
+    return (
+      <Panel className={notFound ? '' : '!border-[#FECACA]'}>
+        <div className="flex flex-col items-center justify-center gap-3 text-center py-16 px-6" style={{ minHeight: 280 }}>
+          {notFound ? <FileQuestion size={24} style={{ color: COLOR.textMuted }} /> : <AlertTriangle size={24} style={{ color: COLOR.danger }} />}
+          <div>
+            <p className="text-[15px] font-semibold" style={{ color: COLOR.textPrimary }}>{notFound ? 'Buyurtma topilmadi' : "Buyurtma ma'lumotlarini yuklashda xatolik yuz berdi"}</p>
+            <p className="text-[13px] mt-1.5 max-w-[40ch]" style={{ color: COLOR.textTertiary }}>{notFound ? 'Ushbu buyurtma mavjud emas yoki unga kirish imkoniyati yo\'q.' : "Ma'lumotlarni olishning iloji bo'lmadi. Qayta urinib ko'ring."}</p>
+          </div>
+          <div className="flex gap-2">
+            {!notFound && (
+              <button onClick={refetch} className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg text-sm font-semibold" style={{ border: `1px solid ${COLOR.borderStrong}`, color: COLOR.textPrimary, background: COLOR.surface }}>
+                <RefreshCw size={16} /> Qayta urinish
+              </button>
+            )}
+            <button onClick={() => navigate('/operator/orders')} className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg text-sm font-semibold text-white" style={{ background: COLOR.primary }}>
+              <ArrowLeft size={16} /> Buyurtmalarga qaytish
+            </button>
+          </div>
+        </div>
+      </Panel>
+    );
+  }
 
-        {/* ── Left ── */}
-        <div className="lg:col-span-2 space-y-4">
+  const canEdit = order.createdById === user?.id && order.status === 'NEW';
+  const isMe = order.createdById === user?.id;
+  const inProgress = order.status !== 'NEW' && !['DELIVERED', 'CANCELLED', 'RETURNED'].includes(order.status);
+  const terminal = ['DELIVERED', 'CANCELLED', 'RETURNED'].includes(order.status);
+  const showDeadlineCard = !terminal;
+  const currentStage = STAGES.find(s => s.key === order.status);
+  const now = new Date();
+  const currentDeadline = currentStage?.deadlineKey && order[currentStage.deadlineKey] ? new Date(order[currentStage.deadlineKey]) : null;
+  const currentLate = currentDeadline && now > currentDeadline;
+  const remainingMs = currentDeadline ? currentDeadline - now : null;
 
-          {/* Klient va hujjatlar */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-gray-50 flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center">
-                <Building2 size={13} className="text-blue-600" />
-              </div>
-              <h2 className="font-bold text-gray-800 text-sm">Klient va hujjatlar</h2>
+  return (
+    <div className="flex flex-col gap-5">
+      <button onClick={() => navigate('/operator/orders')} className="inline-flex items-center gap-1.5 text-[13px] font-semibold w-fit" style={{ color: COLOR.primary }}>
+        <ArrowLeft size={16} /> Buyurtmalarga qaytish
+      </button>
+
+      {/* ── Header ── */}
+      <Panel>
+        <div className="p-6 flex flex-wrap gap-4 items-start justify-between">
+          <div className="flex flex-col gap-2 min-w-0">
+            <span className="text-[11px] font-semibold tracking-widest" style={{ color: COLOR.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>BUYURTMA</span>
+            <div className="flex flex-wrap gap-3 items-center">
+              <h1 className="text-[26px] sm:text-[30px] font-bold leading-tight" style={{ letterSpacing: '-0.02em', fontFamily: "'JetBrains Mono', monospace", color: COLOR.textPrimary }}>#{order.invoiceNumber}</h1>
+              <StatusBadge status={order.status} order={order} large />
             </div>
-            <div className="p-5 space-y-0">
-              {!editing ? (
+            <div className="flex flex-wrap gap-4 items-center text-[13px]" style={{ color: COLOR.textTertiary }}>
+              <span>{format(new Date(order.createdAt), 'dd MMMM yyyy, HH:mm')} da yaratilgan</span>
+              <span className="inline-flex items-center gap-1.5"><User size={14} style={{ color: COLOR.textMuted }} /> {order.client?.orgName}</span>
+              {isMe && <span className="inline-flex items-center gap-1.5 font-medium" style={{ color: COLOR.primaryHover }}><User size={14} /> Sizning buyurtmangiz</span>}
+            </div>
+          </div>
+          <div className="flex gap-2 items-center shrink-0">
+            {!editing ? (
+              canEdit ? (
                 <>
-                  {/* Client highlight */}
-                  <div className="flex items-center gap-3 p-3.5 bg-blue-50/60 rounded-xl mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center shrink-0 text-white font-black">
-                      {order.client?.orgName?.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="font-bold text-gray-900">{order.client?.orgName}</p>
-                      <p className="text-xs text-gray-400">INN: {order.client?.inn} · {order.client?.phone}</p>
-                      {order.client?.address && <p className="text-xs text-gray-400 mt-0.5">{order.client?.address}</p>}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { label: 'Shartnoma #', val: order.contractNumber },
-                      { label: 'Faktura #',   val: order.invoiceNumber },
-                      { label: 'Lot #',       val: order.lotNumber },
-                    ].map(({ label, val }) => (
-                      <div key={label} className="bg-gray-50 rounded-xl p-3.5">
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{label}</p>
-                        <p className="text-sm font-black text-gray-900 mt-0.5">{val || '—'}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3.5 mt-3 flex items-center justify-between">
-                    <span className="text-sm font-bold text-gray-500">Jami summa</span>
-                    <span className="text-xl font-black text-blue-700">{formatSum(order.totalAmount)} <span className="text-sm font-semibold text-blue-400">so'm</span></span>
-                  </div>
+                  <button onClick={startEdit} className="inline-flex items-center gap-2 h-10 px-4 rounded-lg text-sm font-semibold" style={{ border: `1px solid ${COLOR.borderStrong}`, color: COLOR.textPrimary, background: COLOR.surface }}>
+                    <Pencil size={18} /> Tahrirlash
+                  </button>
+                  <button onClick={() => setCancelOpen(true)} className="inline-flex items-center gap-2 h-10 px-4 rounded-lg text-sm font-semibold" style={{ border: `1px solid ${COLOR.dangerBorder}`, color: '#B91C1C', background: COLOR.surface }}>
+                    <XCircle size={18} /> Bekor qilish
+                  </button>
                 </>
-              ) : (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs text-gray-400 font-bold mb-1.5">Klient</label>
-                    <ClientSelect value={editForm.clientId} onChange={v => setEditForm(p => ({ ...p, clientId: v }))} />
-                    {editForm.clientId !== order.clientId && (
-                      <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 font-medium mt-2">
-                        Klient almashtirilmoqda — saqlagach, bu buyurtma statistikasi eski klientdan chiqib, yangi klientga o'tadi.
-                      </p>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { k: 'contractNumber', label: 'Shartnoma #', ph: 'SH-2024-001' },
-                      { k: 'invoiceNumber',  label: 'Faktura #',   ph: 'FK-001' },
-                      { k: 'lotNumber',      label: 'Lot #',       ph: 'LOT-001' },
-                    ].map(({ k, label, ph }) => (
-                      <div key={k}>
-                        <label className="block text-xs text-gray-400 font-bold mb-1.5">{label}</label>
-                        <input className={inp} value={editForm[k]} onChange={setE(k)} placeholder={ph} />
-                      </div>
-                    ))}
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-400 font-bold mb-1.5">Summa (so'm)</label>
-                    <input type="text" inputMode="decimal" className={inp} value={editForm.totalAmount}
-                      onChange={e => {
-                        // Butun va kasr (tiyin) qismini saqlaydi — faqat raqam va bitta nuqtaga ruxsat.
-                        const cleaned = e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
-                        setEditForm(p => ({ ...p, totalAmount: cleaned }));
-                      }} />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-400 font-bold mb-1.5">Excel fayl (ixtiyoriy — yangi yuklash)</label>
+              ) : isMe && inProgress ? (
+                <span className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-xs" style={{ background: COLOR.mutedSurface, border: `1px solid ${COLOR.border}`, color: COLOR.textTertiary }}>
+                  <Lock size={14} /> Jarayon boshlangan — tahrirlash mumkin emas
+                </span>
+              ) : !isMe && order.status === 'NEW' ? (
+                <span className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-xs" style={{ background: COLOR.mutedSurface, border: `1px solid ${COLOR.border}`, color: COLOR.textTertiary }}>
+                  <Eye size={14} /> Faqat ko'rish uchun ochiq
+                </span>
+              ) : null
+            ) : (
+              <>
+                <button onClick={() => setEditing(false)} className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg text-sm font-semibold" style={{ border: `1px solid ${COLOR.borderStrong}`, color: COLOR.textPrimary, background: COLOR.surface }}>
+                  <X size={16} /> Bekor
+                </button>
+                <button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending} className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg text-sm font-semibold text-white disabled:opacity-70" style={{ background: COLOR.primary }}>
+                  {updateMutation.isPending ? <><Loader2 size={16} className="animate-spin" /> Saqlanmoqda...</> : <><Save size={16} /> Saqlash</>}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </Panel>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-5 items-start">
+        {/* ── Left column ── */}
+        <div className="flex flex-col gap-5">
+          <Panel>
+            <PanelHeader title="Mijoz ma'lumotlari" />
+            {!editing ? (
+              <div className="px-5 pb-3 pt-1 grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+                <InfoRow label="Tashkilot">{order.client?.orgName}</InfoRow>
+                <InfoRow label="INN">{order.client?.inn || '—'}</InfoRow>
+                <InfoRow label="Buyurtma raqami" mono>#{order.invoiceNumber}</InfoRow>
+                <InfoRow label="Operator">{order.createdBy?.fullName}</InfoRow>
+              </div>
+            ) : (
+              <div className="p-5">
+                <ClientEditSelect value={editForm.clientId} onChange={setE('clientId')} original={order.clientId} resolved={editClient} />
+              </div>
+            )}
+          </Panel>
+
+          <Panel>
+            <PanelHeader title="Buyurtma ma'lumotlari" />
+            {!editing ? (
+              <div className="px-5 pb-3 pt-1 grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+                <InfoRow label="Shartnoma raqami" mono>{order.contractNumber}</InfoRow>
+                <InfoRow label="Faktura raqami" mono>{order.invoiceNumber}</InfoRow>
+                <InfoRow label="Lot raqami" mono>{order.lotNumber || '—'}</InfoRow>
+                <InfoRow label="Yaratilgan sana">{format(new Date(order.createdAt), 'dd.MM.yyyy HH:mm')}</InfoRow>
+                <div className="flex flex-col gap-1 py-3 col-span-1 sm:col-span-2" style={{ borderTop: `1px solid ${COLOR.borderSubtle}` }}>
+                  <span style={cardLabel}>Summa</span>
+                  <span className="text-lg font-bold" style={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>{formatSum(order.totalAmount)} <span className="text-xs font-normal" style={{ color: COLOR.textTertiary }}>UZS</span></span>
+                </div>
+              </div>
+            ) : (
+              <div className="p-5 flex flex-col gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <label className="flex flex-col gap-1.5"><span className="text-[13px] font-medium" style={{ color: '#334155' }}>Shartnoma raqami</span><input value={editForm.contractNumber} onChange={setE('contractNumber')} className={inputCls} style={{ ...inputStyle, fontFamily: "'JetBrains Mono', monospace", fontWeight: 500 }} /></label>
+                  <label className="flex flex-col gap-1.5"><span className="text-[13px] font-medium" style={{ color: '#334155' }}>Faktura raqami</span><input value={editForm.invoiceNumber} onChange={setE('invoiceNumber')} className={inputCls} style={{ ...inputStyle, fontFamily: "'JetBrains Mono', monospace", fontWeight: 500 }} /></label>
+                  <label className="flex flex-col gap-1.5"><span className="text-[13px] font-medium" style={{ color: '#334155' }}>Lot raqami</span><input value={editForm.lotNumber} onChange={setE('lotNumber')} className={inputCls} style={{ ...inputStyle, fontFamily: "'JetBrains Mono', monospace", fontWeight: 500 }} /></label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[13px] font-medium" style={{ color: '#334155' }}>Summa</span>
+                    <span className="flex items-center h-10 rounded-lg overflow-hidden" style={inputStyle}>
+                      <input value={editForm.totalAmount} onChange={e => setEditForm(p => ({ ...p, totalAmount: e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1') }))} className="flex-1 min-w-0 h-full border-0 outline-none px-3 text-sm font-semibold text-right" style={{ fontVariantNumeric: 'tabular-nums' }} />
+                      <span className="px-3 h-full flex items-center text-xs font-medium shrink-0" style={{ borderLeft: `1px solid ${COLOR.border}`, background: COLOR.subtleSurface, color: COLOR.textTertiary, fontFamily: "'JetBrains Mono', monospace" }}>UZS</span>
+                    </span>
+                  </label>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1" style={{ borderTop: `1px solid ${COLOR.borderSubtle}` }}>
+                  <DurationField label="Terish muddati" value={editForm.pickingHours} onChange={setE('pickingHours')} />
+                  <DurationField label="Markirovka muddati" value={editForm.markingHours} onChange={setE('markingHours')} />
+                  <DurationField label="Tekshirish muddati" value={editForm.checkingHours} onChange={setE('checkingHours')} />
+                </div>
+                <p className="text-xs" style={{ color: COLOR.textMuted }}>Bu vaqt faqat hali boshlanmagan bosqichlarga ta'sir qiladi.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <WorkerEditSelect data={pickers} value={editForm.assignedPickerId} onChange={setE('assignedPickerId')} label="Picker" />
+                  <WorkerEditSelect data={markers} value={editForm.markerId} onChange={setE('markerId')} label="Marker" />
+                  <WorkerEditSelect data={checkers} value={editForm.checkerId} onChange={setE('checkerId')} label="Checker" />
+                </div>
+                {order.productsExcelUrl && (
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[13px] font-medium" style={{ color: '#334155' }}>Excel fayl <span className="text-xs font-normal" style={{ color: COLOR.textMuted }}>(ixtiyoriy — yangi yuklash)</span></span>
                     {newExcel ? (
-                      <div className="flex items-center gap-3 p-3.5 bg-green-50 border border-green-200 rounded-xl">
-                        <FileSpreadsheet size={16} className="text-green-600 shrink-0" />
-                        <span className="text-sm text-green-700 flex-1 truncate">{newExcel.name}</span>
-                        <button onClick={() => setNewExcel(null)} className="text-green-400 hover:text-red-400 transition-colors"><X size={14} /></button>
+                      <div className="flex items-center gap-2.5 p-2.5 rounded-lg" style={{ background: COLOR.successSoft, border: `1px solid ${COLOR.successBorder}` }}>
+                        <FileSpreadsheet size={16} style={{ color: COLOR.success }} className="shrink-0" />
+                        <span className="text-[13px] flex-1 truncate">{newExcel.name}</span>
+                        <button onClick={() => setNewExcel(null)}><X size={14} style={{ color: COLOR.textTertiary }} /></button>
                       </div>
                     ) : (
-                      <label className="flex items-center gap-2.5 p-4 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all text-sm text-gray-400 hover:text-blue-600">
+                      <label className="flex items-center gap-2 p-3 rounded-lg cursor-pointer text-sm" style={{ border: `1px dashed ${COLOR.borderStrong}`, color: COLOR.textTertiary }}>
                         <Upload size={16} /> Yangi Excel yuklash
                         <input type="file" accept=".xlsx,.xls" className="hidden" onChange={e => setNewExcel(e.target.files[0])} />
                       </label>
                     )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Muddatlar */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-gray-50 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
-                  <Clock size={13} className="text-amber-600" />
-                </div>
-                <h2 className="font-bold text-gray-800 text-sm">Bosqich muddatlari</h2>
+                  </label>
+                )}
               </div>
-              {order.productsExcelUrl && !editing && (
-                <a href={`${FILE_BASE_URL}${order.productsExcelUrl}`} target="_blank" rel="noreferrer"
-                  className="flex items-center gap-1.5 text-xs text-blue-500 font-semibold hover:text-blue-700 transition-colors">
-                  <FileSpreadsheet size={13} /> Excel ko'rish
-                </a>
-              )}
-            </div>
-            <div className="p-5 space-y-3">
-              {!editing ? (
-                <>
-                  {order.pickingDeadline  && <DeadlineBar label="Picking" deadline={order.pickingDeadline} doneAt={order.pickingDoneAt} color="blue" />}
-                  {order.markingDeadline  && <DeadlineBar label="Marking" deadline={order.markingDeadline} doneAt={order.markingDoneAt} color="purple" />}
-                  {order.checkingDeadline && <DeadlineBar label="Checking" deadline={order.checkingDeadline} doneAt={order.checkingDoneAt} color="amber" />}
-                </>
-              ) : (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { k: 'pickingMinutes',  label: 'Picking (daq)' },
-                      { k: 'markingMinutes',  label: 'Marking (daq)' },
-                      { k: 'checkingMinutes', label: 'Checking (daq)' },
-                    ].map(({ k, label }) => (
-                      <div key={k}>
-                        <label className="block text-xs text-gray-400 font-bold mb-1.5">{label}</label>
-                        <input type="text" inputMode="numeric" className={inp} value={editForm[k]}
-                          onChange={e => setEditForm(p => ({ ...p, [k]: e.target.value.replace(/\D/g, '') }))} />
-                      </div>
-                    ))}
+            )}
+          </Panel>
+
+          <Panel>
+            <PanelHeader title="Hujjatlar" />
+            <div className="p-5">
+              {order.productsExcelUrl ? (
+                <div className="flex items-center gap-3 p-3.5 rounded-[10px]" style={{ border: `1px solid ${COLOR.border}` }}>
+                  <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: COLOR.successSoft, color: COLOR.success }}><FileSpreadsheet size={20} /></span>
+                  <div className="flex-1 min-w-0">
+                    <a href={`${FILE_BASE_URL}${order.productsExcelUrl}`} target="_blank" rel="noreferrer" className="text-[13px] font-semibold truncate block" style={{ color: COLOR.primaryHover }}>{order.productsExcelUrl.split('/').pop()}</a>
+                    <p className="text-xs" style={{ color: COLOR.textTertiary }}>Excel fayl</p>
                   </div>
-                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 font-medium">
-                    Bu vaqt faqat hali boshlanmagan bosqichlarga ta'sir qiladi — allaqachon qabul qilingan
-                    bosqichning muddati o'zgarmaydi.
-                  </p>
+                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-semibold shrink-0" style={{ background: COLOR.successSoft, border: `1px solid ${COLOR.successBorder}`, color: COLOR.success }}>
+                    <CheckCircle2 size={13} /> Yuklangan
+                  </span>
                 </div>
+              ) : (
+                <p className="text-sm" style={{ color: COLOR.textMuted }}>Excel fayl biriktirilmagan.</p>
               )}
+              <p className="text-xs mt-2.5" style={{ color: COLOR.textMuted }}>Buyurtmaga bitta Excel hujjati biriktiriladi.</p>
             </div>
-          </div>
+          </Panel>
         </div>
 
-        {/* ── Right ── */}
-        <div className="space-y-4">
-
-          {/* Xodimlar */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-gray-50 flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center">
-                <Users size={13} className="text-purple-600" />
+        {/* ── Right column ── */}
+        <div className="flex flex-col gap-5">
+          {showDeadlineCard && currentStage && (
+            <Panel className={currentLate ? '!border-[#FECACA]' : currentDeadline && remainingMs < 30 * 60000 ? '!border-[#FDE68A]' : ''}>
+              <div className="px-5 py-4 flex items-center gap-2.5" style={{ borderBottom: `1px solid ${COLOR.borderSubtle}` }}>
+                {currentLate ? <AlertTriangle size={18} style={{ color: COLOR.danger }} /> : <Clock size={18} style={{ color: currentDeadline && remainingMs < 30 * 60000 ? COLOR.warning : COLOR.success }} />}
+                <span className="text-base font-semibold" style={{ color: COLOR.textPrimary }}>Joriy muddat</span>
               </div>
-              <h2 className="font-bold text-gray-800 text-sm">Xodimlar</h2>
-            </div>
-            <div className="p-5">
-              {!editing ? (
-                <div className="space-y-3">
-                  {[
-                    { label: 'Yaratdi', val: order.createdBy?.fullName, role: 'OPERATOR' },
-                    { label: 'Picker',  val: order.assignedPicker?.fullName, role: 'PICKER' },
-                    { label: 'Marker',  val: order.marker?.fullName, role: 'MARKER' },
-                    { label: 'Checker', val: order.checker?.fullName, role: 'CHECKER' },
-                    { label: 'Haydovchi', val: order.driver?.fullName, role: 'DRIVER' },
-                  ].map(({ label, val, role }) => (
-                    <div key={label} className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{label}</span>
-                      {val ? (
-                        <span className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
-                          <div className="w-5 h-5 rounded-md bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-[9px] font-black">
-                            {val.charAt(0)}
-                          </div>
-                          {val}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-gray-300 font-medium">Biriktirilmagan</span>
-                      )}
-                    </div>
-                  ))}
+              <div className="p-5 flex flex-col gap-3.5">
+                <div className="flex flex-col gap-1">
+                  <span style={cardLabel}>{currentStage.label} bosqichi</span>
+                  {currentDeadline ? (
+                    <span className="text-2xl font-bold" style={{ letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums', color: currentLate ? COLOR.danger : remainingMs < 30 * 60000 ? COLOR.warning : COLOR.textPrimary }}>
+                      {currentLate ? `${fmtHM(Math.round((now - currentDeadline) / 60000))} kechikdi` : `${fmtHM(Math.round(remainingMs / 60000))} qoldi`}
+                    </span>
+                  ) : (
+                    <span className="text-sm" style={{ color: COLOR.textMuted }}>Muddat belgilanmagan</span>
+                  )}
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {[
-                    { k: 'assignedPickerId', label: 'Picker',  data: pickers },
-                    { k: 'markerId',         label: 'Marker',  data: markers },
-                    { k: 'checkerId',        label: 'Checker', data: checkers },
-                  ].map(({ k, label, data }) => (
-                    <div key={k}>
-                      <label className="block text-xs text-gray-400 font-bold mb-1.5">{label} (ixtiyoriy)</label>
-                      <select className={inp} value={editForm[k]} onChange={setE(k)}>
-                        <option value="">— Tanlanmagan —</option>
-                        {(data || []).map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
-                      </select>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Harakatlar tarixi */}
-          {order.activityLogs?.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="px-5 py-3.5 border-b border-gray-50 flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center">
-                  <Activity size={13} className="text-gray-500" />
-                </div>
-                <h2 className="font-bold text-gray-800 text-sm">Tarix</h2>
-              </div>
-              <div className="p-4 max-h-56 overflow-y-auto space-y-2">
-                {order.activityLogs.map(log => (
-                  <div key={log.id} className="flex items-start gap-2.5">
-                    <div className="w-5 h-5 rounded-md bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-gray-700 leading-snug">{log.action}</p>
-                      <p className="text-[11px] text-gray-400">{log.user?.fullName} · {format(new Date(log.createdAt), 'dd.MM HH:mm')}</p>
-                    </div>
+                {currentDeadline && (
+                  <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-[13px] font-medium" style={currentLate
+                    ? { border: `1px solid ${COLOR.dangerBorder}`, background: COLOR.dangerSoft, color: COLOR.danger }
+                    : remainingMs < 30 * 60000
+                      ? { border: `1px solid ${COLOR.warningBorder}`, background: COLOR.warningSoft, color: COLOR.warning }
+                      : { border: `1px solid ${COLOR.successBorder}`, background: COLOR.successSoft, color: COLOR.success }}>
+                    {currentLate ? <AlertTriangle size={16} /> : <Clock size={16} />}
+                    {currentLate ? "Muddat o'tdi — tekshirish talab qilinadi" : remainingMs < 30 * 60000 ? 'Muddat yaqinlashmoqda' : "O'z vaqtida"}
                   </div>
-                ))}
+                )}
+                {currentStage.durationKey && order[currentStage.durationKey] && (
+                  <div className="flex items-center justify-between text-[13px]"><span style={{ color: COLOR.textTertiary }}>Belgilangan muddat</span><span className="font-semibold" style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtHM(order[currentStage.durationKey])}</span></div>
+                )}
               </div>
-            </div>
+            </Panel>
           )}
 
-          {/* Etirozlar */}
-          {order.etirozlar?.length > 0 && (
-            <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl overflow-hidden">
-              <div className="px-5 py-3.5 border-b border-amber-100 flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-amber-200 flex items-center justify-center">
-                  <AlertTriangle size={13} className="text-amber-700" />
-                </div>
-                <h2 className="font-bold text-amber-800 text-sm">Etirozlar ({order.etirozlar.length})</h2>
-              </div>
-              <div className="p-4 space-y-2">
-                {order.etirozlar.map(e => (
-                  <div key={e.id} className="bg-white border border-amber-100 rounded-xl p-3.5">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">{e.fromRole}</span>
-                      <span className="text-[11px] text-gray-400">{format(new Date(e.createdAt), 'dd.MM HH:mm')}</span>
-                    </div>
-                    <p className="text-xs font-semibold text-gray-700">{e.type}</p>
-                    {e.comment && <p className="text-xs text-gray-500 mt-0.5">{e.comment}</p>}
-                  </div>
-                ))}
-              </div>
+          <Panel>
+            <PanelHeader title="Mas'ul xodimlar" />
+            <div className="px-5 pb-2">
+              <EmployeeRow person={order.assignedPicker} role="Picker" done={!!order.pickingDoneAt} active={order.status === 'PICKING'} />
+              <EmployeeRow person={order.marker} role="Marker" done={!!order.markingDoneAt} active={order.status === 'MARKING'} />
+              <EmployeeRow person={order.checker} role="Checker" done={!!order.checkingDoneAt} active={order.status === 'CHECKING'} />
+              {order.driver && <EmployeeRow person={order.driver} role="Haydovchi" done={order.status === 'DELIVERED'} active={order.status === 'IN_TRANSIT'} />}
             </div>
-          )}
+          </Panel>
         </div>
       </div>
+
+      <ProcessTimeline order={order} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-5 items-start">
+        <Panel>
+          <PanelHeader title="Buyurtma tarixi" />
+          <div className="p-5">
+            {!order.activityLogs?.length ? (
+              <p className="text-sm" style={{ color: COLOR.textMuted }}>Tarix hali mavjud emas.</p>
+            ) : (
+              <div className="flex flex-col">
+                {order.activityLogs.map((log, i) => (
+                  <div key={log.id} className="grid gap-3.5" style={{ gridTemplateColumns: '24px 1fr' }}>
+                    <div className="flex flex-col items-center">
+                      <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: COLOR.primarySoft, color: COLOR.primaryHover }}>
+                        {i === 0 ? <Plus size={14} /> : i === order.activityLogs.length - 1 ? <Clock size={14} /> : <Package size={14} />}
+                      </span>
+                      {i < order.activityLogs.length - 1 && <span className="flex-1 w-px mt-1" style={{ background: COLOR.border }} />}
+                    </div>
+                    <div className={`flex flex-col gap-0.5 ${i < order.activityLogs.length - 1 ? 'pb-5' : ''}`}>
+                      <span className="text-xs" style={{ color: COLOR.textTertiary, fontVariantNumeric: 'tabular-nums' }}>{format(new Date(log.createdAt), 'dd.MM, HH:mm')}</span>
+                      <span className="text-[13px] font-semibold" style={{ color: COLOR.textPrimary }}>{log.action}</span>
+                      {log.user?.fullName && <span className="text-[13px]" style={{ color: COLOR.textSecondary }}>{log.user.fullName}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Panel>
+
+        <Panel>
+          <div className="px-5 py-4 flex items-center gap-2.5" style={{ borderBottom: `1px solid ${COLOR.borderSubtle}` }}>
+            <span className="text-base font-semibold" style={{ color: COLOR.textPrimary }}>E'tirozlar</span>
+            {order.etirozlar?.length > 0 && (
+              <span className="min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-semibold flex items-center justify-center" style={{ background: COLOR.warningSoft, border: `1px solid ${COLOR.warningBorder}`, color: COLOR.warning }}>{order.etirozlar.length}</span>
+            )}
+          </div>
+          {!order.etirozlar?.length ? (
+            <EmptyState icon={ShieldCheck} title="E'tirozlar mavjud emas" description="Ushbu buyurtma bo'yicha qayd etilgan e'tirozlar yo'q." />
+          ) : (
+            <div className="p-5 flex flex-col gap-3">
+              {order.etirozlar.map(e => (
+                <div key={e.id} className="rounded-[10px] p-3.5 flex flex-col gap-2" style={{ border: `1px solid ${COLOR.warningBorder}` }}>
+                  <div className="flex items-center justify-between gap-2.5">
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold" style={{ background: COLOR.warningSoft, border: `1px solid ${COLOR.warningBorder}`, color: COLOR.warning }}>
+                      <Tag size={11} /> {e.fromRole}
+                    </span>
+                    <span className="text-xs" style={{ color: COLOR.textTertiary, fontVariantNumeric: 'tabular-nums' }}>{format(new Date(e.createdAt), 'dd.MM, HH:mm')}</span>
+                  </div>
+                  <p className="text-[13px]" style={{ color: COLOR.textPrimary }}>{e.type}</p>
+                  {e.comment && <p className="text-[13px]" style={{ color: COLOR.textSecondary }}>{e.comment}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
+      </div>
+
+      {cancelOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(15,23,42,0.40)' }} onClick={() => setCancelOpen(false)}>
+          <div role="dialog" aria-modal="true" className="w-full max-w-[440px] rounded-2xl p-6 flex flex-col gap-5" style={{ background: COLOR.surface, border: `1px solid ${COLOR.border}`, boxShadow: COLOR.shadowModal }} onClick={e => e.stopPropagation()}>
+            <div className="flex gap-3 items-start">
+              <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: COLOR.dangerSoft, color: COLOR.danger }}><AlertTriangle size={20} /></span>
+              <div className="flex-1"><p className="text-base font-semibold" style={{ color: COLOR.textPrimary }}>Buyurtmani bekor qilish</p><p className="text-[13px] mt-1.5" style={{ color: COLOR.textSecondary }}>Ushbu buyurtmani bekor qilishni xohlaysizmi? Bu amalni keyin qaytarib bo'lmaydi.</p></div>
+              <button aria-label="Yopish" onClick={() => setCancelOpen(false)} className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ border: `1px solid ${COLOR.border}`, color: COLOR.textSecondary }}><X size={16} /></button>
+            </div>
+            <div className="rounded-[10px] p-3.5 flex flex-col gap-2.5" style={{ border: `1px solid ${COLOR.border}`, background: COLOR.subtleSurface }}>
+              <div className="flex items-center justify-between gap-3"><span className="text-xs" style={{ color: COLOR.textTertiary }}>Buyurtma</span><span className="text-[13px] font-medium" style={{ fontFamily: "'JetBrains Mono', monospace" }}>#{order.invoiceNumber}</span></div>
+              <div className="flex items-center justify-between gap-3"><span className="text-xs" style={{ color: COLOR.textTertiary }}>Tashkilot</span><span className="text-[13px] font-medium">{order.client?.orgName}</span></div>
+              <div className="flex items-center justify-between gap-3"><span className="text-xs" style={{ color: COLOR.textTertiary }}>Holat</span><StatusBadge status={order.status} order={order} /></div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setCancelOpen(false)} className="h-10 px-4 rounded-lg text-sm font-semibold" style={{ border: `1px solid ${COLOR.borderStrong}`, color: COLOR.textPrimary, background: COLOR.surface }}>Ortga</button>
+              <button onClick={() => cancelMutation.mutate(id)} disabled={cancelMutation.isPending} className="h-10 px-4 rounded-lg text-sm font-semibold text-white disabled:opacity-60" style={{ background: COLOR.danger }}>{cancelMutation.isPending ? 'Bekor qilinmoqda...' : 'Bekor qilish'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Small edit-mode helpers ──────────────────────────────────────────────
+function DurationField({ label, value, onChange }) {
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className="text-[13px] font-medium" style={{ color: '#334155' }}>{label}</span>
+      <span className="flex items-center h-10 rounded-lg overflow-hidden" style={inputStyle}>
+        <input inputMode="decimal" value={value} onChange={e => onChange(e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1'))} className="flex-1 min-w-0 h-full border-0 outline-none px-3 text-sm font-semibold text-right" style={{ fontVariantNumeric: 'tabular-nums' }} />
+        <span className="px-3 h-full flex items-center text-xs font-medium shrink-0" style={{ borderLeft: `1px solid ${COLOR.border}`, background: COLOR.subtleSurface, color: COLOR.textTertiary, fontFamily: "'JetBrains Mono', monospace" }}>soat</span>
+      </span>
+    </label>
+  );
+}
+
+function WorkerEditSelect({ data, value, onChange, label }) {
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className="text-[13px] font-medium" style={{ color: '#334155' }}>{label} <span className="text-xs font-normal" style={{ color: COLOR.textMuted }}>(ixtiyoriy)</span></span>
+      <div className="relative">
+        <select value={value} onChange={onChange} className="appearance-none w-full h-10 pl-3 pr-8 rounded-lg text-sm" style={inputStyle}>
+          <option value="">— Tanlanmagan —</option>
+          {(data || []).map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+        </select>
+        <ChevronDown size={16} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: COLOR.textTertiary }} />
+      </div>
+    </label>
+  );
+}
+
+function ClientEditSelect({ value, onChange, resolved }) {
+  // Lightweight inline version (Order Detail edits a client rarely; reuses
+  // the same clientAPI-backed pattern as Create Order's ClientSelect —
+  // kept local here since a full searchable dropdown isn't needed for a
+  // single already-known value most of the time).
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <span className="text-[13px] font-medium block mb-1.5" style={{ color: '#334155' }}>Klient</span>
+      {!open ? (
+        <button
+          onClick={() => setOpen(true)}
+          className="w-full flex items-center justify-between h-10 px-3 rounded-lg text-sm text-left"
+          style={inputStyle}
+        >
+          <span className="truncate">{resolved?.orgName || 'Yuklanmoqda...'}</span>
+          <Pencil size={14} style={{ color: COLOR.textTertiary }} />
+        </button>
+      ) : (
+        <ClientSelect value={value} onChange={v => { onChange(v); setOpen(false); }} />
+      )}
     </div>
   );
 }
