@@ -252,14 +252,16 @@ export default function ClientsPage() {
                         <Building2 size={18} className={client.isActive ? 'text-blue-600' : 'text-gray-400'} />
                       </div>
                       <span
-                        className={`font-semibold text-sm truncate max-w-[240px] ${client.isActive ? 'text-gray-900' : 'text-gray-500'}`}
+                        className={`font-semibold text-sm leading-snug line-clamp-2 max-w-[280px] ${client.isActive ? 'text-gray-900' : 'text-gray-500'}`}
                         title={client.orgName}
                       >
                         {client.orgName}
                       </span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600 font-mono whitespace-nowrap">{client.inn || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600 font-mono max-w-[140px]">
+                    <span className="block truncate" title={client.inn || undefined}>{client.inn || '—'}</span>
+                  </td>
                   <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{client.phone || '—'}</td>
                   <td className="px-4 py-3">
                     {client.region || client.district ? (
