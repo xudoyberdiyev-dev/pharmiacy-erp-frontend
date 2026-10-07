@@ -3,13 +3,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { clientAPI } from '../../api';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
-import { Plus, MapPin, Phone, Building2, X, Pencil, Power, Users } from 'lucide-react';
+import { Plus, Building2, X, Pencil, Power, Users } from 'lucide-react';
 import Pagination from '../../components/shared/Pagination';
 import SearchBar from '../../components/shared/SearchBar';
 import PhoneInput from '../../components/shared/PhoneInput';
 import { REGIONS, regionLabel, districtsFor } from '../../utils/regions';
 
 const EMPTY_FORM = { orgName: '', inn: '', phone: '', address: '', region: '', district: '' };
+
+const COLUMNS = ['Tashkilot', 'INN', 'Telefon', 'Hudud', 'Manzil', 'Holat', 'Amallar'];
 
 function ClientModal({ client, onClose }) {
   const qc = useQueryClient();
@@ -212,89 +214,104 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 h-40 animate-pulse">
-              <div className="flex gap-3 mb-4">
-                <div className="w-10 h-10 bg-gray-100 rounded-xl" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-gray-100 rounded w-2/3" />
-                  <div className="h-3 bg-gray-100 rounded w-1/2" />
-                </div>
-              </div>
-              <div className="h-8 bg-gray-100 rounded-xl" />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {clients.length === 0 && (
-              <div className="col-span-3 text-center py-12 text-gray-400">Mijozlar topilmadi</div>
-            )}
-            {clients.map(client => (
-              <div key={client.id} className={`bg-white rounded-2xl border-2 p-5 shadow-sm transition-all hover:shadow-md ${client.isActive ? 'border-gray-100' : 'border-gray-200 opacity-60'}`}>
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Building2 size={20} className="text-blue-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 truncate">{client.orgName}</h3>
-                    <p className="text-xs text-gray-500">INN: {client.inn || '—'}</p>
-                  </div>
-                  <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium flex-shrink-0 ${
-                    client.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                  }`}>
-                    {client.isActive ? 'Faol' : 'Nofaol'}
-                  </span>
-                </div>
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Phone size={14} className="text-gray-400" />
-                    {client.phone || '—'}
-                  </div>
-                  <div className="flex items-start gap-2 text-sm text-gray-600">
-                    <MapPin size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />
-                    <span className="line-clamp-2">{client.address}</span>
-                  </div>
-                  {(client.region || client.district) && (
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {client.region && (
-                        <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium bg-purple-50 text-purple-600">
-                          {regionLabel(client.region)}
-                        </span>
-                      )}
-                      {client.district && (
-                        <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-600">
-                          {client.district}
-                        </span>
-                      )}
+      {/* Jadval — Xodimlar va Buyurtmalar sahifalaridagi bilan bir xil uslub */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[980px]">
+            <thead>
+              <tr className="text-left text-xs text-gray-500 uppercase tracking-wide bg-gray-50">
+                {COLUMNS.map(c => (
+                  <th key={c} scope="col" className="px-4 py-3 font-semibold whitespace-nowrap">{c}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {isLoading && [1, 2, 3, 4, 5, 6].map(i => (
+                <tr key={i} className="animate-pulse">
+                  <td className="px-4 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-gray-100 rounded-xl shrink-0" />
+                      <div className="h-4 bg-gray-100 rounded w-40" />
                     </div>
-                  )}
-                </div>
-                <div className="mt-4 flex gap-2">
-                  <button
-                    onClick={() => setModalClient(client)}
-                    className="flex-1 flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors"
-                  >
-                    <Pencil size={12} /> Tahrirlash
-                  </button>
-                  <button
-                    onClick={() => toggleMutation.mutate(client.id)}
-                    disabled={toggleMutation.isPending}
-                    className={`flex-1 flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                      client.isActive ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'
-                    }`}
-                  >
-                    <Power size={12} /> {client.isActive ? 'Nofaollashtirish' : 'Faollashtirish'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+                  </td>
+                  {[24, 28, 24, 44, 16, 24].map((w, k) => (
+                    <td key={k} className="px-4 py-4"><div className="h-4 bg-gray-100 rounded" style={{ width: `${w * 4}px`, maxWidth: '100%' }} /></td>
+                  ))}
+                </tr>
+              ))}
 
-          <div className="bg-white rounded-2xl border border-gray-100">
+              {!isLoading && clients.length === 0 && (
+                <tr><td colSpan={COLUMNS.length} className="px-4 py-12 text-center text-gray-400">Mijozlar topilmadi</td></tr>
+              )}
+
+              {!isLoading && clients.map(client => (
+                <tr key={client.id} className={`transition-colors hover:bg-gray-50 ${client.isActive ? '' : 'bg-gray-50/60'}`}>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${client.isActive ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                        <Building2 size={18} className={client.isActive ? 'text-blue-600' : 'text-gray-400'} />
+                      </div>
+                      <span
+                        className={`font-semibold text-sm truncate max-w-[240px] ${client.isActive ? 'text-gray-900' : 'text-gray-500'}`}
+                        title={client.orgName}
+                      >
+                        {client.orgName}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-600 font-mono whitespace-nowrap">{client.inn || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{client.phone || '—'}</td>
+                  <td className="px-4 py-3">
+                    {client.region || client.district ? (
+                      <div className="flex flex-col items-start gap-1">
+                        {client.region && (
+                          <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium bg-purple-50 text-purple-600 whitespace-nowrap">
+                            {regionLabel(client.region)}
+                          </span>
+                        )}
+                        {client.district && <span className="text-xs text-gray-500">{client.district}</span>}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-gray-400">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-600 max-w-[260px]">
+                    <span className="line-clamp-2" title={client.address}>{client.address}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      client.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                    }`}>
+                      {client.isActive ? 'Faol' : 'Nofaol'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      <button
+                        onClick={() => setModalClient(client)}
+                        className="text-xs px-3 py-1.5 rounded-lg font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors flex items-center gap-1"
+                      >
+                        <Pencil size={12} /> Tahrirlash
+                      </button>
+                      <button
+                        onClick={() => toggleMutation.mutate(client.id)}
+                        disabled={toggleMutation.isPending}
+                        className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1 disabled:opacity-60 ${
+                          client.isActive ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'
+                        }`}
+                      >
+                        <Power size={12} /> {client.isActive ? 'Nofaollashtirish' : 'Faollashtirish'}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {!isLoading && (pagination.pages || 1) > 1 && (
+          <div className="border-t border-gray-100 px-4">
             <Pagination
               page={pagination.page || page}
               pages={pagination.pages || 1}
@@ -302,8 +319,8 @@ export default function ClientsPage() {
               onChange={setPage}
             />
           </div>
-        </>
-      )}
+        )}
+      </div>
 
       {modalClient !== undefined && (
         <ClientModal client={modalClient} onClose={() => setModalClient(undefined)} />
