@@ -11,7 +11,7 @@ import { REGIONS, regionLabel, districtsFor } from '../../utils/regions';
 
 const EMPTY_FORM = { orgName: '', inn: '', phone: '', address: '', region: '', district: '' };
 
-const COLUMNS = ['Tashkilot', 'INN', 'Telefon', 'Hudud', 'Manzil', 'Holat', 'Amallar'];
+const COLUMNS = ['Tashkilot / INN', 'Telefon', 'Hudud', 'Manzil', 'Holat', 'Amallar'];
 
 function ClientModal({ client, onClose }) {
   const qc = useQueryClient();
@@ -217,53 +217,55 @@ export default function ClientsPage() {
       {/* Jadval — Xodimlar va Buyurtmalar sahifalaridagi bilan bir xil uslub */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px]">
+          <table className="w-full min-w-[900px]">
             <thead>
               <tr className="text-left text-xs text-gray-500 uppercase tracking-wide bg-gray-50">
                 {COLUMNS.map(c => (
-                  <th key={c} scope="col" className="px-4 py-3 font-semibold whitespace-nowrap">{c}</th>
+                  <th key={c} scope="col" className="px-3 py-3 font-semibold whitespace-nowrap">{c}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {isLoading && [1, 2, 3, 4, 5, 6].map(i => (
                 <tr key={i} className="animate-pulse">
-                  <td className="px-4 py-4">
+                  <td className="px-3 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 bg-gray-100 rounded-xl shrink-0" />
                       <div className="h-4 bg-gray-100 rounded w-40" />
                     </div>
                   </td>
-                  {[24, 28, 24, 44, 16, 24].map((w, k) => (
-                    <td key={k} className="px-4 py-4"><div className="h-4 bg-gray-100 rounded" style={{ width: `${w * 4}px`, maxWidth: '100%' }} /></td>
+                  {[28, 24, 44, 16, 24].map((w, k) => (
+                    <td key={k} className="px-3 py-4"><div className="h-4 bg-gray-100 rounded" style={{ width: `${w * 4}px`, maxWidth: '100%' }} /></td>
                   ))}
                 </tr>
               ))}
 
               {!isLoading && clients.length === 0 && (
-                <tr><td colSpan={COLUMNS.length} className="px-4 py-12 text-center text-gray-400">Mijozlar topilmadi</td></tr>
+                <tr><td colSpan={COLUMNS.length} className="px-3 py-12 text-center text-gray-400">Mijozlar topilmadi</td></tr>
               )}
 
               {!isLoading && clients.map(client => (
                 <tr key={client.id} className={`transition-colors hover:bg-gray-50 ${client.isActive ? '' : 'bg-gray-50/60'}`}>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${client.isActive ? 'bg-blue-100' : 'bg-gray-100'}`}>
                         <Building2 size={18} className={client.isActive ? 'text-blue-600' : 'text-gray-400'} />
                       </div>
-                      <span
-                        className={`font-semibold text-sm leading-snug line-clamp-2 max-w-[280px] ${client.isActive ? 'text-gray-900' : 'text-gray-500'}`}
-                        title={client.orgName}
-                      >
-                        {client.orgName}
-                      </span>
+                      <div className="min-w-0">
+                        <p
+                          className={`font-semibold text-sm leading-snug line-clamp-2 max-w-[260px] ${client.isActive ? 'text-gray-900' : 'text-gray-500'}`}
+                          title={client.orgName}
+                        >
+                          {client.orgName}
+                        </p>
+                        <p className="text-xs text-gray-500 font-mono mt-0.5 truncate max-w-[200px]" title={client.inn || undefined}>
+                          INN: {client.inn || '—'}
+                        </p>
+                      </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600 font-mono max-w-[140px]">
-                    <span className="block truncate" title={client.inn || undefined}>{client.inn || '—'}</span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{client.phone || '—'}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3 text-sm text-gray-600 whitespace-nowrap">{client.phone || '—'}</td>
+                  <td className="px-3 py-3">
                     {client.region || client.district ? (
                       <div className="flex flex-col items-start gap-1">
                         {client.region && (
@@ -277,28 +279,28 @@ export default function ClientsPage() {
                       <span className="text-sm text-gray-400">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600 max-w-[260px]">
+                  <td className="px-3 py-3 text-sm text-gray-600 max-w-[260px]">
                     <span className="line-clamp-2" title={client.address}>{client.address}</span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3">
                     <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       client.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                     }`}>
                       {client.isActive ? 'Faol' : 'Nofaol'}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2 whitespace-nowrap">
+                  <td className="px-3 py-3">
+                    <div className="flex items-center gap-1.5 whitespace-nowrap">
                       <button
                         onClick={() => setModalClient(client)}
-                        className="text-xs px-3 py-1.5 rounded-lg font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors flex items-center gap-1"
+                        className="text-xs px-2.5 py-1.5 rounded-lg font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors flex items-center gap-1"
                       >
                         <Pencil size={12} /> Tahrirlash
                       </button>
                       <button
                         onClick={() => toggleMutation.mutate(client.id)}
                         disabled={toggleMutation.isPending}
-                        className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1 disabled:opacity-60 ${
+                        className={`text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1 disabled:opacity-60 ${
                           client.isActive ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'
                         }`}
                       >
