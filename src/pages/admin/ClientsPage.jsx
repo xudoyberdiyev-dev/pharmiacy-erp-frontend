@@ -258,7 +258,7 @@ export default function ClientsPage() {
                         >
                           {client.orgName}
                         </p>
-                        <p className="text-xs text-gray-500 font-mono mt-0.5 truncate max-w-[200px]" title={client.inn || undefined}>
+                        <p className="text-xs text-gray-500 font-mono mt-0.5 truncate max-w-[160px]" title={client.inn || undefined}>
                           INN: {client.inn || '—'}
                         </p>
                       </div>
