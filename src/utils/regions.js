@@ -92,7 +92,7 @@ export const DISTRICTS = {
   ],
   QASHQADARYO: [
     'Qarshi shahri', 'Qarshi tumani', 'Shahrisabz', 'G\'uzor', 'Dehqonobod',
-    'Kasbi', 'Kitob', 'Koson', 'Mirishkor', 'Muborak', 'Nishon', 'Qamashi',
+    'Kasbi', 'Kitob', 'Koson', 'Ko\'kdala', 'Mirishkor', 'Muborak', 'Nishon', 'Qamashi',
     'Chiroqchi', 'Yakkabog\'',
   ],
   QORAQALPOGISTON: [

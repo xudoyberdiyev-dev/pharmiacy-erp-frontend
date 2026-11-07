@@ -55,6 +55,7 @@ export const ACTION_META = {
   TRIP_ASSIGNED: { label: 'Reys biriktirildi', cat: 'progress' },
   DOCUMENT_ISSUED: { label: 'Hujjat chiqarildi', cat: 'progress' },
   PICKING_RESUBMITTED: { label: "Yig'ish qayta topshirildi", cat: 'progress' },
+  PICKING_START_UNDONE: { label: 'Picker qabulni bekor qildi (navbatga qaytdi)', cat: 'update' },
   MARKING_RESUBMITTED: { label: 'Belgilash qayta topshirildi', cat: 'progress' },
   DELIVERED: { label: 'Mijozga yetkazildi', cat: 'success' },
 
@@ -64,6 +65,7 @@ export const ACTION_META = {
   ETIROV_ACCEPTED_BY_PICKER: { label: 'Etiroz qabul qilindi', cat: 'confirm' },
 
   ETIROV_RAISED: { label: 'Etiroz bildirildi', cat: 'warning' },
+  PICKER_ISSUE_REPORTED: { label: 'Picker muammo bildirdi (pozitsiya)', cat: 'warning' },
   ETIROV_SUBMITTED: { label: 'Etiroz yuborildi', cat: 'warning' },
   RETURNED_TO_MARKING: { label: "Checker Marker'ga qaytardi (jarima)", cat: 'warning' },
   RETURNED_TO_PICKING: { label: "Marker Picker'ga qaytardi (jarima)", cat: 'warning' },
