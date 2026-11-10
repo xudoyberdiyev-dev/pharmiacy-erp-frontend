@@ -75,12 +75,6 @@ export const pickerAPI = {
   complete: (id) => api.patch(`/picker/orders/${id}/complete`),
   acceptEtirov: (etirovId) => api.patch(`/picker/etirozlar/${etirovId}/accept`),
   rejectEtirov: (etirovId, data) => api.patch(`/picker/etirozlar/${etirovId}/reject`, data),
-  // — yangi Picker paneli —
-  getSummary: () => api.get('/picker/summary'),
-  getDayHistory: (date) => api.get('/picker/history', { params: date ? { date } : {} }),
-  toggleItem: (orderId, itemId, picked) => api.patch(`/picker/orders/${orderId}/items/${itemId}`, { picked }),
-  reportIssue: (orderId, data) => api.post(`/picker/orders/${orderId}/issues`, data),
-  undoAccept: (orderId) => api.patch(`/picker/orders/${orderId}/undo-accept`),
 };
 
 // ===== MARKER =====

@@ -24,10 +24,11 @@ import OperatorCreateOrder from './pages/operator/OperatorCreateOrder';
 import OperatorOrderDetail from './pages/operator/OperatorOrderDetail';
 import OperatorProfile from './pages/operator/OperatorProfile';
 import PickerLayout from './components/layout/PickerLayout';
-import PickerToday from './pages/picker/PickerToday';
-import PickerQueue from './pages/picker/PickerQueue';
-import PickerHistory from './pages/picker/PickerHistory';
-import PickerProfile from './pages/picker/PickerProfile';
+import PickerAvailablePage from './pages/picker/PickerAvailablePage';
+import PickerMinePage from './pages/picker/PickerMinePage';
+import PickerLatePage from './pages/picker/PickerLatePage';
+import PickerEtirozliPage from './pages/picker/PickerEtirozliPage';
+import PickerReturnedPage from './pages/picker/PickerReturnedPage';
 import MarkerLayout from './components/layout/MarkerLayout';
 import MarkerAvailablePage from './pages/marker/MarkerAvailablePage';
 import MarkerMinePage from './pages/marker/MarkerMinePage';
@@ -153,17 +154,11 @@ function AppRoutes() {
 
       {/* PICKER */}
       <Route path="/picker" element={<ProtectedRoute roles={['PICKER']}><PickerLayout /></ProtectedRoute>}>
-        <Route index element={<PickerToday />} />
-        <Route path="orders/:id" element={<PickerToday />} />
-        <Route path="etirozlar/:orderId" element={<PickerToday />} />
-        <Route path="queue" element={<PickerQueue />} />
-        <Route path="history" element={<PickerHistory />} />
-        <Route path="profile" element={<PickerProfile />} />
-        {/* Eski manzillar (xatcho'p/havolalar) yangi bo'limlarga yo'naltiriladi */}
-        <Route path="mine" element={<Navigate to="/picker" replace />} />
-        <Route path="returned" element={<Navigate to="/picker" replace />} />
-        <Route path="etirozli" element={<Navigate to="/picker" replace />} />
-        <Route path="late" element={<Navigate to="/picker/history" replace />} />
+        <Route index element={<PickerAvailablePage />} />
+        <Route path="mine" element={<PickerMinePage />} />
+        <Route path="returned" element={<PickerReturnedPage />} />
+        <Route path="late" element={<PickerLatePage />} />
+        <Route path="etirozli" element={<PickerEtirozliPage />} />
       </Route>
       {/* MARKER */}
       <Route path="/marker" element={<ProtectedRoute roles={['MARKER']}><MarkerLayout /></ProtectedRoute>}>
