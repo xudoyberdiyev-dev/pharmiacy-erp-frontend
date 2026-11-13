@@ -1,312 +1,364 @@
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { pickerAPI } from '../../api';
-import { format } from 'date-fns';
+import { useEffect, useMemo, useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { getErrorMessage } from '../../lib/errors';
-import { AlertCircle, Clock, FileSpreadsheet, CheckCircle2, XCircle, X } from 'lucide-react';
+import {
+  MessageSquareWarning, ShieldCheck, Tag, CircleHelp, ChevronRight, Clock, TriangleAlert, Info, CircleCheck,
+  CircleX, ThumbsUp, ThumbsDown, WifiOff, Copy, RefreshCw, Lock, MousePointerClick, ArrowRight, Inbox,
+} from 'lucide-react';
+import { pickerAPI } from '../../api';
+import { C } from './design/tokens';
+import {
+  Chip, Btn, PageBar, MobileTitle, OfflineBanner, SearchBox, Segment, SortSelect, StateBlock, RetryButton,
+  SkeletonRows, ExcelButton, InspectorBody, InspectorFoot, InspectorPlaceholder, Dialog, DialogAlert,
+  refreshState, classifyError,
+} from './design/ui';
+import Workspace, { workspaceMode } from './design/Workspace';
+import { hm, whenLabel } from './lib/time';
+import { etirovTypeLabel, REJECT_REASONS, source } from './lib/labels';
 
-const ETIROV_TYPE_LABELS = {
-  WRONG_QUANTITY:  'Dori miqdori noto\'g\'ri',
-  WRONG_PRODUCT:   'Noto\'g\'ri dori olib kelindi',
-  WRONG_SERIES:    'Dorining seriyasi boshqa',
-  DAMAGED:         'Dori shikastlangan',
-  MISSING_PRODUCT: 'Dori ro\'yxatda yo\'q',
-  OTHER:           'Boshqa sabab',
-};
-
-const REJECT_REASONS = [
-  { value: 'WRONG_QUANTITY',  label: 'Dori miqdori to\'g\'ri edi' },
-  { value: 'WRONG_PRODUCT',   label: 'To\'g\'ri dori olib keldim' },
-  { value: 'WRONG_SERIES',    label: 'Seriya to\'g\'ri edi' },
-  { value: 'DAMAGED',         label: 'Dori shikastlanmagan edi' },
-  { value: 'MISSING_PRODUCT', label: 'Barcha mahsulotlar bor edi' },
-  { value: 'OTHER',           label: 'Boshqa izoh yozish' },
+const SRC_ICON = { CHECKER: ShieldCheck, MARKER: Tag };
+const SORTS = [
+  { value: 'oldest', label: 'Eng eski e’tiroz' },
+  { value: 'newest', label: 'Eng yangi e’tiroz' },
 ];
 
-// ── Reject Modal ──────────────────────────────────────────────────────────────
-function RejectModal({ etirov, onClose, onDone }) {
-  const [selected, setSelected] = useState([]);
-  const [comment, setComment] = useState('');
+const pendingOf = (o) => (o.etirozlar || []).filter((e) => e.status === 'PENDING').sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
-  const toggle = v => setSelected(p => p.includes(v) ? p.filter(x => x !== v) : [...p, v]);
-
-  const mutation = useMutation({
-    mutationFn: () => pickerAPI.rejectEtirov(etirov.id, {
-      responseTypes: selected,
-      responseComment: comment.trim() || undefined,
-    }),
-    onSuccess: () => {
-      toast.success('Etirozni qabul qilmadingiz');
-      onDone();
-      onClose();
-    },
-    onError: e => toast.error(getErrorMessage(e)),
-  });
-
-  const canSubmit = selected.length > 0 || comment.trim().length > 0;
-
-  return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <div>
-            <h3 className="font-black text-gray-900">Etirozni qabul qilmaslik</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Sabab(lar)ni belgilang</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center">
-            <X size={16} className="text-gray-400" />
-          </button>
-        </div>
-
-        <div className="p-5 space-y-2">
-          <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-3">Sabab tanlang (bir nechta tanlash mumkin)</p>
-          {REJECT_REASONS.map(r => (
-            <button key={r.value} onClick={() => toggle(r.value)}
-              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl border-2 text-left transition-all ${
-                selected.includes(r.value)
-                  ? 'border-red-400 bg-red-50'
-                  : 'border-gray-100 hover:border-red-200 hover:bg-red-50/30'
-              }`}>
-              <div className={`w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center transition-all ${
-                selected.includes(r.value) ? 'border-red-500 bg-red-500' : 'border-gray-300'
-              }`}>
-                {selected.includes(r.value) && (
-                  <svg viewBox="0 0 10 10" className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M1.5 5l2.5 2.5 4.5-4.5" />
-                  </svg>
-                )}
-              </div>
-              <span className={`text-sm font-semibold ${selected.includes(r.value) ? 'text-red-800' : 'text-gray-700'}`}>
-                {r.label}
-              </span>
-            </button>
-          ))}
-
-          {selected.includes('OTHER') && (
-            <textarea
-              value={comment}
-              onChange={e => setComment(e.target.value)}
-              placeholder="Batafsil izoh yozing..."
-              rows={3}
-              className="w-full mt-2 px-3.5 py-3 rounded-xl border-2 border-gray-200 focus:border-red-400 outline-none text-sm resize-none"
-            />
-          )}
-        </div>
-
-        <div className="px-5 pb-5 flex gap-3">
-          <button onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50">
-            Bekor qilish
-          </button>
-          <button
-            onClick={() => mutation.mutate()}
-            disabled={!canSubmit || mutation.isPending}
-            className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 text-white text-sm font-bold
-              hover:from-red-600 hover:to-rose-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-          >
-            {mutation.isPending
-              ? <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Yuborilmoqda...</>
-              : 'Qabul qilmaslik'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Single etirov action row ───────────────────────────────────────────────────
-function EtirovActions({ etirov, onDone }) {
+export default function PickerEtirozliPage() {
+  const { vw, online } = useOutletContext();
   const qc = useQueryClient();
-  const [showReject, setShowReject] = useState(false);
+  const [q, setQ] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [sort, setSort] = useState('oldest');
+  const [selId, setSelId] = useState(null);
+  const [objId, setObjId] = useState(null);
+  const [res, setRes] = useState(null);           // { title, type, orderDone, no }
+  const [flow, setFlow] = useState('');           // '' | accept | reject | sending | error
+  const [kind, setKind] = useState('accept');
+  const [reasons, setReasons] = useState([]);
+  const [note, setNote] = useState('');
+  const [tried, setTried] = useState(false);
+  const [err, setErr] = useState(null);
 
-  const acceptMut = useMutation({
-    mutationFn: () => pickerAPI.acceptEtirov(etirov.id),
-    onSuccess: () => {
-      toast.success('Etirozni qabul qildingiz');
-      onDone();
-      qc.invalidateQueries(['picker-etirozli']);
-    },
-    onError: e => toast.error(getErrorMessage(e)),
-  });
+  const query = useQuery({ queryKey: ['picker-etirozli'], queryFn: pickerAPI.getEtirozli, refetchInterval: 15000, select: (r) => r.data.data || [] });
 
-  if (etirov.status !== 'PENDING') return null;
+  const orders = useMemo(() => (query.data || []).map((o) => ({ ...o, pending: pendingOf(o) })).filter((o) => o.pending.length > 0), [query.data]);
+
+  const counts = useMemo(() => {
+    const c = { all: orders.length, MARKER: 0, CHECKER: 0 };
+    orders.forEach((o) => {
+      if (o.pending.some((e) => e.fromRole === 'MARKER')) c.MARKER += 1;
+      if (o.pending.some((e) => e.fromRole === 'CHECKER')) c.CHECKER += 1;
+    });
+    return c;
+  }, [orders]);
+  const objTotal = orders.reduce((s, o) => s + o.pending.length, 0);
+
+  const vis = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    const t = (o) => new Date(o.pending[0].createdAt).getTime();
+    return orders
+      .filter((o) => (filter === 'all' || o.pending.some((e) => e.fromRole === filter)) && (!s || String(o.invoiceNumber || '').toLowerCase().includes(s) || (o.client?.orgName || '').toLowerCase().includes(s)))
+      .sort((a, b) => (sort === 'newest' ? t(b) - t(a) : t(a) - t(b)));
+  }, [orders, q, filter, sort]);
+
+  const mode = workspaceMode(vw);
+  const mobile = mode === 'mobile';
+  const sel = orders.find((o) => o.id === selId) || null;
+  const ob = sel ? sel.pending.find((e) => e.id === objId) || sel.pending[0] : null;
+  const obIdx = sel && ob ? sel.pending.indexOf(ob) : -1;
+
+  useEffect(() => {
+    if (res?.orderDone) return;
+    if (selId && !sel && !query.isFetching) setSelId(null);
+    if (!selId && mode === 'split' && vis.length) setSelId(vis[0].id);
+  }, [selId, sel, vis, mode, res, query.isFetching]);
+  useEffect(() => { if (sel && (!objId || !sel.pending.some((e) => e.id === objId))) setObjId(sel.pending[0]?.id || null); }, [sel, objId]);
+
+  const loading = query.isLoading;
+  const isError = query.isError && !query.data;
+  const ready = !loading && !isError;
+  const rs = refreshState(query, online);
+
+  const pickOrder = (id) => { setSelId(id); setObjId(null); setRes(null); };
+
+  const open = (k) => { if (!ob || !online) return; setKind(k); setReasons([]); setNote(''); setTried(false); setErr(null); setFlow(k); };
+  const closeDialog = () => { if (flow === 'sending') return; setFlow(''); setErr(null); };
+
+  const otherOn = reasons.includes('OTHER');
+  const reasonErr = kind === 'reject' && tried && reasons.length === 0;
+  const noteErr = kind === 'reject' && tried && otherOn && !note.trim();
+
+  const confirm = async () => {
+    if (!ob || !sel) return;
+    if (kind === 'reject') {
+      setTried(true);
+      if (!reasons.length || (otherOn && !note.trim())) return;
+    }
+    setFlow('sending');
+    const typeText = `E’tiroz ${obIdx + 1} — ${etirovTypeLabel(ob.type)}`;
+    try {
+      if (kind === 'accept') await pickerAPI.acceptEtirov(ob.id);
+      else await pickerAPI.rejectEtirov(ob.id, { responseTypes: reasons, responseComment: note.trim() || undefined });
+      const left = sel.pending.filter((e) => e.id !== ob.id);
+      setRes({ title: kind === 'reject' ? 'E’tiroz rad etildi.' : 'E’tiroz tan olindi.', type: typeText, orderDone: left.length === 0, no: sel.invoiceNumber, orderId: sel.id });
+      setObjId(left[0]?.id || null);
+      setFlow('');
+      toast.success(kind === 'reject' ? 'E’tiroz rad etildi.' : 'E’tiroz tan olindi.');
+      qc.invalidateQueries({ queryKey: ['picker-etirozli'] });
+      qc.invalidateQueries({ queryKey: ['picker-stats'] });
+    } catch (e) {
+      setErr(classifyError(e));
+      setFlow('error');
+    }
+  };
+  const recheck = () => { setFlow(''); setErr(null); query.refetch(); };
+
+  const onListKey = (e) => {
+    if (!['ArrowDown', 'ArrowUp'].includes(e.key)) return;
+    e.preventDefault();
+    const ids = vis.map((x) => x.id); if (!ids.length) return;
+    const i = ids.indexOf(selId);
+    const n = e.key === 'ArrowDown' ? Math.min(ids.length - 1, i + 1) : Math.max(0, i < 0 ? 0 : i - 1);
+    pickOrder(ids[n]);
+  };
+
+  const filters = [
+    { key: 'all', label: 'Barchasi', count: ready ? counts.all : '—' },
+    { key: 'MARKER', label: 'Marker', count: ready ? counts.MARKER : '—' },
+    { key: 'CHECKER', label: 'Checker', count: ready ? counts.CHECKER : '—' },
+  ];
+
+  let list;
+  if (loading) list = <SkeletonRows n={4} h={120} />;
+  else if (isError) list = <StateBlock kind="error" title="E’tirozlarni yuklab bo‘lmadi." desc="Bu javobsiz e’tirozlar yo‘q degani emas." action={<RetryButton onClick={() => query.refetch()} />} />;
+  else if (orders.length === 0) list = <StateBlock icon={Inbox} title="Hozircha javobsiz e’tirozlar yo‘q." desc="Ko‘rib chiqilishi kerak bo‘lgan e’tiroz mavjud emas." />;
+  else if (vis.length === 0) list = <StateBlock kind="search" title="Qidiruvga mos e’tiroz topilmadi." action={<Btn variant="outline" onClick={() => { setQ(''); setFilter('all'); }}>Filtrlarni tozalash</Btn>} />;
+  else {
+    list = (
+      <div role="listbox" aria-label="E’tirozli buyurtmalar" tabIndex={0} onKeyDown={onListKey} className="pk-focus" style={{ display: 'flex', flexDirection: 'column', gap: 6, borderRadius: 12, opacity: online ? 1 : 0.7 }}>
+        {vis.map((o) => {
+          const on = o.id === selId;
+          const sc = {};
+          o.pending.forEach((e) => { const k = source(e.fromRole).short; sc[k] = (sc[k] || 0) + 1; });
+          const types = [...new Set(o.pending.map((e) => etirovTypeLabel(e.type)))].join(' · ');
+          return (
+            <div key={o.id} role="option" aria-selected={on} className="pk-row" aria-label={`Faktura ${o.invoiceNumber}, ${o.client?.orgName || ''}, ${o.pending.length} ta javobsiz e’tiroz: ${types}`}
+              onClick={() => pickOrder(o.id)}
+              style={{ background: on ? C.primarySoft : '#FFFFFF', border: `1px solid ${on ? C.primary : C.border}`, borderRadius: 12, padding: '12px 14px', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              {!mobile && <span aria-hidden="true" style={{ width: 40, height: 40, flex: 'none', borderRadius: 10, background: on ? C.tealChip : C.infoSoft, color: on ? C.primaryHover : C.info, display: 'grid', placeItems: 'center' }}><MessageSquareWarning size={20} /></span>}
+              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', alignItems: 'baseline' }}>
+                  <span className="tnum" style={{ fontSize: 16, fontWeight: 700 }}>№ {o.invoiceNumber}</span>
+                  <span className="tnum" style={{ fontSize: 13, color: C.text2 }}>{whenLabel(o.pending[0].createdAt)}</span>
+                </div>
+                <span style={{ fontSize: 15, fontWeight: 500, color: C.textBody, overflowWrap: 'anywhere' }}>{o.client?.orgName}</span>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <Chip size="sm" icon={MessageSquareWarning} bg={C.infoSoft} fg={C.info}>{o.pending.length} ta e’tiroz</Chip>
+                  {Object.entries(sc).map(([k, v]) => <Chip key={k} size="sm">{v > 1 ? `${k} · ${v}` : k}</Chip>)}
+                </div>
+                <span style={{ fontSize: 13, color: C.text2, overflowWrap: 'anywhere' }}>{types}</span>
+              </div>
+              {mobile && <ChevronRight size={18} color={C.textMuted} style={{ flex: 'none', alignSelf: 'center' }} aria-hidden="true" />}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  let inspector = null;
+  if (res?.orderDone && (!sel || sel.id === res.orderId)) {
+    const next = vis.find((o) => o.id !== res.orderId);
+    inspector = (
+      <div role="status" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 12, padding: 32 }}>
+        <span style={{ width: 64, height: 64, borderRadius: 999, background: C.successSoft, color: C.success, display: 'grid', placeItems: 'center' }}><CircleCheck size={30} aria-hidden="true" /></span>
+        <div style={{ fontWeight: 700, fontSize: 19 }}>{res.title}</div>
+        <div className="tnum" style={{ fontSize: 14, color: C.text2, maxWidth: '36ch' }}>№ {res.no} · {res.type} · buyurtmadagi barcha e’tirozlarga javob berildi</div>
+        {next && <Btn variant="primary" onClick={() => pickOrder(next.id)}>Keyingi e’tirozli buyurtma<ArrowRight size={18} aria-hidden="true" /></Btn>}
+      </div>
+    );
+  } else if (sel && ob) {
+    const src = source(ob.fromRole);
+    const SI = SRC_ICON[ob.fromRole] || CircleHelp;
+    const dupWith = ob.comment ? sel.pending.map((e, i) => (e.id !== ob.id && e.comment && e.comment.trim() === ob.comment.trim() ? `E’tiroz ${i + 1}` : null)).filter(Boolean) : [];
+    const checker = ob.fromRole === 'CHECKER';
+    const pen = checker
+      ? { title: 'Checker e’tirozi · 5 ball jarima', text: 'Checker e’tirozi uchun 5 ball jarima qo‘llanadi. Javob berish jarimani avtomatik bekor qilmaydi.', chip: ob.penalty ? (ob.penalty.voided ? 'Jarima bekor qilingan.' : `${ob.penalty.points} ball jarima qayd etilgan.`) : 'Qayd holati serverdan olinmagan', bg: C.warningBg, bd: C.warningLine, ic: C.warning, Icon: TriangleAlert }
+      : ob.fromRole === 'MARKER'
+        ? { title: 'Marker e’tirozi', text: 'Marker e’tiroziga alohida jarima qo‘llanmaydi.', bg: '#FFFFFF', bd: C.border, ic: C.text2, Icon: Info }
+        : { title: 'Manba noma’lum', text: 'E’tiroz manbasi aniqlanmagani uchun jarima haqida ma’lumot ko‘rsatilmaydi.', bg: '#FFFFFF', bd: C.border, ic: C.text2, Icon: CircleHelp };
+    inspector = (
+      <>
+        <InspectorBody mobile={mobile}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 13, color: C.text2, fontWeight: 500 }}>Faktura</span>
+              <h2 className="tnum" style={{ margin: 0, fontSize: 28, fontWeight: 700, lineHeight: 1.1, overflowWrap: 'anywhere' }}>№ {sel.invoiceNumber}</h2>
+              <div style={{ fontSize: 16, fontWeight: 500, color: C.textBody, overflowWrap: 'anywhere' }}>{sel.client?.orgName}</div>
+            </div>
+            <ExcelButton url={sel.productsExcelUrl} label="Excel" disabled={!online} />
+          </div>
+
+          {res && !res.orderDone && res.orderId === sel.id && (
+            <div role="status" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: C.successSoft, color: C.success, borderRadius: 12, padding: '12px 14px', fontSize: 14 }}>
+              <CircleCheck size={20} style={{ flex: 'none' }} aria-hidden="true" />
+              <span><strong style={{ fontWeight: 600 }}>{res.title}</strong> {res.type} · server tasdiqladi. Qolgan e’tirozlar o‘zgarmadi.</span>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Javobsiz e’tirozlar · {sel.pending.length}</h3>
+              <span style={{ fontSize: 13, color: C.text2 }}>har biriga alohida qaror</span>
+            </div>
+            <div role="tablist" aria-label="Buyurtmadagi e’tirozlar" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {sel.pending.map((e, i) => {
+                const on = e.id === ob.id;
+                return (
+                  <button key={e.id} type="button" role="tab" aria-selected={on} className="pk-row" onClick={() => { setObjId(e.id); setRes(null); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 56, padding: '8px 12px', borderRadius: 12, border: `1px solid ${on ? C.primary : C.border}`, background: on ? C.primarySoft : '#FFFFFF', textAlign: 'left', color: C.text }}>
+                    <span className="tnum" style={{ width: 28, height: 28, flex: 'none', borderRadius: 999, background: on ? C.primary : C.surfaceMuted, color: on ? '#FFFFFF' : C.textBody, fontWeight: 700, fontSize: 13, display: 'grid', placeItems: 'center' }}>{i + 1}</span>
+                    <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontWeight: 600, fontSize: 14, overflowWrap: 'anywhere' }}>{etirovTypeLabel(e.type)}</span>
+                      <span className="tnum" style={{ fontSize: 13, color: C.text2 }}>{source(e.fromRole).short} · {hm(e.createdAt)}</span>
+                    </span>
+                    <Chip size="sm" icon={Clock} bg={C.infoSoft} fg={C.info}>Javob kutilmoqda</Chip>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <section role="tabpanel" aria-labelledby="pd-obj-h" style={{ border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden' }}>
+            <div style={{ padding: '12px 16px', display: 'flex', flexWrap: 'wrap', gap: '6px 12px', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${C.border}`, background: C.canvas }}>
+              <h3 id="pd-obj-h" style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>E’tiroz {obIdx + 1} — {etirovTypeLabel(ob.type)}</h3>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: C.textBody, fontWeight: 500 }}><SI size={16} aria-hidden="true" />{src.raised} · {whenLabel(ob.createdAt).toLowerCase()}</span>
+            </div>
+            <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {ob.comment
+                ? <p style={{ margin: 0, fontSize: 16, lineHeight: 1.65, maxWidth: '62ch', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{ob.comment}</p>
+                : <p style={{ margin: 0, fontSize: 15, color: C.textMuted, fontStyle: 'italic' }}>Izoh qoldirilmagan.</p>}
+              {dupWith.length > 0 && <div style={{ display: 'flex', gap: 8, fontSize: 13, color: C.text2 }}><Copy size={16} style={{ flex: 'none', marginTop: 2 }} aria-hidden="true" />Bu izoh {dupWith.join(', ')} da ham bir xil — qaror har biri uchun alohida.</div>}
+            </div>
+          </section>
+
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', border: `1px solid ${pen.bd}`, background: pen.bg, borderRadius: 12, padding: '14px 16px' }}>
+            <pen.Icon size={20} color={pen.ic} style={{ flex: 'none', marginTop: 2 }} aria-hidden="true" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}><span style={{ fontWeight: 600, fontSize: 15 }}>{pen.title}</span>{pen.chip && <Chip size="sm" bg="#FFFFFF" border={C.warningLine} fg={C.warning}>{pen.chip}</Chip>}</div>
+              <span style={{ fontSize: 14, color: C.textBody }}>{pen.text}</span>
+            </div>
+          </div>
+        </InspectorBody>
+        <InspectorFoot mobile={mobile}>
+          <div id="pd-dec" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: C.text2, fontWeight: 500 }}>
+            {online ? <Info size={16} aria-hidden="true" /> : <WifiOff size={16} aria-hidden="true" />}
+            {online ? `Qaror faqat E’tiroz ${obIdx + 1} — ${etirovTypeLabel(ob.type)} ga tegishli.` : 'Aloqa tiklanguncha javob yuborib bo‘lmaydi.'}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Btn variant="outline" h={52} icon={ThumbsUp} iconColor={C.primary} onClick={() => open('accept')} disabled={!online} aria-describedby="pd-dec" style={{ padding: '0 12px', borderColor: C.primary, color: C.primaryHover }}>E’tirozni tan olish</Btn>
+            <Btn variant="danger" h={52} icon={ThumbsDown} onClick={() => open('reject')} disabled={!online} aria-describedby="pd-dec" style={{ padding: '0 12px' }}>E’tirozni rad etish</Btn>
+          </div>
+        </InspectorFoot>
+      </>
+    );
+  } else if (mode === 'split') {
+    inspector = <InspectorPlaceholder icon={MousePointerClick} title="E’tirozni ko‘rish uchun buyurtmani tanlang." desc="E’tirozlar, jarima qoidasi va javob tugmalari shu yerda." />;
+  }
+
+  const isRej = kind === 'reject';
+  const sending = flow === 'sending';
+  const dlgOpen = ['accept', 'reject', 'sending', 'error'].includes(flow) && !!ob;
 
   return (
     <>
-      {showReject && (
-        <RejectModal etirov={etirov} onClose={() => setShowReject(false)} onDone={() => qc.invalidateQueries(['picker-etirozli'])} />
-      )}
-      <div className="flex gap-2 mt-2">
-        <button
-          onClick={() => acceptMut.mutate()}
-          disabled={acceptMut.isPending}
-          className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl bg-green-500 hover:bg-green-600 text-white text-xs font-bold transition-all disabled:opacity-60"
-        >
-          {acceptMut.isPending
-            ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            : <CheckCircle2 size={12} />}
-          Qabul qilish
-        </button>
-        <button
-          onClick={() => setShowReject(true)}
-          disabled={acceptMut.isPending}
-          className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold transition-all"
-        >
-          <XCircle size={12} /> Qabul qilmaslik
-        </button>
-      </div>
-    </>
-  );
-}
-
-// ── Order card ────────────────────────────────────────────────────────────────
-function EtirozliCard({ order }) {
-  const qc = useQueryClient();
-  // faqat PENDING etirozlarni ko'rsat
-  const etirozlar = (order.etirozlar || []).filter(e => e.status === 'PENDING');
-  const hasPending = etirozlar.length > 0;
-
-  return (
-    <div className={`bg-white rounded-2xl border-2 shadow-sm hover:shadow-md transition-all ${
-      hasPending ? 'border-amber-300' : 'border-gray-200'
-    }`}>
-      {/* Header */}
-      <div className={`rounded-t-2xl px-5 py-4 border-b ${hasPending ? 'bg-amber-50 border-amber-100' : 'bg-gray-50 border-gray-100'}`}>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="font-mono text-base font-black text-gray-900">#{order.invoiceNumber}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{format(new Date(order.createdAt), 'dd.MM.yyyy HH:mm')}</p>
-          </div>
-          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border ${
-            hasPending
-              ? 'bg-amber-100 border-amber-300'
-              : 'bg-gray-100 border-gray-200'
-          }`}>
-            <AlertCircle size={13} className={hasPending ? 'text-amber-700' : 'text-gray-500'} />
-            <span className={`text-[11px] font-black ${hasPending ? 'text-amber-800' : 'text-gray-600'}`}>
-              {etirozlar.length} ta etirozli
-            </span>
-          </div>
-        </div>
-
-        {/* Client */}
-        <div className="flex items-center gap-2.5 mt-3 p-3 bg-white/80 rounded-xl">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-black text-sm shrink-0">
-            {order.client?.orgName?.charAt(0)}
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-gray-900 truncate">{order.client?.orgName}</p>
-            <p className="text-[11px] text-gray-500">Faktura: {order.invoiceNumber} · Lot: {order.lotNumber}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Etirozlar list */}
-      <div className="p-4 space-y-3">
-        <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider">Etirozlar ro'yxati</p>
-        {etirozlar.map((e, i) => (
-          <div key={e.id || i} className={`rounded-xl p-3.5 border ${
-            e.status === 'PENDING'  ? 'bg-amber-50/60 border-amber-100'  :
-            e.status === 'ACCEPTED' ? 'bg-green-50/60 border-green-100'  :
-            'bg-red-50/60 border-red-100'
-          }`}>
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-black text-gray-800">
-                {ETIROV_TYPE_LABELS[e.type] || e.type}
-              </span>
-              {e.status === 'PENDING'  && <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-amber-100 text-amber-700 border border-amber-200 animate-pulse">Kutilmoqda</span>}
-              {e.status === 'ACCEPTED' && <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-green-100 text-green-700 border border-green-200">Qabul qilindi ✓</span>}
-              {e.status === 'REJECTED' && <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-red-100 text-red-700 border border-red-200">Qabul qilinmadi ✗</span>}
+      <Workspace
+        vw={vw}
+        listLabel="E’tirozli buyurtmalar navbati"
+        bar={<PageBar title="E’tirozlar" count={ready ? `${objTotal} ta javobsiz · ${orders.length} buyurtma` : null} countBg={C.infoSoft} countFg={C.info} rs={rs} onRefresh={() => query.refetch()} refreshing={query.isFetching} refreshDisabled={!online} pad={vw >= 1280 ? 24 : 20} />}
+        mobileTitle={<MobileTitle title="E’tirozlar" count={ready ? `${objTotal} ta javobsiz` : null} countBg={C.infoSoft} countFg={C.info} rs={rs} />}
+        toolbar={(
+          <>
+            {!online && <OfflineBanner note="Ro‘yxat oxirgi yuklangan holatda. Javob yuborish aloqa tiklanguncha o‘chirilgan." />}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 12px', alignItems: 'center' }}>
+              <SearchBox value={q} onChange={setQ} placeholder="Faktura yoki mijoz" label="Faktura yoki mijoz bo‘yicha qidiruv" max={mobile ? 'none' : 360} />
+              {mobile && <SortSelect iconOnly value={sort} onChange={setSort} options={SORTS} />}
+              <Segment label="E’tiroz manbasi bo‘yicha filtr" options={filters} value={filter} onChange={setFilter} compact={mobile} />
+              {!mobile && <SortSelect value={sort} onChange={setSort} options={SORTS} />}
             </div>
-            {e.comment && <p className="text-[11px] text-gray-600 font-medium mb-1">"{e.comment}"</p>}
-            {e.fromRole === 'CHECKER' && (
-              <p className="text-[11px] text-red-600 font-semibold mb-1">
-                ⚠ Checker etirozi — 5 ball jarima allaqachon yozilgan (javobingiz jarimani bekor qilmaydi)
-              </p>
+            {ready && vis.length > 0 && <div style={{ fontSize: 13, color: C.text2 }}>{vis.length} ta buyurtma · {objTotal} ta javobsiz e’tiroz · qidiruv yuklangan ro‘yxat ichida</div>}
+          </>
+        )}
+        inspector={inspector}
+        insOpen={!!sel || !!res?.orderDone}
+        onCloseIns={() => { setSelId(null); setRes(null); }}
+        insLabel="E’tiroz tafsilotlari"
+        insTopTitle="E’tiroz"
+      >
+        {list}
+      </Workspace>
+
+      <Dialog
+        open={dlgOpen} onClose={closeDialog} busy={sending} mobile={mobile} labelId="pd-dlg-title"
+        icon={isRej ? CircleX : CircleCheck} iconBg={isRej ? C.dangerSoft : C.primarySoft} iconFg={isRej ? C.danger : C.primary}
+        title={isRej ? 'E’tirozni rad etish' : 'E’tirozni tan olasizmi?'}
+        desc={isRej ? 'Rad etish sababini tanlang va qaroringizni tasdiqlang.' : 'Ushbu e’tirozni tan olishingizni tasdiqlang. Javobingiz tizimda qayd etiladi.'}
+        footer={(
+          <>
+            <Btn variant="outline" onClick={closeDialog} disabled={sending} style={{ flex: mobile ? '1 1 100%' : '0 0 auto' }}>{err ? 'Yopish' : 'Bekor qilish'}</Btn>
+            {err
+              ? <Btn variant="primary" icon={RefreshCw} data-autofocus="true" onClick={recheck} style={{ flex: mobile ? '1 1 100%' : '0 0 auto' }}>Holatni tekshirish</Btn>
+              : <Btn variant={isRej ? 'danger-solid' : 'primary'} data-autofocus={isRej ? undefined : 'true'} loading={sending} disabled={sending} onClick={confirm} style={{ flex: mobile ? '1 1 100%' : '0 0 auto' }}>{sending ? 'Yuborilmoqda…' : isRej ? 'Rad etishni tasdiqlash' : 'Tan olishni tasdiqlash'}</Btn>}
+          </>
+        )}
+      >
+        {ob && sel && (
+          <dl style={{ margin: 0, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', fontSize: 14 }}>
+            {[['Faktura', `№ ${sel.invoiceNumber}`], ['E’tiroz turi', `${obIdx + 1} · ${etirovTypeLabel(ob.type)}`], ['Manba', source(ob.fromRole).short]].map(([k, v], i) => (
+              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '10px 14px', borderTop: i ? `1px solid ${C.border}` : 'none' }}><dt style={{ color: C.text2 }}>{k}</dt><dd className="tnum" style={{ margin: 0, fontWeight: 600, textAlign: 'right' }}>{v}</dd></div>
+            ))}
+          </dl>
+        )}
+        {ob?.fromRole === 'CHECKER' && (
+          <div style={{ display: 'flex', gap: 8, fontSize: 13, color: C.warning, background: C.warningBg, border: `1px solid ${C.warningLine}`, borderRadius: 12, padding: '10px 12px' }}>
+            <TriangleAlert size={16} style={{ flex: 'none', marginTop: 2 }} aria-hidden="true" />Checker e’tirozi: tan olish yoki rad etish 5 ball jarimani avtomatik bekor qilmaydi.
+          </div>
+        )}
+        {isRej && !err && (
+          <>
+            <fieldset aria-describedby={reasonErr ? 'pd-reason-err' : undefined} style={{ margin: 0, padding: 0, border: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <legend style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, padding: 0 }}>Rad etish sababi <span style={{ fontWeight: 400, color: C.text2 }}>· bir nechtasini tanlash mumkin</span></legend>
+              {REJECT_REASONS.map((r) => {
+                const on = reasons.includes(r.value);
+                return (
+                  <label key={r.value} style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 48, padding: '8px 12px', borderRadius: 12, border: `1px solid ${on ? C.primary : C.border}`, background: on ? C.primarySoft : '#FFFFFF', cursor: sending ? 'default' : 'pointer' }}>
+                    <input type="checkbox" checked={on} disabled={sending} onChange={() => setReasons((p) => (p.includes(r.value) ? p.filter((x) => x !== r.value) : [...p, r.value]))}
+                      style={{ width: 20, height: 20, accentColor: C.primary, flex: 'none' }} />
+                    <span style={{ fontSize: 15 }}>{r.label}</span>
+                  </label>
+                );
+              })}
+              {reasonErr && <div id="pd-reason-err" role="alert" style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13, color: C.danger, fontWeight: 500 }}><CircleX size={16} aria-hidden="true" />Rad etish sababini tanlang.</div>}
+            </fieldset>
+            {otherOn && (
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ fontSize: 14, fontWeight: 600 }}>Qo‘shimcha izoh <span style={{ color: C.danger }}>*</span></span>
+                <textarea rows={3} value={note} maxLength={500} disabled={sending} onChange={(e) => setNote(e.target.value)} aria-invalid={noteErr} aria-describedby={noteErr ? 'pd-note-err' : undefined}
+                  placeholder="Rad etish sababini batafsil yozing" className="pk-input"
+                  style={{ width: '100%', padding: '12px 14px', borderRadius: 12, border: `1px solid ${noteErr ? C.danger : C.borderStrong}`, fontSize: 15, resize: 'vertical', color: C.text }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  {noteErr ? <span id="pd-note-err" role="alert" style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13, color: C.danger, fontWeight: 500 }}><CircleX size={16} aria-hidden="true" />Iltimos, rad etish sababini yozing.</span> : <span />}
+                  <span className="tnum" style={{ fontSize: 13, color: C.text2 }}>{note.length}/500</span>
+                </div>
+              </label>
             )}
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-gray-400 font-medium">
-                {e.fromRole === 'CHECKER' ? 'Checker' : 'Marker'} · {format(new Date(e.createdAt), 'dd.MM HH:mm')}
-              </span>
-            </div>
-
-            {/* Action buttons for PENDING etirovlar */}
-            <EtirovActions etirov={e} onDone={() => qc.invalidateQueries(['picker-etirozli'])} />
-          </div>
-        ))}
-
-        {/* Footer */}
-        <div className="flex items-center justify-between pt-1">
-          <div className="flex items-center gap-1.5">
-            <Clock size={12} className="text-gray-400" />
-            <span className="text-xs text-gray-500 font-medium">
-              Picking: {order.pickingDeadline ? format(new Date(order.pickingDeadline), 'HH:mm') : '—'}
-            </span>
-          </div>
-          {order.productsExcelUrl && (
-            <a
-              href={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}${order.productsExcelUrl}`}
-              target="_blank" rel="noreferrer"
-              className="flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
-            >
-              <FileSpreadsheet size={13} /> Excel
-            </a>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function PickerEtirozliPage() {
-  const { data: orders = [], isLoading } = useQuery({
-    queryKey: ['picker-etirozli'],
-    queryFn: pickerAPI.getEtirozli,
-    refetchInterval: 15000,
-    // faqat PENDING etirozli orderlarni ko'rsat
-    select: r => (r.data.data || []).filter(o =>
-      (o.etirozlar || []).some(e => e.status === 'PENDING')
-    ),
-  });
-
-  return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center">
-            <AlertCircle size={16} className="text-amber-600" />
-          </div>
-          Etirozli orderlar
-        </h1>
-        <p className="text-sm text-gray-400 mt-0.5 ml-10 font-medium">
-          Marker yoki Checker tomonidan etirozlar bildirilgan orderlaringiz
-        </p>
-      </div>
-
-      {isLoading ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {[1,2].map(i => (
-            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 h-52 animate-pulse">
-              <div className="h-5 bg-gray-100 rounded w-1/3 mb-3" />
-              <div className="h-12 bg-gray-100 rounded mb-3" />
-              <div className="h-16 bg-amber-50 rounded" />
-            </div>
-          ))}
-        </div>
-      ) : orders.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-20 text-center">
-          <div className="w-16 h-16 mx-auto bg-amber-50 rounded-2xl flex items-center justify-center mb-4">
-            <AlertCircle size={28} className="text-amber-200" />
-          </div>
-          <p className="text-gray-500 text-sm font-semibold">Etirozli orderlar yo'q</p>
-          <p className="text-gray-300 text-xs mt-1">Hamma narsa tartibda!</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {orders.map(o => <EtirozliCard key={o.id} order={o} />)}
-        </div>
-      )}
-    </div>
+          </>
+        )}
+        {sending && <div role="status" style={{ fontSize: 14, color: C.text2 }}>E’tirozga javob yuborilmoqda...</div>}
+        {err && <DialogAlert icon={err.kind === 'forbidden' ? Lock : Info} title={err.kind === 'unknown' ? 'Natija noma’lum.' : 'Javobni yuborib bo‘lmadi.'} text={err.msg} />}
+      </Dialog>
+    </>
   );
 }
