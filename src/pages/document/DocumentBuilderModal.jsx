@@ -1,11 +1,18 @@
-import { useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { userAPI } from '../../api';
 import {
-  X, FileSpreadsheet, CheckSquare, Square, User2, Truck,
-  ShieldCheck, ClipboardCheck, UserCog, Building2
+  FileSpreadsheet, Truck, ClipboardCheck, UserCog, Building2, ShieldCheck, Package, Boxes, Wallet, CircleAlert, Info,
 } from 'lucide-react';
-import { formatSum } from '../../lib/format';
+import { userAPI } from '../../api';
+import { C, FONT } from './design/tokens';
+import { Modal, ModalHeader, ModalFooter, Button, InlineAlert, LABEL_CAPS } from './design/ui';
+import Picker from './design/Picker';
+import { money, count } from './lib/format';
+
+// ─────────────────────────────────────────────────────────────────────────
+// Hujjat (Excel) yaratish oynasi: jadval ustunlari, pastki imzo qatorlari,
+// ixtiyoriy Buxgalter va Tasdiqlovchi (Admin). Kamida bitta ustun majburiy.
+// ─────────────────────────────────────────────────────────────────────────
 
 const COLUMN_OPTIONS = [
   { key: 'phone',    label: 'Telefon raqami' },
@@ -16,171 +23,131 @@ const COLUMN_OPTIONS = [
   { key: 'amount',   label: 'Summa' },
 ];
 
-function CheckRow({ checked, onToggle, icon: Icon, label, sub }) {
+const uniq = (arr) => [...new Set(arr.filter(Boolean))].join(', ');
+
+function CheckCard({ checked, onToggle, label, sub, icon: Icon, invalid, disabled }) {
   return (
     <button
       type="button"
+      role="checkbox"
+      aria-checked={checked}
+      disabled={disabled}
       onClick={onToggle}
-      className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl border-2 text-left transition-colors ${
-        checked ? 'bg-emerald-50/70 border-emerald-200' : 'bg-gray-50 border-transparent hover:border-gray-200'
-      }`}
+      className="dc-focus"
+      style={{
+        display: 'flex', alignItems: 'center', gap: 10, minHeight: sub ? 56 : 44, padding: '8px 12px', borderRadius: 7, textAlign: 'left',
+        border: `1px solid ${checked ? C.p300 : invalid ? C.danger.border : C.n300}`, background: checked ? C.p50 : '#fff',
+        cursor: disabled ? 'not-allowed' : 'pointer', outline: 'none', color: C.n900, minWidth: 0,
+      }}
     >
-      {checked ? <CheckSquare size={17} className="text-emerald-600 shrink-0" /> : <Square size={17} className="text-gray-400 shrink-0" />}
-      {Icon && <Icon size={14} className="text-gray-400 shrink-0" />}
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-gray-800">{label}</p>
-        {sub && <p className="text-xs text-gray-400 truncate">{sub}</p>}
-      </div>
+      <span aria-hidden="true" style={{ width: 20, height: 20, flex: 'none', borderRadius: 5, border: `1.5px solid ${checked ? C.p800 : C.n500}`, background: checked ? C.p800 : '#fff', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }}>{checked ? '✓' : ''}</span>
+      {Icon && <Icon size={16} aria-hidden="true" style={{ color: C.n600, flex: 'none' }} />}
+      <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <span style={{ font: `500 13px/18px ${FONT}` }}>{label}</span>
+        {sub && <span className="dc-ellipsis" title={sub} style={{ font: `400 12px/16px ${FONT}`, color: C.n600 }}>{sub}</span>}
+      </span>
     </button>
   );
 }
 
-export default function DocumentBuilderModal({ orders, onClose, onConfirm, loading }) {
-  const [columns, setColumns] = useState(() => Object.fromEntries(COLUMN_OPTIONS.map(c => [c.key, true])));
+export default function DocumentBuilderModal({ orders, onClose, onConfirm, loading, error }) {
+  const uid = useId();
+  const [columns, setColumns] = useState(() => Object.fromEntries(COLUMN_OPTIONS.map((c) => [c.key, true])));
   const [footer, setFooter] = useState({ documenter: true, deliverer: true, checker: true, creator: true });
   const [accountantId, setAccountantId] = useState('');
   const [adminId, setAdminId] = useState('');
 
-  const { data: accountants1 } = useQuery({
-    queryKey: ['users', 'ACCOUNTANT1'],
-    queryFn: () => userAPI.getAll({ role: 'ACCOUNTANT1', isActive: true }),
-    select: r => r.data.data,
-  });
-  const { data: accountants2 } = useQuery({
-    queryKey: ['users', 'ACCOUNTANT2'],
-    queryFn: () => userAPI.getAll({ role: 'ACCOUNTANT2', isActive: true }),
-    select: r => r.data.data,
-  });
-  const accountants = [...(accountants1 || []), ...(accountants2 || [])];
-  const { data: admins } = useQuery({
-    queryKey: ['users', 'ADMIN'],
-    queryFn: () => userAPI.getAll({ role: 'ADMIN', isActive: true }),
-    select: r => r.data.data,
-  });
+  const acc1 = useQuery({ queryKey: ['users', 'ACCOUNTANT1', 'active'], queryFn: () => userAPI.getAll({ role: 'ACCOUNTANT1', isActive: true }), select: (r) => r.data.data || [], staleTime: 60000 });
+  const acc2 = useQuery({ queryKey: ['users', 'ACCOUNTANT2', 'active'], queryFn: () => userAPI.getAll({ role: 'ACCOUNTANT2', isActive: true }), select: (r) => r.data.data || [], staleTime: 60000 });
+  const admins = useQuery({ queryKey: ['users', 'ADMIN', 'active'], queryFn: () => userAPI.getAll({ role: 'ADMIN', isActive: true }), select: (r) => r.data.data || [], staleTime: 60000 });
 
-  const toggleColumn = (key) => setColumns(p => ({ ...p, [key]: !p[key] }));
-  const toggleFooter = (key) => setFooter(p => ({ ...p, [key]: !p[key] }));
+  const accOptions = useMemo(() => [...(acc1.data || []), ...(acc2.data || [])].map((a) => ({ value: a.id, label: a.fullName, sub: a.phone })), [acc1.data, acc2.data]);
+  const adminOptions = useMemo(() => (admins.data || []).map((a) => ({ value: a.id, label: a.fullName, sub: a.phone })), [admins.data]);
 
-  const driverNames = [...new Set(orders.map(o => o.driver?.fullName).filter(Boolean))].join(', ');
-  const vehicleNames = [...new Set(orders.map(o => o.vehicle ? `${o.vehicle.model} · ${o.vehicle.plateNumber}` : null).filter(Boolean))].join(', ');
-  const checkerNames = [...new Set(orders.map(o => o.checker?.fullName).filter(Boolean))].join(', ');
-  const creatorNames = [...new Set(orders.map(o => o.createdBy?.fullName).filter(Boolean))].join(', ');
+  const selectedCount = COLUMN_OPTIONS.filter((c) => columns[c.key]).length;
+  const invalid = selectedCount === 0;
+  const sum = orders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+  const boxes = orders.reduce((s, o) => s + (o.boxCount || 0), 0);
+  const drivers = uniq(orders.map((o) => o.driver?.fullName));
+  const vehicles = uniq(orders.map((o) => (o.vehicle ? `${o.vehicle.model} · ${o.vehicle.plateNumber}` : null)));
 
-  const totalAmount = orders.reduce((s, o) => s + (o.totalAmount || 0), 0);
-  const totalBoxes = orders.reduce((s, o) => s + (o.boxCount || 0), 0);
-
-  const handleConfirm = () => {
-    const selectedColumns = COLUMN_OPTIONS.filter(c => columns[c.key]).map(c => c.key);
-    onConfirm(selectedColumns, { ...footer, accountantId: accountantId || null, adminId: adminId || null });
+  const submit = () => {
+    if (invalid || loading) return;
+    onConfirm(
+      COLUMN_OPTIONS.filter((c) => columns[c.key]).map((c) => c.key),
+      { ...footer, accountantId: accountantId || null, adminId: adminId || null },
+    );
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl border border-gray-100 max-h-[92vh] flex flex-col">
-        {/* Header */}
-        <div className="p-5 border-b border-gray-50 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center">
-              <FileSpreadsheet size={16} className="text-indigo-600" />
-            </div>
-            <div>
-              <h3 className="font-bold text-gray-900">Hujjatlashtirish</h3>
-              <p className="text-xs text-gray-400">{orders.length} ta order · {totalBoxes} quti · {formatSum(totalAmount)} so'm</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors shrink-0">
-            <X size={16} />
-          </button>
-        </div>
+  const meta = (
+    <span style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Package size={16} aria-hidden="true" /><b className="tnum" style={{ fontWeight: 600, color: C.n900 }}>{count(orders.length)}</b> ta buyurtma</span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Boxes size={16} aria-hidden="true" /><b className="tnum" style={{ fontWeight: 600, color: C.n900 }}>{count(boxes)}</b> quti</span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Wallet size={16} aria-hidden="true" /><b className="tnum" style={{ fontWeight: 600, color: C.n900 }}>{money(sum)}</b></span>
+    </span>
+  );
 
-        {/* Content */}
-        <div className="overflow-y-auto flex-1 p-5 space-y-5">
-          {/* Orders */}
-          <div className="max-h-28 overflow-y-auto space-y-1.5 bg-gray-50 rounded-xl p-2.5">
-            {orders.map(o => (
-              <div key={o.id} className="flex items-center justify-between px-2.5 py-1.5 bg-white rounded-lg text-xs">
-                <span className="font-mono font-bold text-gray-700">{o.invoiceNumber}</span>
-                <span className="text-gray-500 truncate max-w-[200px]">{o.client?.orgName}</span>
+  return (
+    <Modal onClose={onClose} busy={loading} width={760} labelledBy={`${uid}-t`}>
+      <ModalHeader id={`${uid}-t`} icon={FileSpreadsheet} title="Hujjatlashtirish" subtitle={meta} onClose={onClose} busy={loading} />
+      <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 24, overflowY: 'auto', minHeight: 0 }}>
+        {error && <InlineAlert tone="danger" title="Hujjat yaratilmadi.">{error} Tanlov va sozlamalar saqlandi.</InlineAlert>}
+
+        <div>
+          <div style={{ ...LABEL_CAPS, marginBottom: 8 }}>Tanlangan buyurtmalar</div>
+          <div style={{ maxHeight: 132, overflowY: 'auto', border: `1px solid ${C.n200}`, borderRadius: 7 }}>
+            {orders.map((o, i) => (
+              <div key={o.id} style={{ display: 'grid', gridTemplateColumns: '150px minmax(0,1fr) auto', gap: 12, alignItems: 'center', height: 36, padding: '0 12px', borderTop: i ? `1px solid ${C.n100}` : 'none', font: `400 13px/18px ${FONT}` }}>
+                <span className="tnum dc-ellipsis" style={{ fontWeight: 600, color: C.p800 }}>{o.invoiceNumber}</span>
+                <span className="dc-ellipsis" title={o.client?.orgName}>{o.client?.orgName || '—'}</span>
+                <span className="tnum" style={{ color: C.n700 }}>{money(o.totalAmount)}</span>
               </div>
             ))}
           </div>
-
-          {/* Columns */}
-          <div>
-            <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2">Jadval ustunlari</p>
-            <div className="grid grid-cols-2 gap-2">
-              {COLUMN_OPTIONS.map(c => (
-                <CheckRow key={c.key} checked={columns[c.key]} onToggle={() => toggleColumn(c.key)} label={c.label} />
-              ))}
-            </div>
-          </div>
-
-          {/* Footer info */}
-          <div>
-            <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2">Pastki ma'lumotlar</p>
-            <div className="space-y-2">
-              <CheckRow checked={footer.documenter} onToggle={() => toggleFooter('documenter')}
-                icon={FileSpreadsheet} label="Hujjatlashtiruvchi" sub="Siz" />
-              <CheckRow checked={footer.deliverer} onToggle={() => toggleFooter('deliverer')}
-                icon={Truck} label="Yetkazib beruvchi" sub={`${driverNames || '—'}${vehicleNames ? ' · ' + vehicleNames : ''}`} />
-              <CheckRow checked={footer.checker} onToggle={() => toggleFooter('checker')}
-                icon={ClipboardCheck} label="Tekshiruvchi" sub={checkerNames || '—'} />
-              <CheckRow checked={footer.creator} onToggle={() => toggleFooter('creator')}
-                icon={UserCog} label="Buyurtma yaratuvchi" sub={creatorNames || '—'} />
-            </div>
-          </div>
-
-          {/* Accountant / Admin pick */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-                <Building2 size={13} className="text-gray-400" /> Bugalter
-              </label>
-              <select
-                value={accountantId}
-                onChange={e => setAccountantId(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm bg-gray-50 hover:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-colors"
-              >
-                <option value="">— Tanlanmagan —</option>
-                {(accountants || []).map(a => (
-                  <option key={a.id} value={a.id}>{a.fullName}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-                <ShieldCheck size={13} className="text-gray-400" /> Tasdiqlovchi (Admin)
-              </label>
-              <select
-                value={adminId}
-                onChange={e => setAdminId(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm bg-gray-50 hover:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-colors"
-              >
-                <option value="">— Tanlanmagan —</option>
-                {(admins || []).map(a => (
-                  <option key={a.id} value={a.id}>{a.fullName}</option>
-                ))}
-              </select>
-            </div>
-          </div>
         </div>
 
-        {/* Footer buttons */}
-        <div className="p-5 border-t border-gray-50 flex gap-3 shrink-0">
-          <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
-            Ortga
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={loading}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-xl text-sm font-bold hover:from-indigo-600 hover:to-violet-700 transition-all disabled:opacity-50 shadow-md shadow-indigo-200"
-          >
-            {loading
-              ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Yaratilmoqda...</>
-              : <><FileSpreadsheet size={15} /> Hujjat yaratish</>}
-          </button>
+        <fieldset style={{ border: 'none', margin: 0, padding: 0 }} disabled={loading}>
+          <legend style={{ display: 'flex', width: '100%', justifyContent: 'space-between', marginBottom: 8, padding: 0 }}>
+            <span style={{ ...LABEL_CAPS, color: invalid ? C.danger.text : LABEL_CAPS.color }}>Jadval ustunlari</span>
+            <span className="tnum" style={{ font: `400 12px/16px ${FONT}`, color: C.n600 }}>{selectedCount} / {COLUMN_OPTIONS.length} tanlandi</span>
+          </legend>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 8 }}>
+            {COLUMN_OPTIONS.map((c) => (
+              <CheckCard key={c.key} checked={columns[c.key]} invalid={invalid} disabled={loading} label={c.label} onToggle={() => setColumns((p) => ({ ...p, [c.key]: !p[c.key] }))} />
+            ))}
+          </div>
+          {invalid && (
+            <span role="alert" style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, font: `500 12px/16px ${FONT}`, color: C.danger.text }}>
+              <CircleAlert size={16} aria-hidden="true" /> Hujjat uchun kamida bitta ustunni tanlang.
+            </span>
+          )}
+        </fieldset>
+
+        <fieldset style={{ border: 'none', margin: 0, padding: 0 }} disabled={loading}>
+          <legend style={{ ...LABEL_CAPS, marginBottom: 8, padding: 0 }}>Pastki ma’lumotlar</legend>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 8 }}>
+            <CheckCard checked={footer.documenter} disabled={loading} icon={FileSpreadsheet} label="Hujjatlashtiruvchi" sub="Siz" onToggle={() => setFooter((p) => ({ ...p, documenter: !p.documenter }))} />
+            <CheckCard checked={footer.deliverer} disabled={loading} icon={Truck} label="Yetkazib beruvchi" sub={`${drivers || '—'}${vehicles ? ` · ${vehicles}` : ''}`} onToggle={() => setFooter((p) => ({ ...p, deliverer: !p.deliverer }))} />
+            <CheckCard checked={footer.checker} disabled={loading} icon={ClipboardCheck} label="Tekshiruvchi" sub={uniq(orders.map((o) => o.checker?.fullName)) || '—'} onToggle={() => setFooter((p) => ({ ...p, checker: !p.checker }))} />
+            <CheckCard checked={footer.creator} disabled={loading} icon={UserCog} label="Buyurtma yaratuvchi" sub={uniq(orders.map((o) => o.createdBy?.fullName)) || '—'} onToggle={() => setFooter((p) => ({ ...p, creator: !p.creator }))} />
+          </div>
+        </fieldset>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 16 }}>
+          <Picker label="Buxgalter" optional icon={Building2} value={accountantId} onChange={setAccountantId} options={accOptions} loading={acc1.isLoading || acc2.isLoading} disabled={loading} allowNone openUp searchPlaceholder="Ism yoki telefon" emptyLabel="Buxgalter topilmadi" />
+          <Picker label="Tasdiqlovchi (Admin)" optional icon={ShieldCheck} value={adminId} onChange={setAdminId} options={adminOptions} loading={admins.isLoading} disabled={loading} allowNone openUp searchPlaceholder="Ism yoki telefon" emptyLabel="Admin topilmadi" />
         </div>
       </div>
-    </div>
+      <ModalFooter
+        hint={loading ? 'Hujjat yaratilmoqda. Oynani yopmang.' : invalid ? 'Davom etish uchun kamida bitta ustun kerak.' : 'Hujjat Excel fayli sifatida yuklab olinadi.'}
+        hintIcon={invalid ? CircleAlert : Info}
+        hintTone={invalid ? 'danger' : undefined}
+      >
+        <Button variant="secondary" onClick={onClose} disabled={loading}>Ortga</Button>
+        <Button variant="primary" icon={FileSpreadsheet} loading={loading} loadingLabel="Yaratilmoqda…" disabled={invalid} onClick={submit}>
+          {error ? 'Qayta urinish' : 'Hujjat yaratish'}
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
 }

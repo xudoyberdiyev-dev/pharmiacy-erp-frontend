@@ -1,255 +1,271 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useId, useState } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  ArrowLeft, Building2, Users, FileSpreadsheet, Upload, X, PackageMinus, CircleCheck, ExternalLink, CircleAlert,
+} from 'lucide-react';
 import { documentAPI } from '../../api';
 import { FILE_BASE_URL } from '../../api/axios';
-import StatusBadge from '../../components/shared/StatusBadge';
-import NotFoundState from '../../components/shared/NotFoundState';
-import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../lib/errors';
-import { formatSum } from '../../lib/format';
-import { format } from 'date-fns';
+import { C, FONT } from './design/tokens';
 import {
-  ArrowLeft, Building2, FileSpreadsheet, Upload, X, Undo2,
-  User2, CheckCircle, Banknote
-} from 'lucide-react';
+  Page, Card, Button, IconButton, Field, InlineAlert, ErrorState, Skel, notify, Badge, TONE, LABEL_CAPS, usePagePad,
+} from './design/ui';
+import { OrderStatus } from './DocumentHistoryPage';
+import { money, dateTime, cleanAmountInput } from './lib/format';
+import { useOnline } from './lib/hooks';
 
-const inp = "w-full px-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl text-sm font-medium focus:outline-none focus:border-indigo-400 focus:bg-white focus:shadow-md focus:shadow-indigo-100 transition-all";
+// ─────────────────────────────────────────────────────────────────────────
+// Qaytarilgan tovarni qayd etish (bir buyurtma). Chapda — buyurtma va
+// jarayon ishtirokchilari, o'ngda — qayd etish formasi. Asl marking Excel
+// hech qachon o'zgarmaydi; qaytarish hujjati alohida saqlanadi.
+// ─────────────────────────────────────────────────────────────────────────
 
-function InfoCard({ label, value, sub }) {
+function Section({ icon: Icon, title, children }) {
   return (
-    <div className="bg-gray-50 rounded-xl p-3.5">
-      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{label}</p>
-      <p className="text-sm font-black text-gray-900 mt-0.5">{value || '—'}</p>
-      {sub && <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>}
+    <Card as="section" aria-label={title} style={{ overflow: 'hidden' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 20px', borderBottom: `1px solid ${C.n200}` }}>
+        <span style={{ width: 32, height: 32, borderRadius: 7, background: C.p50, color: C.p800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon size={16} aria-hidden="true" /></span>
+        <h2 style={{ margin: 0, font: `600 14px/20px ${FONT}`, color: C.n900 }}>{title}</h2>
+      </div>
+      <div style={{ padding: 20 }}>{children}</div>
+    </Card>
+  );
+}
+
+function Info({ label, value, sub }) {
+  return (
+    <div style={{ padding: '10px 12px', borderRadius: 7, background: C.n50, border: `1px solid ${C.n200}`, minWidth: 0 }}>
+      <div style={{ font: `400 12px/16px ${FONT}`, color: C.n600 }}>{label}</div>
+      <div className="tnum dc-ellipsis" title={typeof value === 'string' ? value : undefined} style={{ font: `500 13px/18px ${FONT}`, color: C.n900 }}>{value ?? '—'}</div>
+      {sub && <div className="tnum dc-ellipsis" style={{ font: `400 12px/16px ${FONT}`, color: C.n600 }}>{sub}</div>}
     </div>
   );
 }
 
 export default function DocumentReturnDetailPage() {
+  const uid = useId();
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const qc = useQueryClient();
+  const online = useOnline();
+  const { vw } = usePagePad();
   const [note, setNote] = useState('');
-  const [newExcel, setNewExcel] = useState(null);
-  const [returnedAmount, setReturnedAmount] = useState('');
+  const [file, setFile] = useState(null);
+  const [amount, setAmount] = useState('');
+  const [tried, setTried] = useState(false);
+  const [err, setErr] = useState(null);
 
-  const { data: order, isLoading, error } = useQuery({
+  const query = useQuery({
     queryKey: ['document', 'order', id],
     queryFn: () => documentAPI.getOrderFull(id),
-    select: r => r.data.data,
+    select: (r) => r.data.data,
   });
+  const order = query.data;
 
-  useEffect(() => {
-    if (order?.returnedGoodsNote) setNote(order.returnedGoodsNote);
-  }, [order?.returnedGoodsNote]);
+  useEffect(() => { if (order?.returnedGoodsNote) setNote(order.returnedGoodsNote); }, [order?.returnedGoodsNote]);
 
-  const submitMutation = useMutation({
-    mutationFn: ({ wasAlreadyReturned }) => {
+  const goBack = () => (location.key !== 'default' ? navigate(-1) : navigate('/document/history'));
+
+  const parsed = amount !== '' ? parseFloat(amount) : null;
+  const total = order?.totalAmount ?? 0;
+  const amountErr = parsed == null ? null
+    : Number.isNaN(parsed) || parsed <= 0 ? 'Qaytarilgan summa 0 dan katta bo‘lishi kerak.'
+      : parsed > total ? 'Qaytarilgan summa faktura summasidan katta bo‘lishi mumkin emas.' : null;
+  const noteErr = !note.trim() ? 'Izoh yozish majburiy.' : null;
+  const blocked = order && ['CANCELLED', 'RETURNED'].includes(order.status);
+
+  const mut = useMutation({
+    mutationFn: () => {
       const fd = new FormData();
-      fd.append('returnedGoodsNote', note);
-      if (returnedAmount !== '') fd.append('returnedAmount', returnedAmount);
-      if (newExcel) fd.append('markedExcel', newExcel);
-      return documentAPI.submitReturn(id, fd).then(res => ({ res, wasAlreadyReturned }));
+      fd.append('returnedGoodsNote', note.trim());
+      if (parsed != null) fd.append('returnedAmount', String(parsed));
+      if (file) fd.append('markedExcel', file);
+      return documentAPI.submitReturn(id, fd);
     },
-    onSuccess: ({ wasAlreadyReturned }) => {
-      toast.success(wasAlreadyReturned ? 'Ma\'lumot yangilandi' : 'Qaytarilgan tovar qayd etildi');
-      qc.invalidateQueries(['document']);
-      navigate('/document/history');
+    onSuccess: () => {
+      notify({ icon: PackageMinus, title: order.hasReturnedGoods ? 'Ma’lumot yangilandi' : 'Qaytarilgan tovar qayd etildi', desc: `${order.invoiceNumber}${parsed != null ? ` · −${money(parsed)}` : ''}` });
+      qc.invalidateQueries({ queryKey: ['document'] });
+      goBack();
     },
-    onError: (e) => toast.error(getErrorMessage(e)),
+    onError: (e) => setErr(getErrorMessage(e)),
   });
 
-  const parsedReturnedAmount = returnedAmount !== '' ? parseFloat(returnedAmount) : null;
-  const newTotal = parsedReturnedAmount != null && order
-    ? order.totalAmount - parsedReturnedAmount
-    : null;
-
-  const handleSubmit = () => {
-    if (!note.trim()) return toast.error('Izoh yozish majburiy');
-    if (parsedReturnedAmount != null) {
-      if (Number.isNaN(parsedReturnedAmount) || parsedReturnedAmount < 0)
-        return toast.error("Qaytarilgan summani to'g'ri kiriting");
-      if (parsedReturnedAmount > order.totalAmount)
-        return toast.error("Qaytarilgan summa faktura summasidan katta bo'lishi mumkin emas");
-    }
-    submitMutation.mutate({ wasAlreadyReturned: order.hasReturnedGoods });
+  const submit = () => {
+    setTried(true);
+    if (noteErr || amountErr) return;
+    setErr(null);
+    mut.mutate();
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+  const header = (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+      <IconButton icon={ArrowLeft} label="Orqaga" onClick={goBack} style={{ border: `1px solid ${C.n300}`, background: '#fff', flex: 'none' }} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <h1 className="tnum" style={{ margin: 0, font: `600 24px/32px ${FONT}`, color: C.n900 }}>{order ? order.invoiceNumber : 'Buyurtma'}</h1>
+          {order && <OrderStatus o={order} />}
+          {order?.hasReturnedGoods && <Badge {...TONE.warning} icon={PackageMinus}>Tovar qaytgan</Badge>}
+        </div>
+        <p style={{ margin: 0, font: `400 13px/20px ${FONT}`, color: C.n600 }}>Qaytarilgan tovarni qayd etish</p>
       </div>
+    </div>
+  );
+
+  if (query.isLoading) {
+    return (
+      <Page>
+        {header}
+        <div className="dc-pulse" aria-busy="true" aria-label="Yuklanmoqda" style={{ display: 'grid', gridTemplateColumns: vw >= 1100 ? 'minmax(0,1fr) 440px' : '1fr', gap: 16 }}>
+          <Card style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}><Skel w="40%" /><Skel h={56} r={7} bg={C.n100} /><Skel h={56} r={7} bg={C.n100} /></Card>
+          <Card style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}><Skel w="50%" /><Skel h={40} r={7} bg={C.n100} /><Skel h={88} r={7} bg={C.n100} /></Card>
+        </div>
+      </Page>
     );
   }
-  if (!order) return <NotFoundState error={error} backTo="/document/returned" />;
+  if (!order) {
+    const notFound = query.error?.response?.status === 404;
+    return (
+      <Page>
+        {header}
+        <ErrorState
+          title={notFound ? 'Buyurtma topilmadi' : 'Buyurtmani yuklab bo‘lmadi'}
+          text={notFound ? 'Bu buyurtma o‘chirilgan yoki havola noto‘g‘ri.' : 'Server javob bermadi. Qayta urinib ko‘ring.'}
+          onRetry={notFound ? undefined : () => query.refetch()}
+        />
+      </Page>
+    );
+  }
+
+  const newTotal = parsed != null && !amountErr ? total - parsed : null;
+  const at = (d) => (d ? dateTime(d) : null);
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5 pb-8">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <button onClick={() => navigate('/document/history')}
-          className="w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors shrink-0">
-          <ArrowLeft size={17} />
-        </button>
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg font-black text-gray-900 font-mono">#{order.invoiceNumber}</h1>
-            <StatusBadge status={order.status} order={order} />
+    <Page>
+      {header}
+      <div style={{ display: 'grid', gridTemplateColumns: vw >= 1100 ? 'minmax(0,1fr) 440px' : '1fr', gap: 16, alignItems: 'start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+          <Section icon={Building2} title="Buyurtma ma’lumotlari">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <span style={{ font: `600 14px/20px ${FONT}` }}>{order.client?.orgName || '—'}</span>
+                <span className="tnum" style={{ font: `400 13px/18px ${FONT}`, color: C.n600 }}>{[order.client?.phone, order.client?.address].filter(Boolean).join(' · ') || '—'}</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: 8 }}>
+                <Info label="Shartnoma" value={order.contractNumber} />
+                <Info label="Lot" value={order.lotNumber} />
+                <Info label="Qutilar" value={order.boxCount} />
+                <Info label="Joriy summa" value={money(order.totalAmount)} sub={order.originalAmount != null ? `Dastlabki: ${money(order.originalAmount)}` : null} />
+                {order.returnedAmount != null && <Info label="Jami qaytarilgan" value={`−${money(order.returnedAmount)}`} />}
+              </div>
+            </div>
+          </Section>
+          <Section icon={Users} title="Jarayon ishtirokchilari">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 8 }}>
+              <Info label="Buyurtma yaratuvchi" value={order.createdBy?.fullName} />
+              <Info label="Yig‘uvchi" value={order.assignedPicker?.fullName} sub={at(order.pickingDoneAt)} />
+              <Info label="Markirovkachi" value={order.marker?.fullName} sub={at(order.markingDoneAt)} />
+              <Info label="Tekshiruvchi" value={order.checker?.fullName} sub={at(order.checkingDoneAt)} />
+              <Info label="Haydovchi" value={order.driver?.fullName} sub={order.vehicle ? `${order.vehicle.model} · ${order.vehicle.plateNumber}` : null} />
+              <Info label="Hujjatchi" value={order.dispatchDocument?.issuedBy?.fullName} sub={order.dispatchDocument ? `Hujjat № ${order.dispatchDocument.documentNumber}` : null} />
+            </div>
+          </Section>
+        </div>
+
+        <Section icon={PackageMinus} title={order.hasReturnedGoods ? 'Yana tovar qaytarishni qayd etish' : 'Tovar qaytarishni qayd etish'}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {order.hasReturnedGoods && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold bg-red-50 text-red-700 border border-red-100">
-                Qaytarilgan tovarlar mavjud
+              <InlineAlert tone="success" icon={CircleCheck}>
+                Avval qayd etilgan: {order.returnedGoodsBy?.fullName || '—'}, {dateTime(order.returnedGoodsAt)}. Yangi summa avvalgisiga qo‘shiladi.
+              </InlineAlert>
+            )}
+            {blocked && <InlineAlert tone="warning">Bu buyurtma {order.status === 'CANCELLED' ? 'bekor qilingan' : 'to‘liq qaytarilgan'} — tovar qaytarishni qayd etib bo‘lmaydi.</InlineAlert>}
+            {err && <InlineAlert title="Saqlab bo‘lmadi.">{err}</InlineAlert>}
+
+            {(order.markedExcelUrl || order.returnedGoodsExcelUrl) && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <span style={LABEL_CAPS}>Fayllar</span>
+                {order.markedExcelUrl && (
+                  <a href={`${FILE_BASE_URL}${order.markedExcelUrl}`} target="_blank" rel="noreferrer" className="dc-btn dc-secondary" style={{ justifyContent: 'flex-start' }}>
+                    <FileSpreadsheet size={16} aria-hidden="true" /> Asl markirovka Excel (o‘zgarmaydi) <ExternalLink size={16} aria-hidden="true" style={{ marginLeft: 'auto', color: C.n600 }} />
+                  </a>
+                )}
+                {order.returnedGoodsExcelUrl && (
+                  <a href={`${FILE_BASE_URL}${order.returnedGoodsExcelUrl}`} target="_blank" rel="noreferrer" className="dc-btn dc-secondary" style={{ justifyContent: 'flex-start' }}>
+                    <FileSpreadsheet size={16} aria-hidden="true" /> Joriy qaytarish hujjati <ExternalLink size={16} aria-hidden="true" style={{ marginLeft: 'auto', color: C.n600 }} />
+                  </a>
+                )}
+              </div>
+            )}
+
+            <Field label="Qaytarish hujjati (Excel)" optional hint="Asl markirovka Excel'iga tegmaydi.">
+              {file ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 44, padding: '0 8px 0 12px', borderRadius: 7, border: `1px solid ${C.success.border}`, background: C.success.bg }}>
+                  <FileSpreadsheet size={16} aria-hidden="true" style={{ color: C.success.main }} />
+                  <span className="dc-ellipsis" style={{ flex: 1, font: `500 13px/18px ${FONT}`, color: C.success.text }}>{file.name}</span>
+                  <IconButton icon={X} size={16} label="Faylni olib tashlash" onClick={() => setFile(null)} disabled={mut.isPending} />
+                </div>
+              ) : (
+                <label className="dc-hover" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 56, borderRadius: 7, border: `1px dashed ${C.n300}`, cursor: blocked ? 'not-allowed' : 'pointer', font: `500 13px/18px ${FONT}`, color: C.p700 }}>
+                  <Upload size={16} aria-hidden="true" /> Excel faylni tanlash (.xlsx, .xls)
+                  <input type="file" accept=".xlsx,.xls" disabled={blocked} style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} onChange={(e) => setFile(e.target.files?.[0] || null)} />
+                </label>
+              )}
+            </Field>
+
+            <Field label="Qaytarilgan summa" optional htmlFor={`${uid}-a`} error={tried && amountErr ? amountErr : null} hint="Kiritilsa, faktura summasidan ayiriladi.">
+              <span style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input
+                  id={`${uid}-a`}
+                  inputMode="decimal"
+                  value={amount}
+                  disabled={blocked || mut.isPending}
+                  onChange={(e) => setAmount(cleanAmountInput(e.target.value))}
+                  placeholder="0"
+                  aria-invalid={tried && amountErr ? 'true' : undefined}
+                  className={`dc-input tnum ${tried && amountErr ? 'invalid' : ''}`}
+                  style={{ paddingRight: 52, textAlign: 'right' }}
+                />
+                <span style={{ position: 'absolute', right: 12, font: `400 12px/16px ${FONT}`, color: C.n600 }}>so‘m</span>
+              </span>
+            </Field>
+            {parsed != null && (
+              <div className="tnum" style={{ padding: 12, borderRadius: 7, background: C.n50, border: `1px solid ${C.n200}`, display: 'flex', flexDirection: 'column', gap: 6, font: `400 13px/18px ${FONT}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: C.n600 }}>Joriy summa</span><span>{money(total)}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: C.n600 }}>Qaytarilgan</span><span style={{ color: C.warning.text }}>{amountErr ? '—' : `−${money(parsed)}`}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 6, borderTop: `1px solid ${C.n200}` }}><b style={{ fontWeight: 600 }}>Yangi summa</b><b style={{ fontWeight: 600 }}>{newTotal != null ? money(newTotal) : '—'}</b></div>
+              </div>
+            )}
+
+            <Field label="Izoh" required htmlFor={`${uid}-n`} error={tried && noteErr ? noteErr : null}>
+              <textarea
+                id={`${uid}-n`}
+                rows={4}
+                maxLength={1000}
+                value={note}
+                disabled={blocked || mut.isPending}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Nima uchun va qancha miqdorda tovar qaytarildi..."
+                aria-invalid={tried && noteErr ? 'true' : undefined}
+                className={`dc-input ${tried && noteErr ? 'invalid' : ''}`}
+              />
+            </Field>
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 4, borderTop: `1px solid ${C.n200}` }}>
+              <Button variant="secondary" onClick={goBack} disabled={mut.isPending} style={{ marginTop: 12 }}>Yopish</Button>
+              <Button variant="primary" icon={PackageMinus} loading={mut.isPending} loadingLabel="Saqlanmoqda…" disabled={blocked || !online} offline={!online} onClick={submit} style={{ marginTop: 12 }}>
+                {order.hasReturnedGoods ? 'Yana qayd etish' : 'Qayd etish'}
+              </Button>
+            </div>
+            {tried && (noteErr || amountErr) && (
+              <span role="alert" style={{ display: 'flex', alignItems: 'center', gap: 6, font: `500 12px/16px ${FONT}`, color: C.danger.text }}>
+                <CircleAlert size={16} aria-hidden="true" /> {[noteErr, amountErr].filter(Boolean).length} ta maydonni to‘g‘rilang.
               </span>
             )}
           </div>
-          <p className="text-xs text-gray-400 mt-0.5 font-medium">Qaytarilgan tovarni qayd etish</p>
-        </div>
+        </Section>
       </div>
-
-      {/* Client & order info */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-gray-50 flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center">
-            <Building2 size={13} className="text-indigo-600" />
-          </div>
-          <h2 className="font-bold text-gray-800 text-sm">Buyurtma ma'lumotlari</h2>
-        </div>
-        <div className="p-5 space-y-4">
-          <div className="flex items-center gap-3 p-3.5 bg-indigo-50/60 rounded-xl">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shrink-0 text-white font-black">
-              {order.client?.orgName?.charAt(0)}
-            </div>
-            <div>
-              <p className="font-bold text-gray-900">{order.client?.orgName}</p>
-              <p className="text-xs text-gray-400">{order.client?.phone} · {order.client?.address}</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <InfoCard label="Shartnoma" value={order.contractNumber} />
-            <InfoCard label="Lot" value={order.lotNumber} />
-            <InfoCard label="Qutilar" value={order.boxCount} />
-            <InfoCard label="Summa" value={formatSum(order.totalAmount) + " so'm"} />
-          </div>
-        </div>
-      </div>
-
-      {/* Participants */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-gray-50 flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center">
-            <User2 size={13} className="text-purple-600" />
-          </div>
-          <h2 className="font-bold text-gray-800 text-sm">Jarayon ishtirokchilari</h2>
-        </div>
-        <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <InfoCard label="Buyurtma yaratuvchi" value={order.createdBy?.fullName} />
-          <InfoCard label="Picker" value={order.assignedPicker?.fullName}
-            sub={order.pickingDoneAt ? format(new Date(order.pickingDoneAt), 'dd.MM.yyyy HH:mm') : null} />
-          <InfoCard label="Marker" value={order.marker?.fullName}
-            sub={order.markingDoneAt ? format(new Date(order.markingDoneAt), 'dd.MM.yyyy HH:mm') : null} />
-          <InfoCard label="Checker" value={order.checker?.fullName}
-            sub={order.checkingDoneAt ? format(new Date(order.checkingDoneAt), 'dd.MM.yyyy HH:mm') : null} />
-          <InfoCard label="Haydovchi" value={order.driver?.fullName}
-            sub={order.vehicle ? `${order.vehicle.model} · ${order.vehicle.plateNumber}` : null} />
-          <InfoCard label="Hujjatchi" value={order.dispatchDocument?.issuedBy?.fullName}
-            sub={order.dispatchDocument ? `Hujjat № ${order.dispatchDocument.documentNumber}` : null} />
-        </div>
-      </div>
-
-      {/* Marking excel (ma'lumot uchun) + tovar qaytarish hujjati */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-gray-50 flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
-            <FileSpreadsheet size={13} className="text-amber-600" />
-          </div>
-          <h2 className="font-bold text-gray-800 text-sm">Tovar qaytarish hujjati</h2>
-        </div>
-        <div className="p-5 space-y-4">
-          {order.markedExcelUrl && (
-            <a href={`${FILE_BASE_URL}${order.markedExcelUrl}`} target="_blank" rel="noreferrer"
-              className="flex items-center gap-2.5 p-3.5 bg-purple-50 border border-purple-200 rounded-xl text-sm text-purple-700 hover:bg-purple-100 transition-colors w-fit">
-              <FileSpreadsheet size={16} /> Asl marking excelni ko'rish (o'zgarmaydi)
-            </a>
-          )}
-          {order.returnedGoodsExcelUrl && !newExcel && (
-            <a href={`${FILE_BASE_URL}${order.returnedGoodsExcelUrl}`} target="_blank" rel="noreferrer"
-              className="flex items-center gap-2.5 p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700 hover:bg-amber-100 transition-colors w-fit">
-              <FileSpreadsheet size={16} /> Joriy qaytarish hujjatini ko'rish
-            </a>
-          )}
-          <div>
-            <label className="block text-xs text-gray-400 font-bold mb-1.5">Tovar qaytarish hujjatini yuklash (ixtiyoriy — asl marking excelga tegmaydi)</label>
-            {newExcel ? (
-              <div className="flex items-center gap-3 p-3.5 bg-green-50 border border-green-200 rounded-xl w-fit">
-                <FileSpreadsheet size={16} className="text-green-600 shrink-0" />
-                <span className="text-sm text-green-700 flex-1 truncate">{newExcel.name}</span>
-                <button onClick={() => setNewExcel(null)} className="text-green-400 hover:text-red-400 transition-colors"><X size={14} /></button>
-              </div>
-            ) : (
-              <label className="flex items-center gap-2.5 p-4 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all text-sm text-gray-400 hover:text-indigo-600 w-fit">
-                <Upload size={16} /> Excel tanlash
-                <input type="file" accept=".xlsx,.xls" className="hidden" onChange={e => setNewExcel(e.target.files[0])} />
-              </label>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-xs text-gray-400 font-bold mb-1.5">Qaytarilgan summa (so'm, ixtiyoriy)</label>
-            <div className="relative">
-              <Banknote size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                inputMode="numeric"
-                value={returnedAmount}
-                onChange={e => setReturnedAmount(e.target.value.replace(/[^\d.]/g, ''))}
-                placeholder="0"
-                className={inp + ' pl-11'}
-              />
-            </div>
-            {parsedReturnedAmount != null && !Number.isNaN(parsedReturnedAmount) && (
-              <p className={`text-xs mt-1.5 font-semibold ${newTotal < 0 ? 'text-red-500' : 'text-gray-500'}`}>
-                {formatSum(order.totalAmount)} − {formatSum(parsedReturnedAmount)} = {' '}
-                <span className={newTotal < 0 ? 'text-red-600' : 'text-emerald-600'}>
-                  {formatSum(newTotal)} so'm
-                </span> {newTotal < 0 && '(faktura summasidan katta bo\'lmasin)'}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-xs text-gray-400 font-bold mb-1.5">Izoh <span className="text-red-500">*</span></label>
-            <textarea
-              value={note}
-              onChange={e => setNote(e.target.value)}
-              rows={4}
-              placeholder="Nima uchun va qancha miqdorda tovar qaytarildi..."
-              className={inp}
-            />
-          </div>
-
-          <button
-            onClick={handleSubmit}
-            disabled={submitMutation.isPending}
-            className="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl text-sm font-bold text-white
-              bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700
-              shadow-md shadow-red-200 transition-all disabled:opacity-50"
-          >
-            <Undo2 size={16} />
-            {submitMutation.isPending ? 'Saqlanmoqda...' : order.hasReturnedGoods ? 'Yana qaytarish' : 'Qaytarilgan'}
-          </button>
-        </div>
-      </div>
-
-      {order.hasReturnedGoods && (
-        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex items-center gap-3">
-          <CheckCircle size={20} className="text-emerald-600 shrink-0" />
-          <p className="text-sm font-bold text-emerald-700">
-            Bu order allaqachon qaytarilgan deb belgilangan ({order.returnedGoodsBy?.fullName}, {order.returnedGoodsAt ? format(new Date(order.returnedGoodsAt), 'dd.MM.yyyy HH:mm') : ''})
-            {order.returnedAmount != null && ` — ${formatSum(order.returnedAmount)} so'm qaytarilgan`}
-          </p>
-        </div>
-      )}
-    </div>
+    </Page>
   );
 }

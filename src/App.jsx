@@ -49,8 +49,6 @@ import DocumentDocumentedPage from './pages/document/DocumentDocumentedPage';
 import DocumentReadyPage from './pages/document/DocumentReadyPage';
 import DocumentHistoryPage from './pages/document/DocumentHistoryPage';
 import DocumentReturnedPage from './pages/document/DocumentReturnedPage';
-import DocumentReturnedFromAccountantPage from './pages/document/DocumentReturnedFromAccountantPage';
-import DocumentReturnedFromDriverPage from './pages/document/DocumentReturnedFromDriverPage';
 import DocumentReturnDetailPage from './pages/document/DocumentReturnDetailPage';
 import DocumentEtirozlarPage from './pages/document/DocumentEtirozlarPage';
 import PublicOrderInfoPage from './pages/public/PublicOrderInfoPage';
@@ -185,8 +183,8 @@ function AppRoutes() {
         <Route path="ready" element={<DocumentReadyPage />} />
         <Route path="history" element={<DocumentHistoryPage />} />
         <Route path="returned" element={<DocumentReturnedPage />} />
-        <Route path="returned-from-accountant" element={<DocumentReturnedFromAccountantPage />} />
-        <Route path="returned-from-driver" element={<DocumentReturnedFromDriverPage />} />
+        <Route path="returned-from-accountant" element={<Navigate to="/document/returned?tab=accountant" replace />} />
+        <Route path="returned-from-driver" element={<Navigate to="/document/returned?tab=driver" replace />} />
         <Route path="etirozlar" element={<DocumentEtirozlarPage />} />
         <Route path="orders/:id/return" element={<DocumentReturnDetailPage />} />
       </Route>

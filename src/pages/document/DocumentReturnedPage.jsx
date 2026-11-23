@@ -1,196 +1,361 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { documentAPI } from '../../api';
-import toast from 'react-hot-toast';
-import { format } from 'date-fns';
+import { useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Undo2, Search, X, RefreshCw, Building2, FileDown, User2, MessageSquare, Banknote, Pencil
+  Truck, Calculator, PackageMinus, Undo2, Info, TriangleAlert, Lock, ArrowRight, PencilLine, Send, X, FileDown,
+  User, UserRound,
 } from 'lucide-react';
-import { formatSum } from '../../lib/format';
+import { documentAPI } from '../../api';
+import { getErrorMessage } from '../../lib/errors';
+import { C, FONT } from './design/tokens';
+import {
+  Page, PageHeader, RefreshControl, Card, SearchInput, Badge, TONE, Button, BlankState, ErrorState, SearchEmpty,
+  OfflineBanner, Skel, CountChip, notify, RefreshBar, InlineAlert,
+} from './design/ui';
+import { money, dateTime, time, count } from './lib/format';
+import { useOnline, saveBlob } from './lib/hooks';
 
-function EmptyState() {
+// ─────────────────────────────────────────────────────────────────────────
+// Qaytganlar — 4 toifa bitta sahifada (tab = ?tab=…):
+//   driver     — haydovchi yetkaza olmagan (avtomatik Biriktirishga qaytgan)
+//   accountant — 1-buxgalter hujjatda xato topib qaytargan (tuzatib qayta yuborish)
+//   goods      — qisman qaytarilgan tovarlar (Word hisobot, yana qaytarish)
+//   full       — to'liq qaytarilgan (RETURNED) — faqat ko'rish uchun
+// ─────────────────────────────────────────────────────────────────────────
+
+const TABS = [
+  {
+    key: 'driver', label: 'Haydovchidan', icon: Truck, fetch: documentAPI.getReturnedFromDriver,
+    placeholder: 'Faktura yoki tashkilot', hint: [Info, C.info.main, 'Bu buyurtmalar avtomatik Biriktirish bo‘limiga qaytgan. Bu yerda — sabab va tarix; qayta haydovchi biriktirish Biriktirish bo‘limida.'],
+    grid: 'minmax(130px,160px) minmax(0,1.1fr) minmax(0,1.3fr) 150px 210px',
+    heads: ['Faktura · qaytgan vaqt', 'Tashkilot · haydovchi', 'Haydovchi sababi', 'Summa', 'Keyingi qadam'],
+    empty: ['Haydovchidan qaytgan buyurtmalar mavjud emas', 'Haydovchi buyurtmani yetkaza olmasa, u shu yerda sababi bilan ko‘rinadi.'],
+  },
+  {
+    key: 'accountant', label: 'Buxgalterdan', icon: Calculator, fetch: documentAPI.getReturnedFromAccountant,
+    placeholder: 'Faktura yoki tashkilot', hint: [TriangleAlert, C.warning.main, '1-buxgalter hujjatda xato topib qaytargan. Kerak bo‘lsa summani tuzating va qayta yuboring.'],
+    grid: 'minmax(130px,160px) minmax(0,1fr) minmax(0,1.3fr) 180px 290px',
+    heads: ['Faktura · qaytarilgan', 'Tashkilot', 'Buxgalter sababi', 'Summa', 'Amallar'],
+    empty: ['Buxgalterdan qaytgan buyurtmalar mavjud emas', '1-buxgalter hujjatda xato topib qaytarsa, buyurtma shu yerda ko‘rinadi.'],
+  },
+  {
+    key: 'goods', label: 'Qaytarilgan tovarlar', icon: PackageMinus, fetch: documentAPI.getReturned,
+    placeholder: 'Faktura, tashkilot yoki xodim', hint: [Info, C.info.main, 'Buyurtmadan qisman qaytarilgan tovarlar. Hisobotni Word faylida yuklab olish yoki yana tovar qaytarish mumkin.'],
+    grid: 'minmax(130px,160px) minmax(0,1fr) minmax(0,1.2fr) 150px 300px',
+    heads: ['Faktura', 'Tashkilot · qayd etdi', 'Izoh', 'Summa', 'Amallar'],
+    empty: ['Qaytarilgan tovarlar mavjud emas', 'Buyurtmadan qisman tovar qaytarilganda u shu yerda ko‘rinadi.'],
+  },
+  {
+    key: 'full', label: 'To‘liq qaytarilgan', icon: Undo2, fetch: documentAPI.getFullyReturned,
+    placeholder: 'Faktura yoki tashkilot', hint: [Lock, C.n600, '«Qaytarilgan» holati — «Bekor qilingan»dan farq qiladi. Xato bo‘lsa, Tarix bo‘limidagi «Tiklash» orqali Biriktirishga qaytarish mumkin.'],
+    grid: 'minmax(130px,160px) minmax(0,1fr) minmax(0,1.3fr) 150px 170px',
+    heads: ['Faktura · qaytarilgan', 'Tashkilot · kim qaytardi', 'Qaytarish sababi', 'Summa', 'Holat'],
+    empty: ['To‘liq qaytarilgan buyurtmalar mavjud emas', 'Safarga tayyor bo‘limida «Butunlay qaytarish» qilingan buyurtmalar shu yerda ko‘rinadi.'],
+  },
+];
+const TAB_KEYS = TABS.map((t) => t.key);
+
+function useTabQuery(tab) {
+  return useQuery({
+    queryKey: ['document', 'returned', tab.key],
+    queryFn: tab.fetch,
+    select: (r) => r.data.data || [],
+    refetchInterval: 20000,
+  });
+}
+
+function Who({ icon: Icon, children }) {
   return (
-    <div className="py-20 text-center">
-      <div className="w-16 h-16 mx-auto bg-red-50 rounded-2xl flex items-center justify-center mb-4">
-        <Undo2 size={28} className="text-red-200" />
-      </div>
-      <p className="text-gray-400 text-sm font-medium">Qaytarilgan order yo'q</p>
-      <p className="text-gray-300 text-xs mt-1">"Tarix" bo'limidan orderni qaytarilgan deb belgilang</p>
-    </div>
+    <span className="dc-ellipsis" style={{ display: 'flex', alignItems: 'center', gap: 4, font: `400 12px/16px ${FONT}`, color: C.n600 }}>
+      <Icon size={16} aria-hidden="true" style={{ flex: 'none' }} /> <span className="dc-ellipsis">{children}</span>
+    </span>
   );
 }
 
-function ReturnedRow({ o, onDownload, downloading }) {
-  const navigate = useNavigate();
-
+function Reason({ label, text, emptyText = 'Sabab ko‘rsatilmagan' }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow p-4 space-y-3">
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-100 to-rose-100 flex items-center justify-center shrink-0">
-          <Building2 size={16} className="text-red-600" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <span className="font-mono text-sm font-black text-gray-900">{o.invoiceNumber}</span>
-          <p className="text-sm text-gray-500 truncate mt-0.5">{o.client?.orgName}</p>
-        </div>
-        <div className="text-right shrink-0">
-          {o.originalAmount != null && (
-            <p className="text-[11px] text-gray-400 line-through leading-tight">
-              {formatSum(o.originalAmount)}
-            </p>
-          )}
-          <p className="text-sm font-black text-emerald-600 leading-tight">{formatSum(o.totalAmount)}</p>
-          <p className="text-[11px] text-gray-400">so'm</p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={() => navigate(`/document/orders/${o.id}/return`)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-indigo-700
-              bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 transition-colors"
-          >
-            <Pencil size={14} /> Yana qaytarish
-          </button>
-          <button
-            onClick={() => onDownload(o)}
-            disabled={downloading === o.id}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white
-              bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700
-              shadow-sm transition-all disabled:opacity-50"
-          >
-            <FileDown size={14} /> {downloading === o.id ? 'Yuklanmoqda...' : 'Wordga yuklash'}
-          </button>
-        </div>
-      </div>
+    <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <span style={{ font: `500 12px/16px ${FONT}`, color: C.n600 }}>{label}</span>
+      <span className="dc-clamp2" title={text || ''} style={{ font: `400 13px/18px ${FONT}`, color: text ? C.n900 : C.n600, overflowWrap: 'anywhere' }}>{text || emptyText}</span>
+    </span>
+  );
+}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pl-14">
-        <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
-          <User2 size={13} className="text-gray-400 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Qayd etdi</p>
-            <p className="text-xs font-bold text-gray-800 truncate">{o.returnedGoodsBy?.fullName || '—'}</p>
-          </div>
-        </div>
-        {o.returnedAmount != null && (
-          <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
-            <Banknote size={13} className="text-gray-400 shrink-0" />
-            <div className="min-w-0">
-              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Qaytarilgan summa</p>
-              <p className="text-xs font-bold text-gray-800 truncate">{formatSum(o.returnedAmount)} so'm</p>
-            </div>
-          </div>
-        )}
-        <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
-          <MessageSquare size={13} className="text-gray-400 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
-              {o.returnedGoodsAt ? format(new Date(o.returnedGoodsAt), 'dd.MM.yyyy HH:mm') : ''}
-            </p>
-            <p className="text-xs font-bold text-gray-800 truncate">{o.returnedGoodsNote || '—'}</p>
-          </div>
-        </div>
+// Buxgalterdan qaytgan qator — summani tuzatib qayta yuborish
+function AccountantRow({ o, grid, online, busyId, setBusyId }) {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [tried, setTried] = useState(false);
+  const [err, setErr] = useState(null);
+  const parsed = Number(draft.replace(/[\s ]/g, '').replace(',', '.'));
+  const invalid = editing && !(parsed > 0);
+  const mut = useMutation({
+    mutationFn: () => documentAPI.resendToAccountant(o.id, editing ? parsed : undefined),
+    onMutate: () => setBusyId(o.id),
+    onSuccess: () => {
+      notify({ title: 'Buxgalterga qayta yuborildi', desc: `${o.invoiceNumber}${editing ? ` · yangi summa ${money(parsed)}` : ''}. Buyurtma ro‘yxatdan chiqdi.` });
+      qc.invalidateQueries({ queryKey: ['document'] });
+    },
+    onError: (e) => setErr(`Yuborib bo‘lmadi: ${getErrorMessage(e)} Kiritilgan summa saqlandi — qayta urinib ko‘ring.`),
+    onSettled: () => setBusyId(null),
+  });
+  const busy = mut.isPending;
+  const anyBusy = !!busyId;
+  const send = () => { setTried(true); if (invalid) return; setErr(null); mut.mutate(); };
+  return (
+    <div style={{ borderBottom: `1px solid ${C.n200}`, background: busy ? C.n50 : '#fff' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: grid, gap: 16, alignItems: 'center', minHeight: 68, padding: '10px 16px' }}>
+        <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span className="tnum" style={{ font: `600 13px/18px ${FONT}`, color: C.p800, whiteSpace: 'nowrap' }}>{o.invoiceNumber}</span>
+          <span className="tnum" style={{ font: `400 12px/16px ${FONT}`, color: C.n600 }}>{dateTime(o.returnedToDocumentAt)}</span>
+        </span>
+        <span className="dc-ellipsis" title={o.client?.orgName} style={{ font: `500 13px/18px ${FONT}` }}>{o.client?.orgName || '—'}</span>
+        <Reason label="Buxgalter sababi" text={o.returnReason} />
+        <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+          {editing ? (
+            <>
+              <span style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
+                <input
+                  autoFocus
+                  inputMode="decimal"
+                  value={draft}
+                  disabled={busy}
+                  aria-label={`${o.invoiceNumber} — tuzatilgan summa`}
+                  aria-invalid={tried && invalid ? 'true' : undefined}
+                  onChange={(e) => { setDraft(e.target.value.replace(/[^\d\s.,]/g, '')); setErr(null); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') send(); if (e.key === 'Escape') { setEditing(false); setTried(false); } }}
+                  className={`dc-input tnum ${tried && invalid ? 'invalid' : ''}`}
+                  style={{ paddingRight: 48, textAlign: 'right', fontWeight: 500, borderColor: tried && invalid ? undefined : C.p500 }}
+                />
+                <span style={{ position: 'absolute', right: 10, font: `400 12px/16px ${FONT}`, color: C.n600 }}>so‘m</span>
+              </span>
+              <span className="tnum" style={{ font: `400 12px/16px ${FONT}`, color: C.n600 }}>Avval: {money(o.totalAmount)}</span>
+            </>
+          ) : (
+            <span className="tnum" style={{ font: `600 13px/18px ${FONT}` }}>{money(o.totalAmount)}</span>
+          )}
+        </span>
+        <span style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
+          {editing ? (
+            <Button variant="ghost" size="sm" icon={X} disabled={busy} title="Tuzatishni bekor qilish" onClick={() => { setEditing(false); setTried(false); setErr(null); }}>Bekor</Button>
+          ) : (
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={PencilLine}
+              offline={!online}
+              disabled={!online || anyBusy}
+              title="Summani tuzatish"
+              aria-label={`Tuzatish: ${o.invoiceNumber}`}
+              onClick={() => { setDraft(String(o.totalAmount ?? '').replace('.', ',')); setEditing(true); setTried(false); }}
+            >
+              Tuzatish
+            </Button>
+          )}
+          <Button
+            variant="primary"
+            size="sm"
+            icon={Send}
+            loading={busy}
+            loadingLabel="Yuborilmoqda…"
+            offline={!online}
+            disabled={!online || (anyBusy && !busy)}
+            title="Buxgalterga qayta yuborish"
+            aria-label={`Qayta yuborish: ${o.invoiceNumber}`}
+            onClick={send}
+          >
+            Qayta yuborish
+          </Button>
+        </span>
       </div>
+      {tried && invalid && <InlineAlert style={{ margin: '0 16px 12px' }}>Summa 0 dan katta son bo‘lishi kerak.</InlineAlert>}
+      {err && <InlineAlert style={{ margin: '0 16px 12px' }}>{err}</InlineAlert>}
     </div>
   );
 }
 
 export default function DocumentReturnedPage() {
-  const qc = useQueryClient();
-  const [search, setSearch] = useState('');
+  const navigate = useNavigate();
+  const online = useOnline();
+  const [params, setParams] = useSearchParams();
+  const tabKey = TAB_KEYS.includes(params.get('tab')) ? params.get('tab') : 'goods';
+  const tab = TABS.find((t) => t.key === tabKey);
+  const [q, setQ] = useState('');
+  const [busyId, setBusyId] = useState(null);
   const [downloading, setDownloading] = useState(null);
+  const [dlErr, setDlErr] = useState(null);
 
-  const { data: orders = [], isLoading, isFetching, dataUpdatedAt } = useQuery({
-    queryKey: ['document', 'returned'],
-    queryFn: () => documentAPI.getReturned(),
-    select: r => r.data.data || [],
-    refetchInterval: 20000,
-  });
+  const queries = {
+    driver: useTabQuery(TABS[0]),
+    accountant: useTabQuery(TABS[1]),
+    goods: useTabQuery(TABS[2]),
+    full: useTabQuery(TABS[3]),
+  };
+  const query = queries[tabKey];
+  const list = useMemo(() => query.data || [], [query.data]);
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    if (!s) return list;
+    return list.filter((o) => [o.invoiceNumber, o.client?.orgName, tabKey === 'goods' ? o.returnedGoodsBy?.fullName : null].some((v) => v?.toLowerCase().includes(s)));
+  }, [list, q, tabKey]);
 
-  const filtered = orders.filter(o => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return o.invoiceNumber?.toLowerCase().includes(q)
-      || o.client?.orgName?.toLowerCase().includes(q)
-      || o.returnedGoodsBy?.fullName?.toLowerCase().includes(q);
-  });
+  const switchTab = (k) => {
+    setQ(''); setDlErr(null);
+    setParams({ tab: k });
+  };
 
-  const handleDownload = async (o) => {
-    setDownloading(o.id);
+  const download = async (o) => {
+    setDownloading(o.id); setDlErr(null);
     try {
       const res = await documentAPI.downloadReturnReport(o.id);
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `qaytarilgan-${o.invoiceNumber}.docx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (e) {
-      toast.error('Hisobotni yuklab bo\'lmadi');
+      saveBlob(res.data, `qaytarilgan-${o.invoiceNumber}.docx`);
+      notify({ title: 'Hisobot yuklab olindi', desc: `qaytarilgan-${o.invoiceNumber}.docx` });
+    } catch {
+      setDlErr(o.id);
     } finally {
       setDownloading(null);
     }
   };
 
-  return (
-    <div className="space-y-5 pb-8">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center">
-              <Undo2 size={16} className="text-red-600" />
-            </div>
-            Qaytgan buyurtmalar
-          </h1>
-          <p className="text-sm text-gray-400 mt-0.5 ml-10 font-medium">
-            {filtered.length} ta order · {dataUpdatedAt ? format(new Date(dataUpdatedAt), 'HH:mm:ss') : '—'}
-          </p>
-        </div>
-        <button
-          onClick={() => qc.invalidateQueries(['document', 'returned'])}
-          className={`w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-600 hover:border-red-300 transition-colors ${isFetching ? 'animate-spin text-red-500' : ''}`}
-        >
-          <RefreshCw size={15} />
-        </button>
-      </div>
+  const loading = query.isLoading;
+  const error = query.isError && !query.data;
+  const updated = query.dataUpdatedAt ? time(query.dataUpdatedAt, true) : '—';
+  const [HintIcon, hintColor, hintText] = tab.hint;
 
-      {/* Search */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-        <div className="relative">
-          <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Faktura, tashkilot yoki xodim..."
-            className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-transparent rounded-xl text-sm
-              focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white focus:border-red-100
-              transition-all placeholder:text-gray-400"
-          />
-          {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors">
-              <X size={12} className="text-gray-500" />
-            </button>
+  const renderRow = (o) => {
+    if (tabKey === 'accountant') {
+      return <AccountantRow key={o.id} o={o} grid={tab.grid} online={online} busyId={busyId} setBusyId={setBusyId} />;
+    }
+    let date;
+    let who = null;
+    let reason;
+    let actions;
+    if (tabKey === 'driver') {
+      date = dateTime(o.returnedToDocumentByDriverAt);
+      const u = o.returnedToDocumentByDriverUser;
+      who = <Who icon={Truck}>{u ? `${u.fullName}${u.phone ? ` · ${u.phone}` : ''}` : 'Haydovchi'}</Who>;
+      reason = <Reason label="Haydovchi sababi" text={o.returnReason} />;
+      actions = (
+        <>
+          <Badge {...TONE.warning} icon={Truck}>Haydovchidan</Badge>
+          <Button variant="secondary" size="sm" icon={ArrowRight} title="Biriktirish bo‘limida qayta haydovchi biriktirish" aria-label={`Biriktirishga o‘tish: ${o.invoiceNumber}`} onClick={() => navigate('/document')}>
+            Biriktirishga o‘tish
+          </Button>
+        </>
+      );
+    } else if (tabKey === 'goods') {
+      date = null;
+      who = <Who icon={User}>{`${o.returnedGoodsBy?.fullName || '—'} · ${dateTime(o.returnedGoodsAt)}`}</Who>;
+      reason = <Reason label="Izoh" text={o.returnedGoodsNote} emptyText="Izoh yo‘q" />;
+      actions = (
+        <>
+          <Button variant="secondary" size="sm" icon={PackageMinus} offline={!online} disabled={!online} title="Yana tovar qaytarishni qayd etish" aria-label={`Yana qaytarish: ${o.invoiceNumber}`} onClick={() => navigate(`/document/orders/${o.id}/return`)}>
+            Yana qaytarish
+          </Button>
+          <Button variant="tint" size="sm" icon={FileDown} loading={downloading === o.id} loadingLabel="Yuklanmoqda…" offline={!online} disabled={!online} title="Qaytarish hisobotini .docx yuklab olish" aria-label={`Wordga yuklash: ${o.invoiceNumber}`} onClick={() => download(o)}>
+            Wordga yuklash
+          </Button>
+        </>
+      );
+    } else {
+      date = dateTime(o.fullyReturnedAt);
+      who = <Who icon={UserRound}>{o.fullyReturnedBy?.fullName || '—'}</Who>;
+      reason = <Reason label="Qaytarish sababi" text={o.fullyReturnedReason} />;
+      actions = <Badge {...TONE.warning} icon={Undo2}>Qaytarilgan</Badge>;
+    }
+    return (
+      <div key={o.id} style={{ borderBottom: `1px solid ${C.n200}` }}>
+        <div style={{ display: 'grid', gridTemplateColumns: tab.grid, gap: 16, alignItems: 'center', minHeight: 68, padding: '10px 16px' }}>
+          <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span className="tnum" style={{ font: `600 13px/18px ${FONT}`, color: C.p800, whiteSpace: 'nowrap' }}>{o.invoiceNumber}</span>
+            {date && <span className="tnum" style={{ font: `400 12px/16px ${FONT}`, color: C.n600 }}>{date}</span>}
+          </span>
+          <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+            <span className="dc-ellipsis" title={o.client?.orgName} style={{ font: `500 13px/18px ${FONT}` }}>{o.client?.orgName || '—'}</span>
+            {who}
+          </span>
+          {reason}
+          <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+            {tabKey === 'goods' && o.originalAmount != null && o.originalAmount !== o.totalAmount && (
+              <span className="tnum" style={{ font: `400 12px/16px ${FONT}`, color: C.n600, textDecoration: 'line-through' }}>{money(o.originalAmount)}</span>
+            )}
+            <span className="tnum" style={{ font: `600 13px/18px ${FONT}` }}>{money(o.totalAmount)}</span>
+            {tabKey === 'goods' && o.returnedAmount != null && (
+              <span className="tnum" style={{ display: 'flex', alignItems: 'center', gap: 4, font: `500 12px/16px ${FONT}`, color: C.warning.text }}>
+                <PackageMinus size={16} aria-hidden="true" /> −{money(o.returnedAmount)}
+              </span>
+            )}
+          </span>
+          <span style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>{actions}</span>
+        </div>
+        {dlErr === o.id && <InlineAlert style={{ margin: '0 16px 12px' }}>Hisobotni yuklab bo‘lmadi. Qayta urinib ko‘ring.</InlineAlert>}
+      </div>
+    );
+  };
+
+  return (
+    <Page>
+      <PageHeader title="Qaytganlar" description="Qaytarilgan va qayta ishlashni kutayotgan buyurtmalar.">
+        <RefreshControl
+          label={loading ? 'Yuklanmoqda…' : error ? 'Yangilanmadi' : `${count(list.length)} ta · yangilangan ${updated}`}
+          fetching={query.isFetching}
+          offline={!online}
+          onRefresh={() => query.refetch()}
+          title="Faol toifani yangilash"
+        />
+      </PageHeader>
+
+      {!online && <OfflineBanner at={updated} />}
+
+      <Card style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div role="tablist" aria-label="Qaytganlar toifalari" style={{ display: 'flex', gap: 4, padding: '0 12px', borderBottom: `1px solid ${C.n200}`, overflowX: 'auto' }}>
+          {TABS.map((t) => {
+            const qy = queries[t.key];
+            const on = t.key === tabKey;
+            const n = qy.isError && !qy.data ? '!' : qy.isLoading ? '–' : (qy.data?.length ?? 0);
+            return (
+              <button key={t.key} type="button" role="tab" id={`tab-${t.key}`} aria-selected={on} aria-controls="returned-panel" className="dc-tab" onClick={() => switchTab(t.key)}>
+                <t.icon size={16} aria-hidden="true" /> {t.label}
+                <CountChip on={on} tone={n === '!' ? 'danger' : undefined}>{n}</CountChip>
+              </button>
+            );
+          })}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: `1px solid ${C.n200}`, flexWrap: 'wrap' }}>
+          <SearchInput value={q} onChange={setQ} placeholder={tab.placeholder} disabled={loading || error || list.length === 0} style={{ flex: '0 1 380px' }} />
+          <span style={{ flex: '1 1 280px', display: 'flex', alignItems: 'flex-start', gap: 8, font: `400 13px/18px ${FONT}`, color: C.n700 }}>
+            <HintIcon size={16} aria-hidden="true" style={{ color: hintColor, flex: 'none', marginTop: 1 }} /> {hintText}
+          </span>
+        </div>
+
+        <div id="returned-panel" role="tabpanel" aria-labelledby={`tab-${tabKey}`} style={{ position: 'relative', minHeight: 360, display: 'flex', flexDirection: 'column', overflowX: 'auto' }}>
+          <RefreshBar show={query.isFetching && !loading} />
+          {error ? (
+            <ErrorState bare title="Ma’lumotni yuklab bo‘lmadi" text={`«${tab.label}» ro‘yxatini serverdan olib bo‘lmadi. Bu bo‘sh ro‘yxat degani emas.`} onRetry={() => query.refetch()} />
+          ) : !loading && list.length === 0 ? (
+            <BlankState bare icon={tab.icon} tone="neutral" title={tab.empty[0]} text={tab.empty[1]} />
+          ) : !loading && filtered.length === 0 ? (
+            <SearchEmpty bare text={`«${q}» bo‘yicha «${tab.label}» toifasida buyurtma topilmadi.`} onClear={() => setQ('')} />
+          ) : (
+            <div style={{ minWidth: 960 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: tab.grid, gap: 16, alignItems: 'center', height: 44, padding: '0 16px', background: C.n50, borderBottom: `1px solid ${C.n200}`, font: `600 12px/16px ${FONT}`, color: C.n700 }}>
+                {tab.heads.map((h, i) => <span key={h} style={{ textAlign: i >= 3 ? 'right' : 'left' }}>{h}</span>)}
+              </div>
+              {loading ? Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="dc-pulse" style={{ display: 'grid', gridTemplateColumns: tab.grid, gap: 16, alignItems: 'center', height: 68, padding: '0 16px', borderBottom: `1px solid ${C.n100}` }}>
+                  <span><Skel w="80%" /><Skel w="60%" h={10} bg={C.n100} style={{ marginTop: 8 }} /></span>
+                  <span><Skel w={`${55 + (i % 3) * 10}%`} /><Skel w="40%" h={10} bg={C.n100} style={{ marginTop: 8 }} /></span>
+                  <span><Skel w="30%" h={10} bg={C.n100} /><Skel w={`${60 + (i % 2) * 15}%`} style={{ marginTop: 8 }} /></span>
+                  <Skel w="70%" style={{ justifySelf: 'end' }} />
+                  <Skel w={120} h={36} r={7} bg={C.n100} style={{ justifySelf: 'end' }} />
+                </div>
+              )) : filtered.map(renderRow)}
+            </div>
           )}
         </div>
-      </div>
-
-      {/* List */}
-      {isLoading ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-20 flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-gray-400">Yuklanmoqda...</p>
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-          <EmptyState />
-        </div>
-      ) : (
-        <div className="space-y-2.5">
-          {filtered.map(o => <ReturnedRow key={o.id} o={o} onDownload={handleDownload} downloading={downloading} />)}
-        </div>
-      )}
-    </div>
+      </Card>
+    </Page>
   );
 }

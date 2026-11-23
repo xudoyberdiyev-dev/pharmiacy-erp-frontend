@@ -1,174 +1,209 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { documentAPI } from '../../api';
-import toast from 'react-hot-toast';
-import { DEFAULT_ERROR_MESSAGE, getErrorMessage } from '../../lib/errors';
-import { format } from 'date-fns';
 import {
-  FileCheck2, Search, X, CheckSquare, Square, MinusSquare,
-  RefreshCw, Building2, Truck, User2, FileSpreadsheet,
-  ChevronDown, ChevronRight, Undo2, Package,
+  FileSpreadsheet, FileCheck2, Undo2, Package, Truck, User, ChevronDown, ChevronRight, ChevronsUpDown, ChevronsDownUp,
 } from 'lucide-react';
+import { documentAPI } from '../../api';
+import { DEFAULT_ERROR_MESSAGE, getErrorMessage } from '../../lib/errors';
+import { C, FONT } from './design/tokens';
+import {
+  Page, PageHeader, RefreshControl, Card, SearchInput, Checkbox, Badge, Button, BlankState, ErrorState, SearchEmpty,
+  OfflineBanner, Skel, SelectionBar, ConfirmDialog, notify, RefreshBar,
+} from './design/ui';
 import DocumentBuilderModal from './DocumentBuilderModal';
-import { formatSum } from '../../lib/format';
+import { money, count, dateTime, time } from './lib/format';
+import { useOnline, useSelection } from './lib/hooks';
 
-function EmptyState() {
-  return (
-    <div className="py-20 text-center">
-      <div className="w-16 h-16 mx-auto bg-emerald-50 rounded-2xl flex items-center justify-center mb-4">
-        <FileCheck2 size={28} className="text-emerald-200" />
-      </div>
-      <p className="text-gray-400 text-sm font-medium">Hujjatlashtirish uchun buyurtmalar yo'q</p>
-      <p className="text-gray-300 text-xs mt-1">"Chekingdan o'tganlar" bo'limida haydovchi biriktiring</p>
-    </div>
-  );
-}
+// ─────────────────────────────────────────────────────────────────────────
+// Hujjatlashtirish — haydovchi biriktirilgan, hujjat kutayotgan buyurtmalar
+// safarlar (haydovchi + mashina + biriktirish vaqti) bo'yicha guruhlangan.
+// ─────────────────────────────────────────────────────────────────────────
 
-// Bir xil safarga (haydovchi + mashina + biriktirish vaqti) tegishli
-// orderlarni bitta guruhga jamlaydi — shu bilan sahifa "safar" bo'yicha
-// akkordion ko'rinishida chiqadi, hammasi bir tekis ro'yxatda aralashib
-// ketmaydi.
-function groupByTrip(orders) {
+export function groupByTrip(orders) {
   const map = new Map();
   for (const o of orders) {
     const key = `${o.driverId}__${o.vehicleId}__${o.dispatchedAt}`;
-    if (!map.has(key)) {
-      map.set(key, {
-        key,
-        driver: o.driver,
-        vehicle: o.vehicle,
-        dispatchedAt: o.dispatchedAt,
-        orders: [],
-      });
-    }
+    if (!map.has(key)) map.set(key, { key, driver: o.driver, vehicle: o.vehicle, dispatchedAt: o.dispatchedAt, orders: [] });
     map.get(key).orders.push(o);
   }
   return [...map.values()].sort((a, b) => new Date(b.dispatchedAt) - new Date(a.dispatchedAt));
 }
 
-// ── Bitta safar (trip) akkordion bo'limi ──────────────────────────────────────
-function TripGroup({ group, selected, onToggle, onToggleGroup, collapsed, onToggleCollapse }) {
-  const ids = group.orders.map(o => o.id);
-  const selectedCount = ids.filter(id => selected.includes(id)).length;
-  const allSelected = selectedCount === ids.length;
-  const someSelected = selectedCount > 0 && !allSelected;
-  const totalAmount = group.orders.reduce((s, o) => s + (o.totalAmount || 0), 0);
-
+export function PlateChip({ children }) {
   return (
-    <div className="border-b border-gray-100 last:border-b-0">
-      {/* Guruh sarlavhasi */}
-      <div
-        onClick={() => onToggleCollapse(group.key)}
-        className="flex items-center gap-3 px-5 py-3.5 bg-gray-50/60 hover:bg-gray-50 cursor-pointer transition-colors select-none"
-      >
-        <button className="text-gray-400 shrink-0">
-          {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onToggleGroup(ids); }}
-          className="text-gray-400 hover:text-emerald-600 transition-colors shrink-0"
-          title="Guruhdagi barchasini tanlash"
-        >
-          {allSelected ? <CheckSquare size={17} className="text-emerald-600" />
-            : someSelected ? <MinusSquare size={17} className="text-emerald-600" />
-            : <Square size={17} />}
-        </button>
+    <span className="tnum" style={{ display: 'inline-flex', alignItems: 'center', height: 20, padding: '0 6px', borderRadius: 4, border: `1px solid ${C.n300}`, background: C.n50, font: `600 12px/16px ${FONT}`, letterSpacing: '0.04em', color: C.n700, whiteSpace: 'nowrap' }}>
+      {children || '—'}
+    </span>
+  );
+}
 
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center shrink-0">
-            <User2 size={12} className="text-blue-600" />
-          </div>
-          <span className="text-sm font-bold text-gray-900 truncate">{group.driver?.fullName || '—'}</span>
-        </div>
-
-        <div className="flex items-center gap-1.5 text-sm text-gray-500 min-w-0">
-          <Truck size={13} className="text-gray-400 shrink-0" />
-          <span className="truncate">{group.vehicle?.model} · {group.vehicle?.plateNumber}</span>
-        </div>
-
-        <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white border border-gray-200 text-xs font-bold text-gray-600 shrink-0">
-          <Package size={11} /> {group.orders.length} ta buyurtma
-        </span>
-
-        <span className="ml-auto text-sm font-black text-gray-900 shrink-0">
-          {formatSum(totalAmount)} so'm
+export function TripHeaderCells({ group }) {
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+        <span style={{ width: 36, height: 36, flex: 'none', borderRadius: '50%', background: C.p50, color: C.p800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><User size={16} aria-hidden="true" /></span>
+        <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          <span className="dc-ellipsis" title={group.driver?.fullName} style={{ font: `600 14px/20px ${FONT}`, color: C.n900 }}>{group.driver?.fullName || '—'}</span>
+          <span style={{ font: `400 12px/16px ${FONT}`, color: C.n600 }}>Haydovchi</span>
         </span>
       </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+        <Truck size={20} strokeWidth={1.75} aria-hidden="true" style={{ color: C.n600, flex: 'none' }} />
+        <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, alignItems: 'flex-start' }}>
+          <span className="dc-ellipsis" title={group.vehicle?.model} style={{ font: `500 13px/18px ${FONT}`, maxWidth: '100%' }}>{group.vehicle?.model || '—'}</span>
+          <PlateChip>{group.vehicle?.plateNumber}</PlateChip>
+        </span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <span style={{ font: `400 12px/16px ${FONT}`, color: C.n600 }}>Biriktirilgan</span>
+        <span className="tnum" style={{ font: `400 13px/18px ${FONT}`, whiteSpace: 'nowrap' }}>{dateTime(group.dispatchedAt)}</span>
+      </div>
+    </>
+  );
+}
 
-      {/* Guruh ichidagi orderlar */}
-      {!collapsed && (
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <tbody>
-              {group.orders.map(o => {
-                const isSel = selected.includes(o.id);
-                return (
-                  <tr
-                    key={o.id}
-                    onClick={() => onToggle(o.id)}
-                    className={`border-b border-gray-50 last:border-b-0 cursor-pointer transition-colors ${isSel ? 'bg-emerald-50/60 hover:bg-emerald-50' : 'hover:bg-gray-50/70'}`}
-                  >
-                    <td className="pl-14 pr-3 py-3 w-10" onClick={e => e.stopPropagation()}>
-                      <button onClick={() => onToggle(o.id)} className="text-gray-400 hover:text-emerald-600 transition-colors">
-                        {isSel ? <CheckSquare size={16} className="text-emerald-600" /> : <Square size={16} />}
-                      </button>
-                    </td>
-                    <td className="px-3 py-3 text-sm font-mono font-bold text-gray-900 w-32">{o.invoiceNumber}</td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center shrink-0">
-                          <Building2 size={11} className="text-emerald-600" />
-                        </div>
-                        <span className="text-sm font-semibold text-gray-800 truncate max-w-[220px]">{o.client?.orgName}</span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 text-right pr-5">
-                      <p className="text-sm font-black text-gray-900 whitespace-nowrap">{formatSum(o.totalAmount)}</p>
-                      <p className="text-[11px] text-gray-400">so'm</p>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+const ROW_GRID = '20px minmax(140px,180px) minmax(0,1fr) 180px';
+const HEAD_GRID = '36px 20px minmax(0,1.35fr) minmax(0,1.1fr) minmax(0,0.85fr) auto minmax(132px,auto)';
+
+function TripGroup({ group, sel, open, onToggleOpen }) {
+  const ids = group.orders.map((o) => o.id);
+  const n = ids.filter((id) => sel.has(id)).length;
+  const all = n === ids.length;
+  const some = n > 0 && !all;
+  const total = group.orders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+  return (
+    <section
+      aria-label={`Safar: ${group.driver?.fullName || '—'}, ${group.vehicle?.plateNumber || ''}`}
+      style={{
+        background: '#fff', borderRadius: 10, overflow: 'hidden',
+        border: `1px solid ${all ? C.p300 : some ? C.p200 : C.n200}`,
+        boxShadow: all ? `inset 3px 0 0 ${C.p800}` : some ? `inset 3px 0 0 ${C.p300}` : 'none',
+      }}
+    >
+      <div
+        onClick={onToggleOpen}
+        className={all ? '' : 'dc-hover'}
+        style={{
+          display: 'grid', gridTemplateColumns: HEAD_GRID, gap: 12, alignItems: 'center', minHeight: 64, padding: '10px 16px 10px 8px',
+          background: all ? C.p50 : open ? C.n50 : '#fff', cursor: 'pointer',
+        }}
+      >
+        <button
+          type="button"
+          className="dc-ib"
+          aria-expanded={open}
+          aria-label={`${open ? 'Yig‘ish' : 'Yoyish'}: ${group.driver?.fullName || ''}`}
+          title={`${open ? 'Yig‘ish' : 'Yoyish'}: ${group.driver?.fullName || ''}`}
+          onClick={(e) => { e.stopPropagation(); onToggleOpen(); }}
+          style={{ border: `1px solid ${C.n200}`, background: '#fff' }}
+        >
+          {open ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+        </button>
+        <Checkbox
+          checked={all}
+          indeterminate={some}
+          onChange={() => sel.setMany(ids, !all)}
+          label={`${group.driver?.fullName || ''} safaridagi barcha buyurtmalarni tanlash`}
+        />
+        <TripHeaderCells group={group} />
+        <div style={{ display: 'flex', gap: 6, justifySelf: 'end', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <Badge icon={Package}>{group.orders.length} ta buyurtma</Badge>
+          {n > 0 && <Badge bg={C.p800} fg="#fff" strong>{n} / {ids.length} tanlandi</Badge>}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+          <span style={{ font: `400 12px/16px ${FONT}`, color: C.n600 }}>Jami summa</span>
+          <span className="tnum" style={{ font: `600 14px/20px ${FONT}`, whiteSpace: 'nowrap' }}>{money(total)}</span>
+        </div>
+      </div>
+      {open && (
+        <div role="table" aria-label={`${group.driver?.fullName || ''} safari buyurtmalari`} style={{ borderTop: `1px solid ${C.n200}`, position: 'relative' }}>
+          <span aria-hidden="true" style={{ position: 'absolute', left: 25, top: 0, bottom: 24, width: 2, background: C.n200 }} />
+          <div role="row" style={{ display: 'grid', gridTemplateColumns: ROW_GRID, gap: 12, alignItems: 'center', height: 36, padding: '0 16px 0 56px', borderBottom: `1px solid ${C.n100}`, font: `600 12px/16px ${FONT}`, color: C.n600 }}>
+            <span role="columnheader" aria-label="Tanlash" />
+            <span role="columnheader">Faktura raqami</span>
+            <span role="columnheader">Tashkilot</span>
+            <span role="columnheader" style={{ textAlign: 'right' }}>Summa</span>
+          </div>
+          {group.orders.map((o) => {
+            const on = sel.has(o.id);
+            return (
+              <div
+                key={o.id}
+                role="row"
+                aria-selected={on}
+                onClick={() => sel.toggle(o.id)}
+                className={`dc-soft-row ${on ? 'is-sel' : ''}`}
+                style={{ display: 'grid', gridTemplateColumns: ROW_GRID, gap: 12, alignItems: 'center', height: 48, padding: '0 16px 0 56px', borderBottom: `1px solid ${C.n100}`, cursor: 'pointer', position: 'relative' }}
+              >
+                <span role="cell"><Checkbox checked={on} onChange={() => sel.toggle(o.id)} label={`${o.invoiceNumber} buyurtmasini tanlash`} /></span>
+                <span role="cell" className="tnum dc-ellipsis" style={{ font: `600 13px/18px ${FONT}`, color: C.p800 }}>{o.invoiceNumber}</span>
+                <span role="cell" className="dc-ellipsis" title={o.client?.orgName} style={{ font: `400 13px/18px ${FONT}` }}>{o.client?.orgName || '—'}</span>
+                <span role="cell" className="tnum" style={{ font: `500 13px/18px ${FONT}`, textAlign: 'right' }}>{money(o.totalAmount)}</span>
+              </div>
+            );
+          })}
         </div>
       )}
+    </section>
+  );
+}
+
+export function TripSkeletons({ n = 4 }) {
+  const widths = [[50, 60], [64, 48], [44, 56], [58, 64]];
+  return (
+    <div aria-busy="true" aria-label="Yuklanmoqda" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {Array.from({ length: n }).map((_, i) => (
+        <Card key={i} className="dc-pulse" style={{ display: 'grid', gridTemplateColumns: HEAD_GRID, gap: 12, alignItems: 'center', minHeight: 64, padding: '10px 16px 10px 8px' }}>
+          <Skel w={36} h={36} r={7} bg={C.n100} />
+          <Skel w={20} h={20} r={5} bg={C.n100} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Skel w={36} h={36} r={18} bg={C.n100} /><Skel w={`${widths[i % 4][0]}%`} /></div>
+          <Skel w={`${widths[i % 4][1]}%`} />
+          <Skel w="70%" />
+          <Skel w={104} h={24} r={5} bg={C.n100} />
+          <Skel w={120} h={14} style={{ justifySelf: 'end' }} />
+        </Card>
+      ))}
     </div>
   );
 }
 
 export default function DocumentDocumentedPage() {
   const qc = useQueryClient();
-  const [selected, setSelected] = useState([]);
-  const [search, setSearch] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [collapsedGroups, setCollapsedGroups] = useState(new Set());
+  const online = useOnline();
+  const [q, setQ] = useState('');
+  const [collapsed, setCollapsed] = useState(() => new Set());
+  const [builderOpen, setBuilderOpen] = useState(false);
+  const [builderErr, setBuilderErr] = useState(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [returnErr, setReturnErr] = useState(null);
 
-  const { data: orders = [], isLoading, isFetching, dataUpdatedAt } = useQuery({
+  const query = useQuery({
     queryKey: ['document', 'awaiting'],
-    queryFn: () => documentAPI.getAwaitingDocument(),
-    select: r => r.data.data || [],
+    queryFn: documentAPI.getAwaitingDocument,
+    select: (r) => r.data.data || [],
     refetchInterval: 15000,
   });
-
-  const filtered = orders.filter(o => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return o.invoiceNumber?.toLowerCase().includes(q)
-      || o.client?.orgName?.toLowerCase().includes(q)
-      || o.driver?.fullName?.toLowerCase().includes(q);
-  });
-
+  const orders = useMemo(() => query.data || [], [query.data]);
+  const byId = useMemo(() => new Map(orders.map((o) => [o.id, o])), [orders]);
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    if (!s) return orders;
+    return orders.filter((o) => [o.invoiceNumber, o.client?.orgName, o.driver?.fullName, o.vehicle?.plateNumber].some((v) => v?.toLowerCase().includes(s)));
+  }, [orders, q]);
   const groups = useMemo(() => groupByTrip(filtered), [filtered]);
+  const sel = useSelection(useMemo(() => orders.map((o) => o.id), [orders]));
+  const selOrders = sel.selected.map((id) => byId.get(id)).filter(Boolean);
+  const selTrips = new Set(selOrders.map((o) => `${o.driverId}__${o.vehicleId}__${o.dispatchedAt}`)).size;
+  const selSum = selOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+  const selBoxes = selOrders.reduce((s, o) => s + (o.boxCount || 0), 0);
 
-  const selectedOrders = orders.filter(o => selected.includes(o.id));
-
-  const exportMutation = useMutation({
-    mutationFn: ({ columns, footer }) => documentAPI.exportExcel(selected, columns, footer),
+  const exportMut = useMutation({
+    mutationFn: ({ columns, footer }) => documentAPI.exportExcel(sel.selected, columns, footer),
     onSuccess: (res) => {
+      const n = sel.selected.length;
       const disposition = res.headers['content-disposition'] || '';
-      const match = disposition.match(/filename="?([^"]+)"?/);
-      const filename = match ? match[1] : 'hujjat.xlsx';
+      const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+      const filename = match ? decodeURIComponent(match[1]) : 'hujjat.xlsx';
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement('a');
       a.href = url;
@@ -177,155 +212,121 @@ export default function DocumentDocumentedPage() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-      toast.success('Hujjat yaratildi va yuklab olindi');
-      setSelected([]);
-      setShowModal(false);
-      qc.invalidateQueries(['document']);
+      setBuilderOpen(false);
+      sel.clear();
+      qc.invalidateQueries({ queryKey: ['document'] });
+      notify({ title: 'Hujjat yaratildi va yuklab olindi', desc: `Fayl: ${filename} · ${n} ta buyurtma Safarga tayyor bo‘limiga o‘tdi.` });
     },
     onError: async (e) => {
-      const msg = e.response?.data instanceof Blob
-        ? JSON.parse(await e.response.data.text()).message
-        : e.response?.data?.message;
-      toast.error(msg || DEFAULT_ERROR_MESSAGE);
+      let msg = null;
+      try {
+        msg = e.response?.data instanceof Blob ? JSON.parse(await e.response.data.text()).message : e.response?.data?.message;
+      } catch { msg = null; }
+      setBuilderErr(msg || (e.response ? DEFAULT_ERROR_MESSAGE : 'Server javob bermadi.'));
     },
   });
 
-  const returnMutation = useMutation({
-    mutationFn: () => documentAPI.returnToPending(selected),
-    onSuccess: (res) => {
-      toast.success(res.data.message || 'Buyurtmalar qaytarildi');
-      setSelected([]);
-      qc.invalidateQueries(['document']);
+  const returnMut = useMutation({
+    mutationFn: () => documentAPI.returnToPending(sel.selected),
+    onSuccess: () => {
+      const n = sel.selected.length;
+      setConfirmOpen(false);
+      sel.clear();
+      qc.invalidateQueries({ queryKey: ['document'] });
+      notify({ tone: 'warning', icon: Undo2, title: 'Buyurtmalar qaytarildi', desc: `${n} ta buyurtma Biriktirish bo‘limiga o‘tkazildi.` });
     },
-    onError: (e) => toast.error(getErrorMessage(e)),
+    onError: (e) => setReturnErr(getErrorMessage(e)),
   });
 
-  const toggle = (id) => setSelected(p => p.includes(id) ? p.filter(i => i !== id) : [...p, id]);
-  const toggleGroup = (ids) => setSelected(p => {
-    const allSelected = ids.every(id => p.includes(id));
-    return allSelected ? p.filter(id => !ids.includes(id)) : [...new Set([...p, ...ids])];
-  });
-  const toggleCollapse = (key) => setCollapsedGroups(p => {
-    const next = new Set(p);
-    next.has(key) ? next.delete(key) : next.add(key);
-    return next;
-  });
+  const loading = query.isLoading;
+  const error = query.isError && !query.data;
+  const empty = !loading && !error && orders.length === 0;
+  const updated = query.dataUpdatedAt ? time(query.dataUpdatedAt, true) : '—';
+  const toggleOpen = (key) => setCollapsed((p) => { const s = new Set(p); s.has(key) ? s.delete(key) : s.add(key); return s; });
+  const forceOpen = !!q.trim();
+
+  const bar = sel.selected.length > 0 && !error ? (
+    <SelectionBar
+      title={`${sel.selected.length} ta buyurtma tanlandi`}
+      meta={`${selTrips} ta safar · ${count(selBoxes)} quti · ${money(selSum)}`}
+      onClear={sel.clear}
+    >
+      <Button variant="dark-outline" icon={Undo2} iconSize={20} offline={!online} disabled={!online || returnMut.isPending} onClick={() => { setReturnErr(null); setConfirmOpen(true); }}>
+        Orqaga qaytarish
+      </Button>
+      <Button variant="inverse" icon={FileSpreadsheet} iconSize={20} offline={!online} disabled={!online || returnMut.isPending} onClick={() => { setBuilderErr(null); setBuilderOpen(true); }}>
+        Hujjatlashtirish
+      </Button>
+    </SelectionBar>
+  ) : null;
 
   return (
-    <div className="space-y-5 pb-8">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center">
-              <FileCheck2 size={16} className="text-emerald-600" />
-            </div>
-            Hujjatlashtirish
-          </h1>
-          <p className="text-sm text-gray-400 mt-0.5 ml-10 font-medium">
-            {filtered.length} ta order · {groups.length} ta safar · haydovchi biriktirilgan, hujjat kutilmoqda · {dataUpdatedAt ? format(new Date(dataUpdatedAt), 'HH:mm:ss') : '—'}
-          </p>
-        </div>
-        <button
-          onClick={() => qc.invalidateQueries(['document', 'awaiting'])}
-          className={`w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:border-emerald-300 transition-colors ${isFetching ? 'animate-spin text-emerald-500' : ''}`}
-        >
-          <RefreshCw size={15} />
-        </button>
-      </div>
+    <Page bar={bar}>
+      <PageHeader title="Hujjatlashtirish" description="Haydovchi biriktirilgan buyurtmalar uchun hujjat (Excel) yaratish.">
+        <RefreshControl
+          label={loading ? 'Yuklanmoqda…' : error ? 'Yangilanmadi' : `Yangilangan ${updated}`}
+          fetching={query.isFetching}
+          offline={!online}
+          onRefresh={() => query.refetch()}
+          title="Ro‘yxat har 15 soniyada avtomatik yangilanadi"
+        />
+      </PageHeader>
 
-      {/* Search */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-        <div className="relative">
-          <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Faktura, tashkilot yoki haydovchi nomi..."
-            className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-transparent rounded-xl text-sm
-              focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:border-emerald-100
-              transition-all placeholder:text-gray-400"
-          />
-          {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors">
-              <X size={12} className="text-gray-500" />
-            </button>
-          )}
-        </div>
-      </div>
+      {!online && <OfflineBanner at={updated} />}
 
-      {/* Safarlar (akkordion) */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="py-20 flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-gray-400">Yuklanmoqda...</p>
+      {!error && !empty && (
+        <Card style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '12px 16px', flexWrap: 'wrap' }}>
+          <SearchInput value={q} onChange={setQ} placeholder="Faktura, tashkilot, haydovchi yoki mashina raqami" disabled={loading} style={{ flex: '0 1 420px' }} />
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 20, font: `400 13px/18px ${FONT}`, color: C.n600, flexWrap: 'wrap' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Package size={16} aria-hidden="true" /><b className="tnum" style={{ fontWeight: 600, color: C.n900 }}>{loading ? '–' : filtered.length}</b> ta buyurtma</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Truck size={16} aria-hidden="true" /><b className="tnum" style={{ fontWeight: 600, color: C.n900 }}>{loading ? '–' : groups.length}</b> ta safar</span>
+            <span style={{ display: 'inline-flex', gap: 4 }}>
+              <Button variant="ghost" size="sm" icon={ChevronsUpDown} disabled={loading} onClick={() => setCollapsed(new Set())}>Hammasini yoyish</Button>
+              <Button variant="ghost" size="sm" icon={ChevronsDownUp} disabled={loading} onClick={() => setCollapsed(new Set(groups.map((g) => g.key)))}>Yig‘ish</Button>
+            </span>
           </div>
-        ) : groups.length === 0 ? (
-          <EmptyState />
-        ) : (
-          groups.map(group => (
-            <TripGroup
-              key={group.key}
-              group={group}
-              selected={selected}
-              onToggle={toggle}
-              onToggleGroup={toggleGroup}
-              collapsed={collapsedGroups.has(group.key)}
-              onToggleCollapse={toggleCollapse}
-            />
-          ))
-        )}
-      </div>
-
-      {/* Sticky selection bar */}
-      {selected.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
-          <div className="max-w-screen-xl mx-auto px-5 pb-5">
-            <div className="pointer-events-auto bg-gray-900 rounded-2xl shadow-2xl shadow-gray-900/30 px-5 py-4 flex items-center justify-between gap-4 animate-in slide-in-from-bottom-4 fade-in duration-200">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
-                  <FileSpreadsheet size={16} className="text-emerald-300" />
-                </div>
-                <p className="text-sm font-bold text-white">{selected.length} ta buyurtma tanlandi</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setSelected([])}
-                  className="px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-300 hover:bg-white/10 transition-colors"
-                >
-                  Bekor qilish
-                </button>
-                <button
-                  onClick={() => { if (window.confirm(`${selected.length} ta orderni haydovchi/mashinadan qaytarib, "Chekingdan o'tganlar" bo'limiga yubormoqchimisiz?`)) returnMutation.mutate(); }}
-                  disabled={returnMutation.isPending}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white
-                    bg-white/10 hover:bg-white/20 border border-white/10 transition-all disabled:opacity-50"
-                >
-                  <Undo2 size={15} /> {returnMutation.isPending ? 'Qaytarilmoqda...' : 'Orqaga qaytarish'}
-                </button>
-                <button
-                  onClick={() => setShowModal(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white
-                    bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700
-                    shadow-lg shadow-emerald-500/30 transition-all"
-                >
-                  <FileSpreadsheet size={15} /> Hujjatlashtirish
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        </Card>
       )}
 
-      {showModal && (
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <RefreshBar show={query.isFetching && !loading} />
+        {loading ? <TripSkeletons /> : error ? (
+          <ErrorState title="Buyurtmalarni yuklab bo‘lmadi" onRetry={() => query.refetch()} />
+        ) : empty ? (
+          <BlankState icon={FileCheck2} title="Hujjatlashtirish uchun buyurtmalar yo‘q" text="Biriktirish bo‘limida buyurtmalarga haydovchi va mashina biriktirilgach, ular shu yerda safarlar bo‘yicha ko‘rinadi." />
+        ) : groups.length === 0 ? (
+          <SearchEmpty text={`«${q}» bo‘yicha faktura, tashkilot, haydovchi yoki mashina topilmadi.`} onClear={() => setQ('')} />
+        ) : groups.map((g) => (
+          <TripGroup key={g.key} group={g} sel={sel} open={forceOpen || !collapsed.has(g.key)} onToggleOpen={() => toggleOpen(g.key)} />
+        ))}
+      </div>
+
+      {builderOpen && (
         <DocumentBuilderModal
-          orders={selectedOrders}
-          onClose={() => setShowModal(false)}
-          onConfirm={(columns, footer) => exportMutation.mutate({ columns, footer })}
-          loading={exportMutation.isPending}
+          orders={selOrders}
+          loading={exportMut.isPending}
+          error={builderErr}
+          onClose={() => setBuilderOpen(false)}
+          onConfirm={(columns, footer) => { setBuilderErr(null); exportMut.mutate({ columns, footer }); }}
         />
       )}
-    </div>
+      {confirmOpen && (
+        <ConfirmDialog
+          icon={Undo2}
+          tone="warning"
+          title="Buyurtmalar Biriktirish bosqichiga qaytarilsinmi?"
+          text={`${selOrders.length} ta buyurtma haydovchi va mashinadan ajratiladi va Biriktirish bo‘limiga qaytariladi. U yerda ularga qayta haydovchi biriktirish mumkin.`}
+          summary={[['Buyurtmalar', `${selOrders.length} ta`], ['Safarlar', `${selTrips} ta`], ['Jami summa', money(selSum)]]}
+          note="Buyurtmalar bekor qilinmaydi va «Qaytarilgan» holatiga o‘tmaydi."
+          confirmLabel="Orqaga qaytarish"
+          confirmIcon={Undo2}
+          busyLabel="Qaytarilmoqda…"
+          busy={returnMut.isPending}
+          error={returnErr}
+          onClose={() => setConfirmOpen(false)}
+          onConfirm={() => { setReturnErr(null); returnMut.mutate(); }}
+        />
+      )}
+    </Page>
   );
 }

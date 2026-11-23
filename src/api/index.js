@@ -133,7 +133,11 @@ export const documentAPI = {
   resendToAccountant: (id, totalAmount) => api.patch(`/document/orders/${id}/resend`, { totalAmount }),
   returnToPending: (orderIds) => api.patch('/document/orders/return-to-pending', { orderIds }),
   updateAmount: (id, totalAmount) => api.patch(`/document/orders/${id}/amount`, { totalAmount }),
-  getHistory:   (date) => api.get('/document/orders/history', { params: date ? { date } : {} }),
+  // String (eski) — sana; obyekt — { date, page, pageSize, q, status } (server tomonida sahifalash)
+  getHistory:   (p) => api.get('/document/orders/history', {
+    params: typeof p === 'string' ? (p ? { date: p } : {}) : (p || {}),
+  }),
+  getCounts:    () => api.get('/document/counts'),
   getReturned:  () => api.get('/document/orders/returned'),
   getOrderFull: (id) => api.get(`/document/orders/${id}`),
   submitReturn: (id, formData) => api.patch(`/document/orders/${id}/return`, formData, {

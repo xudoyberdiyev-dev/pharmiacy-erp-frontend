@@ -1,277 +1,300 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { documentAPI } from '../../api';
-import StatusBadge from '../../components/shared/StatusBadge';
-import toast from 'react-hot-toast';
-import { getErrorMessage } from '../../lib/errors';
-import { formatSum } from '../../lib/format';
-import { format } from 'date-fns';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import {
-  History, Search, X, RefreshCw, Building2, FileCheck2,
-  Undo2, FileDown, AlertTriangle, CalendarDays, Ban, RotateCcw
+  History, CalendarDays, FilterX, PackageMinus, FileDown, CircleX, RotateCcw, ChevronDown, FileCheck2, Truck,
 } from 'lucide-react';
+import { documentAPI } from '../../api';
+import { getErrorMessage } from '../../lib/errors';
+import { C, FONT } from './design/tokens';
+import {
+  Page, PageHeader, RefreshControl, Card, SearchInput, Badge, TONE, StatusBadge, IconButton, Button, BlankState,
+  ErrorState, SearchEmpty, OfflineBanner, Skel, Pagination, ConfirmDialog, notify, RefreshBar, Spinner,
+} from './design/ui';
+import { money, dateTime, time, count } from './lib/format';
+import { useOnline, useDebounced, saveBlob } from './lib/hooks';
 
-const NON_CANCELLABLE_STATUSES = ['DELIVERED', 'CANCELLED', 'RETURNED'];
-const RESTORABLE_STATUSES = ['CANCELLED', 'RETURNED'];
+// ─────────────────────────────────────────────────────────────────────────
+// Tarix — hujjat chiqarilgan barcha buyurtmalar (server tomonida
+// sahifalanadi, qidiruv/holat/sana filtrlari bilan). Bu yerdan: qaytarilgan
+// tovarni qayd etish, Word hisobot, bekor qilish va tiklash.
+// ─────────────────────────────────────────────────────────────────────────
 
-function EmptyState() {
-  return (
-    <div className="py-20 text-center">
-      <div className="w-16 h-16 mx-auto bg-indigo-50 rounded-2xl flex items-center justify-center mb-4">
-        <History size={28} className="text-indigo-200" />
-      </div>
-      <p className="text-gray-400 text-sm font-medium">Hujjatlashtirilgan order yo'q</p>
-      <p className="text-gray-300 text-xs mt-1">Hujjat chiqarilgan barcha orderlar shu yerda ko'rinadi</p>
-    </div>
-  );
+const STATUS_FILTERS = [
+  { value: '', label: 'Barcha holatlar' },
+  { value: 'IN_TRANSIT', label: 'Safarda (yetkazilmagan)' },
+  { value: 'DELIVERED', label: 'Yetkazilgan' },
+  { value: 'HAS_RETURNED_GOODS', label: 'Qaytarilgan tovari bor' },
+  { value: 'RETURNED', label: 'To‘liq qaytarilgan' },
+  { value: 'CANCELLED', label: 'Bekor qilingan' },
+];
+
+export function OrderStatus({ o }) {
+  if (o.status === 'DELIVERED') return <StatusBadge variant="APPROVED">Yetkazildi</StatusBadge>;
+  if (o.status === 'RETURNED') return <StatusBadge variant="RETURNED">Qaytarilgan</StatusBadge>;
+  if (o.status === 'CANCELLED') return <StatusBadge variant="CANCELLED">Bekor qilingan</StatusBadge>;
+  if (o.status === 'IN_TRANSIT') {
+    if (o.deliveryStartedAt) return <Badge {...TONE.info} icon={Truck}>Yo‘lda</Badge>;
+    return <StatusBadge variant="READY">Safarga tayyor</StatusBadge>;
+  }
+  return <StatusBadge variant="PENDING">{o.status}</StatusBadge>;
 }
 
-function HistoryRow({ o, onDownload, downloading, onCancel, cancelling, onRestore, restoring }) {
-  const navigate = useNavigate();
-  const canCancel = !NON_CANCELLABLE_STATUSES.includes(o.status);
-  const canRestore = RESTORABLE_STATUSES.includes(o.status);
-
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow p-4 flex items-center gap-4 flex-wrap">
-      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center shrink-0">
-        <Building2 size={16} className="text-indigo-600" />
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-mono text-sm font-black text-gray-900">{o.invoiceNumber}</span>
-          <StatusBadge status={o.status} order={o} />
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
-            <FileCheck2 size={10} /> № {o.dispatchDocument?.documentNumber ?? '—'}
-          </span>
-          {o.hasReturnedGoods && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold bg-red-50 text-red-700 border border-red-100">
-              <AlertTriangle size={10} /> Qaytarilgan tovarlar mavjud
-            </span>
-          )}
-        </div>
-        <p className="text-sm text-gray-500 truncate mt-0.5">{o.client?.orgName}</p>
-        <p className="text-[11px] text-gray-400 mt-0.5">
-          {o.dispatchedAt ? format(new Date(o.dispatchedAt), 'dd.MM.yyyy HH:mm') : '—'}
-        </p>
-      </div>
-
-      <div className="text-right shrink-0">
-        {o.originalAmount != null && (
-          <p className="text-[11px] text-gray-400 line-through leading-tight">
-            {formatSum(o.originalAmount)}
-          </p>
-        )}
-        <p className={`text-sm font-black leading-tight ${o.originalAmount != null ? 'text-emerald-600' : 'text-gray-900'}`}>
-          {formatSum(o.totalAmount)}
-        </p>
-        <p className="text-[11px] text-gray-400">so'm</p>
-      </div>
-
-      <div className="flex items-center gap-2 shrink-0">
-        {o.hasReturnedGoods && (
-          <button
-            onClick={() => onDownload(o)}
-            disabled={downloading === o.id}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white
-              bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700
-              shadow-sm transition-all disabled:opacity-50"
-          >
-            <FileDown size={14} /> {downloading === o.id ? 'Yuklanmoqda...' : 'Wordga yuklash'}
-          </button>
-        )}
-        <button
-          onClick={() => navigate(`/document/orders/${o.id}/return`)}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-indigo-700
-            bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 transition-colors"
-        >
-          <Undo2 size={14} /> {o.hasReturnedGoods ? 'Yana qaytarish' : 'Qaytarilgan mavjud'}
-        </button>
-        {canCancel && (
-          <button
-            onClick={() => onCancel(o)}
-            disabled={cancelling === o.id}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-gray-500
-              bg-gray-50 border border-gray-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-50"
-          >
-            <Ban size={14} /> {cancelling === o.id ? 'Bekor qilinmoqda...' : 'Bekor qilish'}
-          </button>
-        )}
-        {canRestore && (
-          <button
-            onClick={() => onRestore(o)}
-            disabled={restoring === o.id}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-amber-700
-              bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors disabled:opacity-50"
-          >
-            <RotateCcw size={14} /> {restoring === o.id ? 'Tiklanmoqda...' : 'Tiklash'}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
+const TH = { position: 'sticky', top: 0, zIndex: 1, background: C.n50, borderBottom: `1px solid ${C.n200}`, padding: '0 12px', height: 44, textAlign: 'left', font: `600 12px/16px ${FONT}`, color: C.n700, whiteSpace: 'nowrap' };
+const TD = { padding: '8px 12px', borderBottom: `1px solid ${C.n200}`, verticalAlign: 'middle' };
 
 export default function DocumentHistoryPage() {
   const qc = useQueryClient();
-  const [search, setSearch] = useState('');
+  const navigate = useNavigate();
+  const online = useOnline();
+  const [q, setQ] = useState('');
+  const dq = useDebounced(q.trim());
+  const [date, setDate] = useState('');
+  const [status, setStatus] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [downloading, setDownloading] = useState(null);
-  const [dateFilter, setDateFilter] = useState('');
-  const [cancellingId, setCancellingId] = useState(null);
-  const [restoringId, setRestoringId] = useState(null);
+  const [cancelOrder, setCancelOrder] = useState(null);
+  const [restoreOrder, setRestoreOrder] = useState(null);
+  const [actionErr, setActionErr] = useState(null);
 
-  const { data: orders = [], isLoading, isFetching, dataUpdatedAt } = useQuery({
-    queryKey: ['document', 'history', dateFilter],
-    queryFn: () => documentAPI.getHistory(dateFilter),
-    select: r => r.data.data || [],
-    refetchInterval: 20000,
+  const params = { page, pageSize, ...(dq ? { q: dq } : {}), ...(date ? { date } : {}), ...(status ? { status } : {}) };
+  const query = useQuery({
+    queryKey: ['document', 'history', params],
+    queryFn: () => documentAPI.getHistory(params),
+    select: (r) => ({ rows: r.data.data || [], total: r.data.total ?? 0 }),
+    placeholderData: keepPreviousData,
+    refetchInterval: 30000,
   });
+  const rows = query.data?.rows || [];
+  const total = query.data?.total || 0;
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  // Oxirgi sahifadagi yagona buyurtma ro'yxatdan chiqsa (masalan "Tiklash"dan
+  // keyin) — bo'sh sahifada qolib ketmaslik uchun oxirgi mavjud sahifaga o'tamiz.
+  useEffect(() => {
+    if (!query.isPlaceholderData && total > 0 && page > pages) setPage(pages);
+  }, [page, pages, total, query.isPlaceholderData]);
 
-  const cancelMutation = useMutation({
-    mutationFn: (id) => documentAPI.cancelOrder(id),
-    onSuccess: () => {
-      toast.success('Buyurtma bekor qilindi');
-      qc.invalidateQueries(['document']);
+  const filtersActive = !!(q || date || status);
+  const clearFilters = () => { setQ(''); setDate(''); setStatus(''); setPage(1); };
+
+  const cancelMut = useMutation({
+    mutationFn: ({ id, reason }) => documentAPI.cancelOrder(id, reason || undefined),
+    onSuccess: (_r, v) => {
+      setCancelOrder(null);
+      qc.invalidateQueries({ queryKey: ['document'] });
+      notify({ tone: 'warning', icon: CircleX, title: 'Buyurtma bekor qilindi', desc: `${v.inv} «Bekor qilingan» holatiga o‘tdi. Kerak bo‘lsa «Tiklash» orqali qaytarish mumkin.` });
     },
-    onError: (e) => toast.error(getErrorMessage(e)),
-    onSettled: () => setCancellingId(null),
+    onError: (e) => setActionErr(getErrorMessage(e)),
   });
-
-  const handleCancel = (o) => {
-    if (!window.confirm(`#${o.invoiceNumber} orderni butunlay bekor qilmoqchimisiz? (Kerak bo'lsa keyinroq "Tiklash" orqali qaytarish mumkin.)`)) return;
-    setCancellingId(o.id);
-    cancelMutation.mutate(o.id);
-  };
-
-  const restoreMutation = useMutation({
-    mutationFn: (id) => documentAPI.restoreOrder(id),
-    onSuccess: () => {
-      toast.success('Buyurtma tiklandi, "Chekingdan o\'tganlar" bo\'limiga qaytdi');
-      qc.invalidateQueries(['document']);
+  const restoreMut = useMutation({
+    mutationFn: ({ id, reason }) => documentAPI.restoreOrder(id, reason || undefined),
+    onSuccess: (_r, v) => {
+      setRestoreOrder(null);
+      qc.invalidateQueries({ queryKey: ['document'] });
+      notify({ icon: RotateCcw, title: 'Buyurtma tiklandi', desc: `${v.inv} Biriktirish bo‘limiga qaytdi — qaytadan haydovchi biriktirib, hujjatlashtiring.` });
     },
-    onError: (e) => toast.error(getErrorMessage(e)),
-    onSettled: () => setRestoringId(null),
+    onError: (e) => setActionErr(getErrorMessage(e)),
   });
 
-  const handleRestore = (o) => {
-    if (!window.confirm(`#${o.invoiceNumber} orderni tiklamoqchimisiz? Order haydovchi/hujjatsiz "Chekingdan o'tganlar" bo'limiga qaytadi va qaytadan hujjatlashtirish kerak bo'ladi.`)) return;
-    setRestoringId(o.id);
-    restoreMutation.mutate(o.id);
-  };
-
-  const filtered = orders.filter(o => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return o.invoiceNumber?.toLowerCase().includes(q)
-      || o.client?.orgName?.toLowerCase().includes(q)
-      || o.driver?.fullName?.toLowerCase().includes(q);
-  });
-
-  const handleDownload = async (o) => {
+  const download = async (o) => {
     setDownloading(o.id);
     try {
       const res = await documentAPI.downloadReturnReport(o.id);
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `qaytarilgan-${o.invoiceNumber}.docx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (e) {
-      toast.error('Hisobotni yuklab bo\'lmadi');
+      saveBlob(res.data, `qaytarilgan-${o.invoiceNumber}.docx`);
+      notify({ title: 'Hisobot yuklab olindi', desc: `qaytarilgan-${o.invoiceNumber}.docx` });
+    } catch {
+      notify({ tone: 'danger', title: 'Hisobotni yuklab bo‘lmadi', desc: 'Qayta urinib ko‘ring.' });
     } finally {
       setDownloading(null);
     }
   };
 
+  const loading = query.isLoading;
+  const error = query.isError && !query.data;
+  const updated = query.dataUpdatedAt ? time(query.dataUpdatedAt, true) : '—';
+  const emptyAll = !loading && !error && total === 0 && !filtersActive;
+
   return (
-    <div className="space-y-5 pb-8">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center">
-              <History size={16} className="text-indigo-600" />
-            </div>
-            Tarix
-          </h1>
-          <p className="text-sm text-gray-400 mt-0.5 ml-10 font-medium">
-            {filtered.length} ta hujjatlashtirilgan order · {dataUpdatedAt ? format(new Date(dataUpdatedAt), 'HH:mm:ss') : '—'}
-          </p>
-        </div>
-        <button
-          onClick={() => qc.invalidateQueries(['document', 'history'])}
-          className={`w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:text-indigo-600 hover:border-indigo-300 transition-colors ${isFetching ? 'animate-spin text-indigo-500' : ''}`}
-        >
-          <RefreshCw size={15} />
-        </button>
-      </div>
+    <Page>
+      <PageHeader title="Tarix" description="Hujjat chiqarilgan barcha buyurtmalar: holati, qaytarilgan tovarlar, bekor qilish va tiklash.">
+        <RefreshControl
+          label={loading ? 'Yuklanmoqda…' : error ? 'Yangilanmadi' : `${count(total)} ta · yangilangan ${updated}`}
+          fetching={query.isFetching}
+          offline={!online}
+          onRefresh={() => query.refetch()}
+          title="Ro‘yxat har 30 soniyada avtomatik yangilanadi"
+        />
+      </PageHeader>
 
-      {/* Search + date filter */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Faktura, tashkilot yoki haydovchi..."
-            className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-transparent rounded-xl text-sm
-              focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:border-indigo-100
-              transition-all placeholder:text-gray-400"
-          />
-          {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors">
-              <X size={12} className="text-gray-500" />
-            </button>
-          )}
-        </div>
-        <div className="relative sm:w-56">
-          <CalendarDays size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          <input
-            type="date"
-            value={dateFilter}
-            onChange={e => setDateFilter(e.target.value)}
-            className="w-full pl-11 pr-9 py-3 bg-gray-50 border border-transparent rounded-xl text-sm
-              focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:border-indigo-100
-              transition-all text-gray-700"
-          />
-          {dateFilter && (
-            <button onClick={() => setDateFilter('')} className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors">
-              <X size={12} className="text-gray-500" />
-            </button>
-          )}
-        </div>
-      </div>
+      {!online && <OfflineBanner at={updated} />}
 
-      {/* List */}
-      {isLoading ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-20 flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-gray-400">Yuklanmoqda...</p>
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-          <EmptyState />
-        </div>
+      {error ? (
+        <ErrorState title="Tarixni yuklab bo‘lmadi" text="Server javob bermadi. Bu buyurtmalar yo‘q degani emas — qayta urinib ko‘ring." onRetry={() => query.refetch()} />
+      ) : emptyAll ? (
+        <BlankState icon={History} title="Hujjatlashtirilgan buyurtmalar yo‘q" text="Hujjat chiqarilgan barcha buyurtmalar shu yerda ko‘rinadi." />
       ) : (
-        <div className="space-y-2.5">
-          {filtered.map(o => (
-            <HistoryRow
-              key={o.id}
-              o={o}
-              onDownload={handleDownload}
-              downloading={downloading}
-              onCancel={handleCancel}
-              cancelling={cancellingId}
-              onRestore={handleRestore}
-              restoring={restoringId}
-            />
-          ))}
-        </div>
+        <Card as="section" aria-label="Tarix" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+          <RefreshBar show={query.isFetching && !loading} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', borderBottom: `1px solid ${C.n200}`, flexWrap: 'wrap' }}>
+            <SearchInput value={q} onChange={(v) => { setQ(v); setPage(1); }} placeholder="Faktura, hujjat №, tashkilot yoki haydovchi" disabled={loading} style={{ flex: '0 1 380px' }} />
+            <span style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <select
+                aria-label="Holat"
+                value={status}
+                onChange={(e) => { setStatus(e.target.value); setPage(1); }}
+                className={`dc-input ${status ? 'has-value' : ''}`}
+                style={{ appearance: 'none', width: 'auto', paddingRight: 32, fontSize: 13, fontWeight: 500, background: status ? C.p50 : '#fff', color: status ? C.p800 : C.n900 }}
+              >
+                {STATUS_FILTERS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+              <ChevronDown size={16} aria-hidden="true" style={{ position: 'absolute', right: 10, pointerEvents: 'none', color: C.n600 }} />
+            </span>
+            <label style={{ position: 'relative', display: 'flex', alignItems: 'center' }} title="Safarga biriktirilgan sana">
+              <CalendarDays size={16} aria-hidden="true" style={{ position: 'absolute', left: 12, color: date ? C.p800 : C.n600, pointerEvents: 'none' }} />
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => { setDate(e.target.value); setPage(1); }}
+                aria-label="Safarga biriktirilgan sana"
+                className={`dc-input ${date ? 'has-value' : ''}`}
+                style={{ width: 176, paddingLeft: 36, fontSize: 13, background: date ? C.p50 : undefined, color: date ? C.p800 : undefined }}
+              />
+            </label>
+            {filtersActive && <Button variant="link" icon={FilterX} onClick={clearFilters}>Filtrlarni tozalash</Button>}
+          </div>
+
+          {!loading && rows.length === 0 ? (
+            <SearchEmpty bare minHeight={280} text="Tanlangan qidiruv va filtrlarga mos buyurtma topilmadi." onClear={clearFilters} clearLabel="Filtrlarni tozalash" clearIcon={FilterX} />
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', minWidth: 1000, tableLayout: 'fixed', borderCollapse: 'separate', borderSpacing: 0 }}>
+                <colgroup>
+                  <col style={{ width: 148 }} />
+                  <col />
+                  <col style={{ width: 240 }} />
+                  <col style={{ width: 156 }} />
+                  <col style={{ width: 176 }} />
+                  <col style={{ width: 148 }} />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th scope="col" style={{ ...TH, paddingLeft: 16 }}>Faktura / hujjat</th>
+                    <th scope="col" style={TH}>Tashkilot</th>
+                    <th scope="col" style={TH}>Safar: haydovchi · sana</th>
+                    <th scope="col" style={{ ...TH, textAlign: 'right' }}>Summa</th>
+                    <th scope="col" style={TH}>Holat</th>
+                    <th scope="col" style={{ ...TH, textAlign: 'right', paddingRight: 16 }}>Amallar</th>
+                  </tr>
+                </thead>
+                <tbody aria-busy={loading || undefined}>
+                  {loading ? Array.from({ length: 8 }).map((_, i) => (
+                    <tr key={i} className="dc-pulse" style={{ height: 60 }}>
+                      <td style={{ ...TD, paddingLeft: 16 }}><Skel w="70%" /><Skel w={60} h={10} bg={C.n100} style={{ marginTop: 8 }} /></td>
+                      <td style={TD}><Skel w={`${45 + (i % 3) * 15}%`} /></td>
+                      <td style={TD}><Skel w="70%" /><Skel w={80} h={10} bg={C.n100} style={{ marginTop: 8 }} /></td>
+                      <td style={TD}><Skel w="70%" style={{ marginLeft: 'auto' }} /></td>
+                      <td style={TD}><Skel w={96} h={24} r={5} bg={C.n100} /></td>
+                      <td style={TD}><div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>{[0, 1, 2].map((k) => <Skel key={k} w={36} h={36} r={7} bg={C.n100} />)}</div></td>
+                    </tr>
+                  )) : rows.map((o) => {
+                    const canCancel = !['DELIVERED', 'CANCELLED', 'RETURNED'].includes(o.status);
+                    const canRestore = ['CANCELLED', 'RETURNED'].includes(o.status);
+                    const canRecordReturn = !['CANCELLED', 'RETURNED'].includes(o.status);
+                    return (
+                      <tr key={o.id} className="dc-row">
+                        <td style={{ ...TD, paddingLeft: 16 }}>
+                          <div className="tnum dc-ellipsis" style={{ font: `600 13px/18px ${FONT}`, color: C.p800 }}>{o.invoiceNumber}</div>
+                          <div className="tnum" style={{ display: 'flex', alignItems: 'center', gap: 4, font: `400 12px/16px ${FONT}`, color: C.n600 }}><FileCheck2 size={16} aria-hidden="true" /> № {o.dispatchDocument?.documentNumber ?? '—'}</div>
+                        </td>
+                        <td style={TD}>
+                          <div className="dc-ellipsis" title={o.client?.orgName} style={{ font: `500 13px/18px ${FONT}` }}>{o.client?.orgName || '—'}</div>
+                        </td>
+                        <td style={TD}>
+                          <div className="dc-ellipsis" style={{ font: `400 13px/18px ${FONT}` }}>{o.driver?.fullName || '—'}</div>
+                          <div className="dc-ellipsis tnum" title={o.vehicle ? `${o.vehicle.model} · ${o.vehicle.plateNumber}` : undefined} style={{ font: `400 12px/16px ${FONT}`, color: C.n600 }}>{o.vehicle?.plateNumber || '—'} · {dateTime(o.dispatchedAt)}</div>
+                        </td>
+                        <td style={{ ...TD, textAlign: 'right' }}>
+                          {o.originalAmount != null && o.originalAmount !== o.totalAmount && (
+                            <div className="tnum" style={{ font: `400 12px/16px ${FONT}`, color: C.n600, textDecoration: 'line-through' }}>{money(o.originalAmount)}</div>
+                          )}
+                          <div className="tnum" style={{ font: `500 13px/18px ${FONT}`, whiteSpace: 'nowrap' }}>{money(o.totalAmount)}</div>
+                          {o.returnedAmount != null && (
+                            <div className="tnum" style={{ font: `500 12px/16px ${FONT}`, color: C.warning.text }}>−{money(o.returnedAmount)}</div>
+                          )}
+                        </td>
+                        <td style={TD}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                            <OrderStatus o={o} />
+                            {o.hasReturnedGoods && <Badge {...TONE.warning} icon={PackageMinus}>Tovar qaytgan</Badge>}
+                          </div>
+                        </td>
+                        <td style={{ ...TD, paddingRight: 16 }}>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
+                            {canRecordReturn && (
+                              <IconButton icon={PackageMinus} label={`${o.invoiceNumber} — ${o.hasReturnedGoods ? 'yana tovar qaytarishni qayd etish' : 'tovar qaytarishni qayd etish'}`} disabled={!online} onClick={() => navigate(`/document/orders/${o.id}/return`)} />
+                            )}
+                            {o.hasReturnedGoods && (
+                              downloading === o.id
+                                ? <span className="dc-ib" aria-label="Yuklanmoqda" style={{ cursor: 'default' }}><Spinner color={C.p500} track={C.n300} /></span>
+                                : <IconButton icon={FileDown} tone="tint" label={`${o.invoiceNumber} — qaytarish hisobotini Word (.docx) yuklab olish`} disabled={!online} onClick={() => download(o)} />
+                            )}
+                            {canCancel && (
+                              <IconButton icon={CircleX} tone="danger" label={`${o.invoiceNumber} — bekor qilish`} disabled={!online} onClick={() => { setActionErr(null); setCancelOrder(o); }} />
+                            )}
+                            {canRestore && (
+                              <IconButton icon={RotateCcw} label={`${o.invoiceNumber} — tiklash`} disabled={!online} onClick={() => { setActionErr(null); setRestoreOrder(o); }} />
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {!loading && rows.length > 0 && (
+            <Pagination page={Math.min(page, pages)} pages={pages} size={pageSize} total={total} onPage={setPage} onSize={(s) => { setPageSize(s); setPage(1); }} />
+          )}
+        </Card>
       )}
-    </div>
+
+      {cancelOrder && (
+        <ConfirmDialog
+          icon={CircleX}
+          tone="danger"
+          danger
+          title="Buyurtmani bekor qilish?"
+          text={`${cancelOrder.invoiceNumber} «Bekor qilingan» holatiga o‘tadi va barcha ro‘yxatlar hamda hisob-kitoblardan chiqadi. Kerak bo‘lsa keyinroq «Tiklash» orqali qaytarish mumkin.`}
+          summary={[['Tashkilot', cancelOrder.client?.orgName || '—'], ['Summa', money(cancelOrder.totalAmount)]]}
+          reason={{ label: 'Bekor qilish sababi', required: false, placeholder: 'Masalan: mijoz buyurtmadan voz kechdi', hint: 'Sabab faoliyat jurnalida saqlanadi.' }}
+          confirmLabel="Bekor qilish"
+          confirmIcon={CircleX}
+          busyLabel="Bekor qilinmoqda…"
+          busy={cancelMut.isPending}
+          error={actionErr}
+          onClose={() => setCancelOrder(null)}
+          onConfirm={(reason) => { setActionErr(null); cancelMut.mutate({ id: cancelOrder.id, reason, inv: cancelOrder.invoiceNumber }); }}
+        />
+      )}
+      {restoreOrder && (
+        <ConfirmDialog
+          icon={RotateCcw}
+          title="Buyurtmani tiklash?"
+          text={`${restoreOrder.invoiceNumber} haydovchi va hujjatsiz Biriktirish bo‘limiga qaytadi — qaytadan haydovchi biriktirib, hujjatlashtirish kerak bo‘ladi.`}
+          summary={[['Tashkilot', restoreOrder.client?.orgName || '—'], ['Hozirgi holat', restoreOrder.status === 'CANCELLED' ? 'Bekor qilingan' : 'To‘liq qaytarilgan'], ['Summa', money(restoreOrder.totalAmount)]]}
+          reason={{ label: 'Tiklash sababi', required: false, placeholder: 'Masalan: mijoz tovarni qabul qildi', hint: 'Sabab faoliyat jurnalida va Telegram xabarida ko‘rsatiladi.' }}
+          confirmLabel="Tiklash"
+          confirmIcon={RotateCcw}
+          busyLabel="Tiklanmoqda…"
+          busy={restoreMut.isPending}
+          error={actionErr}
+          onClose={() => setRestoreOrder(null)}
+          onConfirm={(reason) => { setActionErr(null); restoreMut.mutate({ id: restoreOrder.id, reason, inv: restoreOrder.invoiceNumber }); }}
+        />
+      )}
+    </Page>
   );
 }

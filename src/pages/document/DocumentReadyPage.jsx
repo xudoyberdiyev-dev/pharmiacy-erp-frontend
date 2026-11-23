@@ -1,272 +1,287 @@
-import { useState } from 'react';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { documentAPI } from '../../api';
-import toast from 'react-hot-toast';
-import { getErrorMessage } from '../../lib/errors';
-import { format } from 'date-fns';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Truck, Search, X, RefreshCw, Building2, User2,
-  FileCheck2, Clock, MapPin, Repeat2, Ban
+  Truck, Package, Route, Users, Wallet, ChevronDown, ChevronRight, ChevronsUpDown, ChevronsDownUp, Repeat2, PackageX,
+  FileCheck2, MapPin, ArrowRight, Undo2, TriangleAlert,
 } from 'lucide-react';
-import TripModal from './TripModal';
+import { documentAPI } from '../../api';
+import { getErrorMessage } from '../../lib/errors';
+import { C, FONT } from './design/tokens';
+import {
+  Page, PageHeader, RefreshControl, Card, SearchInput, Badge, Button, BlankState, ErrorState, SearchEmpty, OfflineBanner,
+  ConfirmDialog, notify, RefreshBar, StatusBadge, TONE,
+} from './design/ui';
+import { AssignTripModal } from './modals';
+import { groupByTrip, TripHeaderCells, TripSkeletons } from './DocumentDocumentedPage';
+import { money, count, time } from './lib/format';
+import { useOnline } from './lib/hooks';
 
-function EmptyState() {
+// ─────────────────────────────────────────────────────────────────────────
+// Safarga tayyor — hujjati chiqarilgan, haydovchida turgan buyurtmalar
+// safarlar bo'yicha. Bitta buyurtmani boshqa haydovchiga o'tkazish yoki
+// (haydovchi hali topshirmagan bo'lsa) butunlay qaytarish mumkin.
+// ─────────────────────────────────────────────────────────────────────────
+
+const HEAD_GRID = '36px minmax(0,1.35fr) minmax(0,1.1fr) minmax(0,0.85fr) auto minmax(132px,auto)';
+const ROW_GRID = 'minmax(120px,150px) 104px minmax(0,1fr) 150px 300px';
+
+function Summary({ orders, groups }) {
+  const drivers = new Set(orders.map((o) => o.driverId)).size;
+  const sum = orders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+  const tiles = [
+    [Package, 'Tayyor buyurtmalar', count(orders.length)],
+    [Route, 'Safarlar', count(groups.length)],
+    [Users, 'Haydovchilar', count(drivers)],
+    [Wallet, 'Jami summa', money(sum)],
+  ];
   return (
-    <div className="py-20 text-center">
-      <div className="w-16 h-16 mx-auto bg-orange-50 rounded-2xl flex items-center justify-center mb-4">
-        <Truck size={28} className="text-orange-200" />
-      </div>
-      <p className="text-gray-400 text-sm font-medium">Safarga tayyorlangan order yo'q</p>
-      <p className="text-gray-300 text-xs mt-1">"Hujjatlashtirilgan" bo'limidan safarga chiqaring</p>
-    </div>
-  );
-}
-
-function FullReturnModal({ order, onClose, onDone }) {
-  const [reason, setReason] = useState('');
-
-  const mutation = useMutation({
-    mutationFn: () => documentAPI.fullReturn(order.id, reason),
-    onSuccess: (res) => {
-      toast.success(res.data.message || 'Buyurtma butunlay qaytarildi');
-      onDone();
-      onClose();
-    },
-    onError: e => toast.error(getErrorMessage(e)),
-  });
-
-  return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <div>
-            <h3 className="font-black text-gray-900">Orderni butunlay qaytarish</h3>
-            <p className="text-xs text-gray-400 mt-0.5">#{order.invoiceNumber} · {order.client?.orgName}</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors">
-            <X size={16} className="text-gray-400" />
-          </button>
-        </div>
-
-        <div className="p-5 space-y-2.5">
-          <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider">Qaytarish sababi</p>
-          <textarea
-            value={reason}
-            onChange={e => setReason(e.target.value)}
-            placeholder="Masalan: mijoz qabul qilmadi, manzilga yetib borib bo'lmadi..."
-            rows={4}
-            className="w-full px-3.5 py-3 rounded-xl border-2 border-gray-200 focus:border-red-400 outline-none text-sm resize-none transition-colors"
-          />
-          <p className="text-[11px] text-gray-400">
-            Haydovchi hali yukni topshirmagan bo'lsa ishlatiladi. Order "Qaytgan" statusiga o'tadi va bu
-            haydovchi hamda safarga tayyor ro'yxatidan chiqib ketadi. Bu amalni ortga qaytarib bo'lmaydi.
-          </p>
-        </div>
-
-        <div className="px-5 pb-5 flex gap-3">
-          <button onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">
-            Bekor qilish
-          </button>
-          <button
-            onClick={() => mutation.mutate()}
-            disabled={!reason.trim() || mutation.isPending}
-            className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 text-white text-sm font-bold
-              hover:from-red-600 hover:to-rose-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-          >
-            {mutation.isPending
-              ? <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Qaytarilmoqda...</>
-              : <><Ban size={14} /> Butunlay qaytarish</>}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function OrderRow({ o, onReassign, onFullReturn }) {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-      {/* Faktura / mijoz */}
-      <div className="p-4 flex items-start gap-3.5">
-        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center shrink-0">
-          <Building2 size={18} className="text-orange-600" />
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono text-sm font-black text-gray-900">{o.invoiceNumber}</span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
-              <FileCheck2 size={10} /> № {o.dispatchDocument?.documentNumber ?? '—'}
-            </span>
-          </div>
-          <p className="text-sm font-semibold text-gray-700 truncate mt-0.5">{o.client?.orgName}</p>
-          {o.client?.address && (
-            <p className="text-[11px] text-gray-400 truncate flex items-center gap-1 mt-0.5">
-              <MapPin size={10} className="shrink-0" /> {o.client.address}
-            </p>
-          )}
-        </div>
-
-        <div className="hidden sm:flex items-center gap-1.5 text-gray-400 shrink-0">
-          <Clock size={12} />
-          <span className="text-xs font-medium whitespace-nowrap">
-            {o.dispatchedAt ? format(new Date(o.dispatchedAt), 'dd.MM HH:mm') : '—'}
+    <Card role="group" aria-label="Umumiy ko‘rsatkichlar" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
+      {tiles.map(([Icon, label, value], i) => (
+        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderLeft: i ? `1px solid ${C.n200}` : 'none', minWidth: 0 }}>
+          <span style={{ width: 36, height: 36, flex: 'none', borderRadius: 7, background: C.p50, color: C.p800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon size={20} strokeWidth={1.75} aria-hidden="true" /></span>
+          <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <span style={{ font: `400 12px/16px ${FONT}`, color: C.n600 }}>{label}</span>
+            <span className="tnum dc-ellipsis" style={{ font: `600 18px/24px ${FONT}`, color: C.n900 }}>{value}</span>
           </span>
         </div>
-      </div>
+      ))}
+    </Card>
+  );
+}
 
-      {/* Haydovchi / mashina + amallar */}
-      <div className="px-4 pb-4 pt-3 border-t border-gray-50 flex flex-wrap items-center gap-2.5">
-        <div className="flex items-center gap-2 px-3 py-2 bg-sky-50 rounded-xl border border-sky-100 min-w-0">
-          <User2 size={13} className="text-sky-600 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-[9px] text-sky-400 font-bold uppercase tracking-wider leading-none">Haydovchi</p>
-            <p className="text-xs font-bold text-sky-800 truncate max-w-[140px] mt-0.5">{o.driver?.fullName || '—'}</p>
-          </div>
+function TripGroup({ group, open, onToggle, onReassign, onReturn, targetId, online }) {
+  const total = group.orders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+  return (
+    <Card as="section" aria-label={`Safar: ${group.driver?.fullName || '—'}, ${group.vehicle?.plateNumber || ''}`} style={{ overflow: 'hidden' }}>
+      <div onClick={onToggle} className="dc-hover" style={{ display: 'grid', gridTemplateColumns: HEAD_GRID, gap: 12, alignItems: 'center', minHeight: 64, padding: '10px 16px 10px 12px', background: open ? C.n50 : '#fff', cursor: 'pointer' }}>
+        <button
+          type="button"
+          className="dc-ib"
+          aria-expanded={open}
+          aria-label={`${open ? 'Yig‘ish' : 'Yoyish'}: ${group.driver?.fullName || ''}`}
+          title={`${open ? 'Yig‘ish' : 'Yoyish'}: ${group.driver?.fullName || ''}`}
+          onClick={(e) => { e.stopPropagation(); onToggle(); }}
+          style={{ border: `1px solid ${C.n200}`, background: '#fff' }}
+        >
+          {open ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+        </button>
+        <TripHeaderCells group={group} />
+        <div style={{ display: 'flex', gap: 6, justifySelf: 'end', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <StatusBadge variant="READY">Safarga tayyor</StatusBadge>
+          <Badge icon={Package}>{group.orders.length} ta</Badge>
         </div>
-
-        <div className="flex items-center gap-2 px-3 py-2 bg-violet-50 rounded-xl border border-violet-100 min-w-0">
-          <Truck size={13} className="text-violet-600 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-[9px] text-violet-400 font-bold uppercase tracking-wider leading-none">Mashina</p>
-            <p className="text-xs font-bold text-violet-800 truncate max-w-[150px] mt-0.5">{o.vehicle?.model} · {o.vehicle?.plateNumber}</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 ml-auto">
-          <button
-            onClick={() => onReassign(o)}
-            title="Haydovchi va mashinani almashtirish"
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-sky-700
-              bg-sky-50 border border-sky-200 hover:bg-sky-100 active:scale-[0.97] transition-all"
-          >
-            <Repeat2 size={14} /> Almashtirish
-          </button>
-          <button
-            onClick={() => onFullReturn(o)}
-            title="Haydovchi hali topshirmagan bo'lsa, orderni butunlay qaytarish"
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-red-600
-              bg-red-50 border border-red-100 hover:bg-red-100 hover:border-red-200 active:scale-[0.97] transition-all"
-          >
-            <Ban size={14} /> Qaytarish
-          </button>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+          <span style={{ font: `400 12px/16px ${FONT}`, color: C.n600 }}>Jami summa</span>
+          <span className="tnum" style={{ font: `600 14px/20px ${FONT}`, whiteSpace: 'nowrap' }}>{money(total)}</span>
         </div>
       </div>
-    </div>
+      {open && (
+        <div style={{ overflowX: 'auto', borderTop: `1px solid ${C.n200}` }}>
+          <div role="table" aria-label={`${group.driver?.fullName || ''} safari buyurtmalari`} style={{ position: 'relative', minWidth: 880 }}>
+            <span aria-hidden="true" style={{ position: 'absolute', left: 29, top: 0, bottom: 24, width: 2, background: C.n200 }} />
+            <div role="row" style={{ display: 'grid', gridTemplateColumns: ROW_GRID, gap: 12, alignItems: 'center', height: 36, padding: '0 16px 0 60px', borderBottom: `1px solid ${C.n100}`, font: `600 12px/16px ${FONT}`, color: C.n600 }}>
+              <span role="columnheader">Faktura raqami</span>
+              <span role="columnheader">Hujjat №</span>
+              <span role="columnheader">Tashkilot va manzil</span>
+              <span role="columnheader" style={{ textAlign: 'right' }}>Summa</span>
+              <span role="columnheader" style={{ textAlign: 'right' }}>Amallar</span>
+            </div>
+            {group.orders.map((o) => (
+              <div key={o.id} role="row" className="dc-soft-row" style={{ display: 'grid', gridTemplateColumns: ROW_GRID, gap: 12, alignItems: 'center', minHeight: 56, padding: '6px 16px 6px 60px', borderBottom: `1px solid ${C.n100}`, background: targetId === o.id ? C.p50 : undefined }}>
+                <span role="cell" className="tnum dc-ellipsis" style={{ font: `600 13px/18px ${FONT}`, color: C.p800 }}>{o.invoiceNumber}</span>
+                <span role="cell" className="tnum" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, font: `500 13px/18px ${FONT}` }}>
+                  <FileCheck2 size={16} aria-hidden="true" style={{ color: C.n600 }} /> № {o.dispatchDocument?.documentNumber ?? '—'}
+                </span>
+                <span role="cell" style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                  <span className="dc-ellipsis" title={o.client?.orgName} style={{ font: `500 13px/18px ${FONT}` }}>{o.client?.orgName || '—'}</span>
+                  {o.client?.address && (
+                    <span className="dc-ellipsis" title={o.client.address} style={{ display: 'flex', alignItems: 'center', gap: 4, font: `400 12px/16px ${FONT}`, color: C.n600 }}>
+                      <MapPin size={16} aria-hidden="true" style={{ flex: 'none' }} /> <span className="dc-ellipsis">{o.client.address}</span>
+                    </span>
+                  )}
+                </span>
+                <span role="cell" className="tnum" style={{ font: `500 13px/18px ${FONT}`, textAlign: 'right' }}>{money(o.totalAmount)}</span>
+                <span role="cell" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                  <Button variant="tint" size="sm" icon={Repeat2} offline={!online} disabled={!online} title="Haydovchi va mashinani almashtirish" aria-label={`${o.invoiceNumber} — haydovchi va mashinani almashtirish`} onClick={() => onReassign(o.id)}>
+                    Almashtirish
+                  </Button>
+                  <Button variant="danger-outline" size="sm" icon={PackageX} offline={!online} disabled={!online} title="Haydovchi yukni topshirmagan bo‘lsa — buyurtmani butunlay qaytarish" aria-label={`${o.invoiceNumber} — butunlay qaytarish`} onClick={() => onReturn(o.id)}>
+                    Butunlay qaytarish
+                  </Button>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }
 
 export default function DocumentReadyPage() {
   const qc = useQueryClient();
-  const [search, setSearch] = useState('');
-  const [reassignOrder, setReassignOrder] = useState(null);
-  const [fullReturnOrder, setFullReturnOrder] = useState(null);
+  const online = useOnline();
+  const [q, setQ] = useState('');
+  const [openSet, setOpenSet] = useState(null); // null → birinchi ikkitasi ochiq
+  const [reassignId, setReassignId] = useState(null);
+  const [reassignErr, setReassignErr] = useState(null);
+  const [returnId, setReturnId] = useState(null);
+  const [returnErr, setReturnErr] = useState(null);
 
-  const { data: orders = [], isLoading, isFetching, dataUpdatedAt } = useQuery({
+  const query = useQuery({
     queryKey: ['document', 'ready'],
-    queryFn: () => documentAPI.getReady(),
-    select: r => r.data.data || [],
+    queryFn: documentAPI.getReady,
+    select: (r) => r.data.data || [],
     refetchInterval: 15000,
   });
+  const orders = useMemo(() => query.data || [], [query.data]);
+  const byId = useMemo(() => new Map(orders.map((o) => [o.id, o])), [orders]);
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    if (!s) return orders;
+    return orders.filter((o) => [o.invoiceNumber, o.client?.orgName, o.driver?.fullName, o.vehicle?.plateNumber, String(o.dispatchDocument?.documentNumber ?? '')].some((v) => v?.toLowerCase().includes(s)));
+  }, [orders, q]);
+  const groups = useMemo(() => groupByTrip(filtered), [filtered]);
+  const allGroups = useMemo(() => groupByTrip(orders), [orders]);
 
-  const reassignMutation = useMutation({
+  // Modal ochiq turgan buyurtma ID bo'yicha har doim yangi ma'lumotdan olinadi
+  const reassignOrder = reassignId ? byId.get(reassignId) : null;
+  const returnOrder = returnId ? byId.get(returnId) : null;
+
+  const isOpen = (key, idx) => (q.trim() ? true : openSet ? openSet.has(key) : idx < 2);
+  const toggle = (key, idx) => setOpenSet((p) => {
+    const base = p || new Set(groups.slice(0, 2).map((g) => g.key));
+    const s = new Set(base);
+    isOpen(key, idx) ? s.delete(key) : s.add(key);
+    return s;
+  });
+
+  const reassign = useMutation({
     mutationFn: ({ id, driverId, vehicleId }) => documentAPI.reassignTrip(id, { driverId, vehicleId }),
-    onSuccess: (res) => {
-      toast.success(res.data.message || 'Haydovchi almashtirildi');
-      qc.invalidateQueries(['document']);
-      setReassignOrder(null);
+    onSuccess: (res, v) => {
+      const o = byId.get(v.id);
+      setReassignId(null);
+      qc.invalidateQueries({ queryKey: ['document'] });
+      const d = res.data?.data;
+      notify({ title: 'Haydovchi almashtirildi', desc: `${o?.invoiceNumber || ''} endi ${d?.driver?.fullName || 'yangi haydovchi'}${d?.vehicle?.model ? ` · ${d.vehicle.model}` : ''} safarida.` });
     },
-    onError: e => toast.error(getErrorMessage(e)),
+    onError: (e) => setReassignErr(getErrorMessage(e)),
   });
 
-  const filtered = orders.filter(o => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return o.invoiceNumber?.toLowerCase().includes(q)
-      || o.client?.orgName?.toLowerCase().includes(q)
-      || o.driver?.fullName?.toLowerCase().includes(q)
-      || o.vehicle?.plateNumber?.toLowerCase().includes(q);
+  const fullReturn = useMutation({
+    mutationFn: ({ id, reason }) => documentAPI.fullReturn(id, reason),
+    onSuccess: (_r, v) => {
+      const o = byId.get(v.id);
+      setReturnId(null);
+      qc.invalidateQueries({ queryKey: ['document'] });
+      notify({ tone: 'warning', icon: Undo2, title: 'Buyurtma butunlay qaytarildi', desc: `${o?.invoiceNumber || ''} «Qaytarilgan» holatiga o‘tdi va ro‘yxatdan chiqarildi.` });
+    },
+    onError: (e) => setReturnErr(getErrorMessage(e)),
   });
+
+  // Modal ochiq turgan buyurtma ro'yxatdan chiqib ketsa (boshqa hujjatchi yoki
+  // haydovchi o'zgartirgan bo'lsa) — oyna yopiladi va xabar beriladi.
+  useEffect(() => {
+    // O'zimizning so'rovimiz bajarilayotganda buyurtma ro'yxatdan chiqsa — bu
+    // "boshqa joyda o'zgardi" emas; natijani onSuccess/onError o'zi ko'rsatadi.
+    if (!query.data || reassign.isPending || fullReturn.isPending) return;
+    if ((reassignId && !byId.has(reassignId)) || (returnId && !byId.has(returnId))) {
+      setReassignId(null);
+      setReturnId(null);
+      notify({ tone: 'info', title: 'Buyurtma ro‘yxatdan chiqdi', desc: 'Bu buyurtma boshqa joyda o‘zgartirilgan. Ro‘yxat yangilandi.' });
+    }
+  }, [byId, reassignId, returnId, query.data, reassign.isPending, fullReturn.isPending]);
+
+  const loading = query.isLoading;
+  const error = query.isError && !query.data;
+  const empty = !loading && !error && orders.length === 0;
+  const updated = query.dataUpdatedAt ? time(query.dataUpdatedAt, true) : '—';
 
   return (
-    <div className="space-y-5 pb-8">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-orange-100 flex items-center justify-center">
-              <Truck size={16} className="text-orange-600" />
-            </div>
-            Safarga tayyor orderlar
-          </h1>
-          <p className="text-sm text-gray-400 mt-0.5 ml-10 font-medium">
-            {filtered.length} ta order yo'lda · {dataUpdatedAt ? format(new Date(dataUpdatedAt), 'HH:mm:ss') : '—'}
-          </p>
-        </div>
-        <button
-          onClick={() => qc.invalidateQueries(['document', 'ready'])}
-          className={`w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:text-orange-600 hover:border-orange-300 transition-colors ${isFetching ? 'animate-spin text-orange-500' : ''}`}
-        >
-          <RefreshCw size={15} />
-        </button>
-      </div>
+    <Page>
+      <PageHeader title="Safarga tayyor" description="Hujjatlashtirilgan va haydovchiga topshirilgan buyurtmalar — safarlar bo‘yicha.">
+        <RefreshControl
+          label={loading ? 'Yuklanmoqda…' : error ? 'Yangilanmadi' : `${count(orders.length)} ta buyurtma · ${updated}`}
+          fetching={query.isFetching}
+          offline={!online}
+          onRefresh={() => query.refetch()}
+          title="Ro‘yxat har 15 soniyada avtomatik yangilanadi"
+        />
+      </PageHeader>
 
-      {/* Search */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-        <div className="relative">
-          <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Faktura, tashkilot, haydovchi yoki mashina raqami..."
-            className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-transparent rounded-xl text-sm
-              focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white focus:border-orange-100
-              transition-all placeholder:text-gray-400"
-          />
-          {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors">
-              <X size={12} className="text-gray-500" />
-            </button>
-          )}
-        </div>
-      </div>
+      {!online && <OfflineBanner text={`Ro‘yxat ${updated} holatida ko‘rsatilmoqda. Aloqa tiklanguncha Almashtirish va Qaytarish o‘chirilgan.`} />}
 
-      {/* List */}
-      {isLoading ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-20 flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-gray-400">Yuklanmoqda...</p>
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-          <EmptyState />
-        </div>
-      ) : (
-        <div className="space-y-2.5">
-          {filtered.map(o => (
-            <OrderRow key={o.id} o={o} onReassign={setReassignOrder} onFullReturn={setFullReturnOrder} />
-          ))}
-        </div>
+      {!loading && !error && !empty && <Summary orders={orders} groups={allGroups} />}
+
+      {!error && !empty && (
+        <Card style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', flexWrap: 'wrap' }}>
+          <SearchInput value={q} onChange={setQ} placeholder="Faktura, hujjat №, tashkilot, haydovchi yoki mashina raqami" disabled={loading} style={{ flex: '0 1 440px', minWidth: 260 }} />
+          {q && <span className="tnum" style={{ font: `400 13px/18px ${FONT}`, color: C.n600 }}>{filtered.length} ta buyurtma · {groups.length} ta safar</span>}
+          <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 4 }}>
+            <Button variant="ghost" size="sm" icon={ChevronsUpDown} disabled={loading} onClick={() => setOpenSet(new Set(groups.map((g) => g.key)))}>Hammasini yoyish</Button>
+            <Button variant="ghost" size="sm" icon={ChevronsDownUp} disabled={loading} onClick={() => setOpenSet(new Set())}>Yig‘ish</Button>
+          </span>
+        </Card>
       )}
+
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <RefreshBar show={query.isFetching && !loading} />
+        {loading ? <TripSkeletons /> : error ? (
+          <ErrorState title="Buyurtmalarni yuklab bo‘lmadi" onRetry={() => query.refetch()} />
+        ) : empty ? (
+          <BlankState icon={Truck} title="Safarga tayyor buyurtmalar yo‘q" text="Hujjatlashtirish bo‘limida hujjat yaratilgan buyurtmalar shu yerda safarlar bo‘yicha ko‘rinadi." />
+        ) : groups.length === 0 ? (
+          <SearchEmpty text={`«${q}» bo‘yicha faktura, tashkilot, haydovchi yoki mashina raqami topilmadi.`} onClear={() => setQ('')} />
+        ) : groups.map((g, i) => (
+          <TripGroup
+            key={g.key}
+            group={g}
+            open={isOpen(g.key, i)}
+            onToggle={() => toggle(g.key, i)}
+            online={online}
+            targetId={reassignId || returnId}
+            onReassign={(id) => { setReassignErr(null); setReassignId(id); }}
+            onReturn={(id) => { setReturnErr(null); setReturnId(id); }}
+          />
+        ))}
+      </div>
 
       {reassignOrder && (
-        <TripModal
+        <AssignTripModal
+          mode="reassign"
           orders={[reassignOrder]}
-          onClose={() => setReassignOrder(null)}
-          onConfirm={(driverId, vehicleId) => reassignMutation.mutate({ id: reassignOrder.id, driverId, vehicleId })}
-          loading={reassignMutation.isPending}
-          confirmLabel="Qayta biriktirish"
+          busy={reassign.isPending}
+          error={reassignErr}
+          onClose={() => setReassignId(null)}
+          onConfirm={(driverId, vehicleId) => { setReassignErr(null); reassign.mutate({ id: reassignOrder.id, driverId, vehicleId }); }}
         />
       )}
-
-      {fullReturnOrder && (
-        <FullReturnModal
-          order={fullReturnOrder}
-          onClose={() => setFullReturnOrder(null)}
-          onDone={() => qc.invalidateQueries(['document'])}
-        />
+      {returnOrder && (
+        <ConfirmDialog
+          icon={PackageX}
+          tone="danger"
+          danger
+          width={520}
+          title="Buyurtmani butunlay qaytarish?"
+          text={<><b className="tnum" style={{ fontWeight: 600, color: C.p800 }}>{returnOrder.invoiceNumber}</b> · {returnOrder.client?.orgName || '—'} · {money(returnOrder.totalAmount)}</>}
+          error={returnErr ? `Qaytarib bo‘lmadi. ${returnErr}` : null}
+          reason={{ label: 'Qaytarish sababi', required: true, placeholder: 'Masalan: mijoz qabul qilmadi, manzilga yetib borib bo‘lmadi', error: 'Qaytarish sababini kiriting.' }}
+          confirmLabel="Butunlay qaytarish"
+          confirmIcon={PackageX}
+          busyLabel="Qaytarilmoqda…"
+          busy={fullReturn.isPending}
+          onClose={() => setReturnId(null)}
+          onConfirm={(reason) => { setReturnErr(null); fullReturn.mutate({ id: returnOrder.id, reason }); }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 12, borderRadius: 7, background: C.warning.bg, border: `1px solid ${C.warning.border}`, font: `400 13px/20px ${FONT}`, color: C.warning.text }}>
+            <span style={{ display: 'flex', gap: 8 }}><TriangleAlert size={16} aria-hidden="true" style={{ flex: 'none', marginTop: 2 }} /> Faqat haydovchi yukni hali topshirmagan bo‘lsa ishlating.</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingLeft: 24 }}>
+              Holat: <StatusBadge variant="READY">Safarga tayyor</StatusBadge> <ArrowRight size={16} aria-hidden="true" /> <Badge {...TONE.warning} icon={Undo2}>Qaytarilgan</Badge>
+            </span>
+            <span style={{ paddingLeft: 24 }}>Buyurtma haydovchidan va Safarga tayyor ro‘yxatidan chiqadi. <b style={{ fontWeight: 600 }}>Keyin uni faqat Tarix bo‘limidagi «Tiklash» orqali Biriktirishga qaytarish mumkin.</b></span>
+          </div>
+        </ConfirmDialog>
       )}
-    </div>
+    </Page>
   );
 }
