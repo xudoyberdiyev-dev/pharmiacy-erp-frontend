@@ -87,8 +87,10 @@ export const markerAPI = {
   acceptEtirov: (etirovId) => api.patch(`/marker/etirozlar/${etirovId}/accept`),
   rejectEtirov: (etirovId, data) => api.patch(`/marker/etirozlar/${etirovId}/reject`, data),
   accept: (id) => api.patch(`/marker/orders/${id}/accept`),
-  complete: (id, formData) => api.patch(`/marker/orders/${id}/complete`, formData, {
+  // cfg — ixtiyoriy axios sozlamasi (masalan onUploadProgress); eski chaqiruvlar o'zgarmaydi
+  complete: (id, formData, cfg) => api.patch(`/marker/orders/${id}/complete`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    ...cfg,
   }),
   completeNoFile: (id) => api.patch(`/marker/orders/${id}/complete`),
   returnToPicking: (id, reason) => api.patch(`/marker/orders/${id}/return-to-picking`, { reason }),

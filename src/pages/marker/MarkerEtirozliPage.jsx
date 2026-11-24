@@ -1,192 +1,86 @@
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { User, CheckCheck, MessageSquareWarning } from 'lucide-react';
 import { markerAPI } from '../../api';
-import { format } from 'date-fns';
-import { AlertCircle, Clock, CheckCircle2, XCircle, User } from 'lucide-react';
+import { C, FONT, MONO } from './design/tokens';
+import {
+  EtirozlarHeader, StatusBadge, Segmented, CardSkeleton, StateBox, ErrorState, SHARED_CSS,
+  TYPE_LABELS, REJECT_LABELS, statusLabel, dt,
+} from './etirozlar/shared';
 
-const ETIROV_TYPE_LABELS = {
-  WRONG_QUANTITY:  'Dori miqdori noto\'g\'ri',
-  WRONG_PRODUCT:   'Noto\'g\'ri dori olib kelindi',
-  WRONG_SERIES:    'Dorining seriyasi boshqa',
-  DAMAGED:         'Dori shikastlangan',
-  MISSING_PRODUCT: 'Dori ro\'yxatda yo\'q',
-  OTHER:           'Boshqa sabab',
-};
-
-function EtirovStatusBadge({ status }) {
-  if (status === 'PENDING')  return <span className="text-[10px] font-black px-2 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-300 animate-pulse">Kutilmoqda</span>;
-  if (status === 'ACCEPTED') return <span className="text-[10px] font-black px-2 py-1 rounded-lg bg-green-50 text-green-700 border border-green-300">Qabul qilindi</span>;
-  if (status === 'REJECTED') return <span className="text-[10px] font-black px-2 py-1 rounded-lg bg-red-50 text-red-700 border border-red-300">Qabul qilinmadi</span>;
-  return null;
-}
-
-function EtirozliCard({ order }) {
-  const etirozlar = order.etirozlar || [];
-  const pending   = etirozlar.filter(e => e.status === 'PENDING');
-  const accepted  = etirozlar.filter(e => e.status === 'ACCEPTED');
-  const rejected  = etirozlar.filter(e => e.status === 'REJECTED');
-
-  return (
-    <div className={`bg-white rounded-2xl border-2 shadow-sm transition-all hover:shadow-md ${
-      pending.length  ? 'border-amber-300' :
-      accepted.length ? 'border-green-300' :
-      rejected.length ? 'border-red-300'   : 'border-gray-100'
-    }`}>
-      {/* Header */}
-      <div className={`rounded-t-2xl px-5 py-4 border-b ${
-        pending.length  ? 'bg-amber-50/60 border-amber-100'  :
-        accepted.length ? 'bg-green-50/60 border-green-100'  :
-        rejected.length ? 'bg-red-50/60 border-red-100'      : 'bg-gray-50 border-gray-100'
-      }`}>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="font-mono text-base font-black text-gray-900">#{order.invoiceNumber}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{format(new Date(order.createdAt), 'dd.MM.yyyy HH:mm')}</p>
-          </div>
-          <div className="flex flex-col items-end gap-1.5">
-            {pending.length  > 0 && <span className="text-[11px] font-black text-amber-700">{pending.length} ta kutilmoqda</span>}
-            {accepted.length > 0 && <span className="text-[11px] font-black text-green-700">{accepted.length} ta qabul qilindi</span>}
-            {rejected.length > 0 && <span className="text-[11px] font-black text-red-700">{rejected.length} ta rad etildi</span>}
-          </div>
-        </div>
-
-        {/* Client + Picker */}
-        <div className="grid grid-cols-2 gap-2 mt-3">
-          <div className="flex items-center gap-2 p-2.5 bg-white/80 rounded-xl">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-400 to-violet-500 flex items-center justify-center text-white font-black text-xs shrink-0">
-              {order.client?.orgName?.charAt(0)}
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] text-gray-400">Klient</p>
-              <p className="text-xs font-bold text-gray-900 truncate">{order.client?.orgName}</p>
-            </div>
-          </div>
-          {order.assignedPicker && (
-            <div className="flex items-center gap-2 p-2.5 bg-white/80 rounded-xl">
-              <div className="w-7 h-7 rounded-lg bg-teal-100 flex items-center justify-center shrink-0">
-                <User size={12} className="text-teal-600" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] text-gray-400">Picker</p>
-                <p className="text-xs font-bold text-gray-900 truncate">{order.assignedPicker.fullName}</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Etirozlar */}
-      <div className="p-4 space-y-2.5">
-        <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider">Etirozlar</p>
-
-        {etirozlar.map((e, i) => (
-          <div key={e.id || i} className={`rounded-xl p-3.5 border ${
-            e.status === 'PENDING'  ? 'bg-amber-50/60 border-amber-100'  :
-            e.status === 'ACCEPTED' ? 'bg-green-50/60 border-green-100'  :
-            'bg-red-50/60 border-red-100'
-          }`}>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-black text-gray-700">
-                {ETIROV_TYPE_LABELS[e.type] || e.type}
-              </span>
-              <EtirovStatusBadge status={e.status} />
-            </div>
-
-            {e.comment && (
-              <p className="text-[11px] text-gray-600 font-medium mb-2">"{e.comment}"</p>
-            )}
-
-            {/* Picker's response if rejected */}
-            {e.status === 'REJECTED' && (
-              <div className="mt-2 pt-2 border-t border-red-100">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <XCircle size={11} className="text-red-500" />
-                  <p className="text-[10px] font-black text-red-600">Picker javobi:</p>
-                </div>
-                {e.responseTypes?.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-1">
-                    {e.responseTypes.map(rt => (
-                      <span key={rt} className="text-[10px] px-2 py-0.5 bg-red-100 text-red-700 rounded-md font-semibold">
-                        {ETIROV_TYPE_LABELS[rt] || rt}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {e.responseComment && (
-                  <p className="text-[11px] text-gray-600 italic">"{e.responseComment}"</p>
-                )}
-                {e.resolvedAt && (
-                  <p className="text-[10px] text-gray-400 mt-1">{format(new Date(e.resolvedAt), 'dd.MM HH:mm')}</p>
-                )}
-              </div>
-            )}
-
-            {/* Accepted response */}
-            {e.status === 'ACCEPTED' && (
-              <div className="mt-2 pt-2 border-t border-green-100 flex items-center gap-1.5">
-                <CheckCircle2 size={11} className="text-green-500" />
-                <p className="text-[11px] text-green-700 font-semibold">
-                  Picker qabul qildi
-                  {e.resolvedAt ? ` · ${format(new Date(e.resolvedAt), 'HH:mm')}` : ''}
-                </p>
-              </div>
-            )}
-
-            <p className="text-[10px] text-gray-400 mt-1.5">
-              <Clock size={10} className="inline mr-1" />
-              {format(new Date(e.createdAt), 'dd.MM HH:mm')}
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+// Route: /marker/etirozli — "Men bildirganlar" (Phase 06).
+// Backend getEtirozli: markerId=me va kamida bitta fromRole='MARKER' e'tiroz bor
+// orderlar. Diqqat: include'dagi `etirozlar` filtrsiz — bitta orderda Tekshiruvchi→Marker
+// e'tirozlari ham kelishi mumkin. Shu tab faqat fromRole==='MARKER' ni ko'rsatadi.
+// Sana: e'tirozning o'z `createdAt` qiymati (buyurtma sanasi emas).
 
 export default function MarkerEtirozliPage() {
-  const { data: orders = [], isLoading } = useQuery({
+  const [filter, setFilter] = useState('all');
+  const { data: orders = [], isLoading, isError, isFetching, dataUpdatedAt, refetch } = useQuery({
     queryKey: ['marker-etirozli'],
     queryFn: markerAPI.getEtirozli,
-    refetchInterval: 20000,
-    select: r => r.data.data || [],
+    refetchInterval: 30000,
+    select: (r) => r.data.data || [],
   });
 
-  return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center">
-            <AlertCircle size={16} className="text-amber-600" />
-          </div>
-          Etirozli orderlar
-        </h1>
-        <p className="text-sm text-gray-400 mt-0.5 ml-10 font-medium">
-          Men etirozli bildirgan orderlar va picker javobi
-        </p>
-      </div>
+  const cards = useMemo(() => orders.map((o) => ({ o, et: (o.etirozlar || []).filter((e) => e.fromRole === 'MARKER') })).filter((c) => c.et.length), [orders]);
+  const all = cards.flatMap((c) => c.et);
+  const count = (s) => all.filter((e) => e.status === s).length;
+  const visible = cards.map((c) => ({ ...c, shown: c.et.filter((e) => filter === 'all' || e.status === filter) })).filter((c) => c.shown.length);
+  const ok = !isLoading && !isError;
 
-      {isLoading ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {[1,2].map(i => (
-            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 h-52 animate-pulse">
-              <div className="h-4 bg-gray-100 rounded w-1/3 mb-3" />
-              <div className="h-14 bg-gray-100 rounded mb-3" />
-              <div className="h-16 bg-amber-50 rounded" />
-            </div>
-          ))}
-        </div>
-      ) : orders.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-20 text-center">
-          <div className="w-16 h-16 mx-auto bg-amber-50 rounded-2xl flex items-center justify-center mb-4">
-            <AlertCircle size={28} className="text-amber-200" />
-          </div>
-          <p className="text-gray-500 text-sm font-semibold">Etirozli orderlar yo'q</p>
-          <p className="text-gray-300 text-xs mt-1">Hamma narsa tartibda!</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {orders.map(o => <EtirozliCard key={o.id} order={o} />)}
+  return (
+    <div className="mke" style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0, font: `400 14px/20px ${FONT}`, color: C.text }}>
+      <style>{SHARED_CSS}</style>
+      <EtirozlarHeader dataUpdatedAt={dataUpdatedAt} isFetching={isFetching} onRefresh={() => refetch()} />
+
+      {ok && all.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ font: `400 13px/18px ${FONT}`, color: C.text2 }}>Picker'ga yuborgan e'tirozlaringiz va Picker javoblari</span>
+          <Segmented label="Holat bo'yicha filtr" value={filter} onChange={setFilter}
+            items={[['all', 'Barchasi', all.length], ['PENDING', statusLabel('PENDING'), count('PENDING')], ['ACCEPTED', statusLabel('ACCEPTED'), count('ACCEPTED')], ['REJECTED', statusLabel('REJECTED'), count('REJECTED')]]} />
         </div>
       )}
+
+      {isLoading && [0, 1].map((i) => <CardSkeleton key={i} />)}
+      {isError && <ErrorState onRetry={() => refetch()} isFetching={isFetching} />}
+
+      {ok && visible.map(({ o, et, shown }) => (
+        <article key={o.id} style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden' }}>
+          <header style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: `1px solid ${C.border}`, flexWrap: 'wrap' }}>
+            <span style={{ font: `500 13px/18px ${MONO}`, color: C.text2, whiteSpace: 'nowrap', flex: 'none' }}>№ {o.invoiceNumber}</span>
+            <span className="mk-ellipsis" style={{ font: `600 15px/22px ${FONT}`, minWidth: 0 }}>{o.client?.orgName || '—'}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, font: `400 13px/18px ${FONT}`, color: C.text2, whiteSpace: 'nowrap' }}><User size={14} aria-hidden="true" />Picker: <span style={{ color: C.text, fontWeight: 500 }}>{o.assignedPicker?.fullName || '—'}</span></span>
+            <span style={{ marginLeft: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {['PENDING', 'ACCEPTED', 'REJECTED'].map((s) => { const n = et.filter((e) => e.status === s).length; return n ? <span key={s} className="tnum" style={{ font: `500 12px/16px ${FONT}`, color: C.text2 }}>{n} ta {statusLabel(s).toLowerCase()}</span> : null; })}
+            </span>
+          </header>
+          {shown.map((e) => (
+            <div key={e.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: '16px 24px', padding: '14px 16px', borderTop: `1px solid ${C.surface2}` }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}><span style={{ font: `600 14px/20px ${FONT}` }}>{TYPE_LABELS[e.type] || e.type}</span><StatusBadge status={e.status} /></span>
+                {e.comment && <span style={{ font: `400 13px/18px ${FONT}`, color: C.textBody, overflowWrap: 'anywhere' }}>{e.comment}</span>}
+                <span className="tnum" style={{ font: `400 12px/16px ${FONT}`, color: C.textMuted }}>Yuborildi: {dt(e.createdAt)}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+                <span style={{ font: `400 12px/16px ${FONT}`, color: C.textMuted }}>Picker javobi</span>
+                {e.status === 'PENDING' && <span style={{ font: `400 13px/18px ${FONT}`, color: C.text2 }}>Hali javob bermagan</span>}
+                {e.status === 'ACCEPTED' && <span style={{ display: 'flex', alignItems: 'center', gap: 6, font: `400 13px/18px ${FONT}`, color: C.success.text }}><CheckCheck size={16} aria-hidden="true" />Picker e'tirozni qabul qildi · <span className="tnum">{dt(e.resolvedAt)}</span></span>}
+                {e.status === 'REJECTED' && (
+                  <div style={{ padding: '10px 12px', borderRadius: 6, background: C.bgApp, border: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {e.responseTypes?.length > 0 && <span style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{e.responseTypes.map((t) => <span key={t} style={{ height: 22, padding: '0 8px', borderRadius: 4, background: '#fff', border: `1px solid ${C.borderStrong}`, font: `500 12px/16px ${FONT}`, color: C.textBody, display: 'inline-flex', alignItems: 'center' }}>{REJECT_LABELS[t] || t}</span>)}</span>}
+                    {e.responseComment && <span style={{ font: `400 13px/18px ${FONT}`, overflowWrap: 'anywhere' }}>{e.responseComment}</span>}
+                    <span className="tnum" style={{ font: `400 12px/16px ${FONT}`, color: C.textMuted }}>{dt(e.resolvedAt)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </article>
+      ))}
+
+      {ok && all.length > 0 && visible.length === 0 && <StateBox compact title="Bu holatdagi e'tiroz yo'q" />}
+      {ok && all.length === 0 && <StateBox Icon={MessageSquareWarning} title="Siz bildirgan e'tirozlar yo'q" desc={'"Mening buyurtmalarim" sahifasida e\'tiroz bildirsangiz, u shu yerda ko\'rinadi.'} />}
     </div>
   );
 }
